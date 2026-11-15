@@ -1,27 +1,13 @@
-seed: 42
-data:
-  mot_dir: D:/gaplink/data/mot
-  cache_dir: D:/gaplink/data/cache
-  val_events: D:/gaplink/data/cache/val_events.pkl
-  n_overfit: 64
-model:
-  d: 128
-  hist_len: 20
-  n_ctx: 8
-  n_cand_max: 10
-  n_trk_max: 6
-  use_ctx: true
-  use_color: true
-  gap_aware: true
-train:
-  batch: 64
-  steps: 600
-  lr: 1.0e-3
-  wd: 0.0
-  warmup: 20
-  clip: 1.0
-  amp: false
-  eval_every: 100
-loss:
-  assign: 1.0
-  nll: 0.5
+seed: 20260417
+batch_size: 32
+lr: 0.002
+weight_decay: 0.0001
+epochs: 260
+grad_clip: 1.0
+w_assign: 1.0
+w_nll: 0.5
+use_ctx: true
+use_color: true
+gap_aware: true
+overfit_n: 64
+run_dir: "runs/overfit"

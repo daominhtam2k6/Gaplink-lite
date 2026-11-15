@@ -1,4 +1,16 @@
-seed: 42
-inherit: configs/main.yaml
-model:
-  use_color: false
+seed: 20260417
+batch_size: 64
+lr: 0.0005
+weight_decay: 0.0001
+steps: 4000
+eval_every: 500
+warmup_steps: 200
+grad_clip: 1.0
+w_assign: 1.0
+w_nll: 0.5
+use_ctx: true
+use_color: false
+gap_aware: true
+hard_prob_start: 0.4
+hard_prob_end: 0.8
+run_dir: "runs/ablation_color"

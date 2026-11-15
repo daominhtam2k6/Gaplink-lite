@@ -1,0 +1,9 @@
+iou_thr: 0.3
+a_max: 60
+gaplink_tau: 0.2
+c2_theta: 2.5
+c3_theta: 25.0
+c4_theta: 29.0
+c4_lambda_s: 0.5
+c4_lambda_c: 2.0
+final_sha256: 589b4154a7e39d92ca09d5f8502e495db440dde4ea25c58a4d23fc3c98267792
