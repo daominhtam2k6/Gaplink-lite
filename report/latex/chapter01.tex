@@ -1,0 +1,88 @@
+\chapter{Introduction}
+\label{chap:introduction}
+
+\section{Background Information}
+\label{sec:background}
+
+Multi-object tracking (MOT) in urban traffic scenes estimates the trajectories of vehicles (	extit{car, bus, van, others}) across video frames while maintaining consistent object identities (IDs). In standard tracking-by-detection pipelines such as SORT \cite{bewley2016sort}, DeepSORT \cite{wojke2017deepsort}, ByteTrack \cite{zhang2022bytetrack}, and OC-SORT \cite{cao2023ocsort}, a detector provides per-frame bounding boxes and an association module links detections to active tracks. When a vehicle is occluded by another vehicle, an overpass, or a roadside structure for $g \in [3, 90]$ consecutive frames, frame-by-frame IoU matching fails and the track enters a lost pool. Upon reappearance at confirmation frame $t_{\text{conf}}$, the tracker must solve a many-to-many re-association problem between $N$ lost tracks and $M$ unmatched candidate detections while simultaneously handling tracks that permanently exited the camera view and candidates corresponding to newly entered vehicles.
+
+Linear Kalman filters with Mahalanobis gating struggle during medium-to-long occlusion gaps ($g \ge 16$ frames) for three fundamental reasons: (i) constant-velocity state extrapolation accumulates nonlinear drift when vehicles accelerate, decelerate, or change lanes; (ii) uncalibrated process noise matrices produce overconfident or poorly scaled uncertainty ellipses across varying gap lengths; and (iii) greedy or unnormalized pairwise costs lack a principled, differentiable mechanism to weigh competitive multi-track assignments against track/candidate dustbins (abstention).
+
+\section{Motivation and Objective}
+\label{sec:motivation_objective}
+
+\textbf{Overall objective.} This capstone project designs, implements, and rigorously evaluates \textbf{GapLink-Lite}, a compact, 100\% self-developed and randomly initialized neural network ($327,979$ trainable parameters, $< 1\text{M}$ parameter budget) for vehicle identity re-association across occlusion gaps on the real-world \textbf{UA-DETRAC} benchmark \cite{wen2020uadetrac} ($100$ traffic sequences, $140,096$ frames, $8,384$ vehicle trajectories, $1,802,853$ vehicle bounding boxes, and $0$ pedestrian annotations).
+
+\textbf{Mandatory design constraints satisfied:}
+\begin{enumerate}
+    \item \textbf{Non-human tracking domain:} The entire pipeline operates strictly on road vehicles in UA-DETRAC ($0$ human/pedestrian boxes across all $100$ sequences, verified in \texttt{data/stats.json}).
+    \item \textbf{100\% self-developed core model:} Every module of GapLink-Lite---a 2-layer GRU motion encoder with learned gap embedding, a permutation-invariant DeepSets neighbor context encoder \cite{zaheer2017deepsets}, a constant-velocity residual Gaussian trajectory predictor, a pairwise + track/candidate dustbin scorer, and a 20-iteration log-domain Sinkhorn optimal transport layer \cite{sinkhorn1967,cuturi2013sinkhorn}---is written from scratch in PyTorch and trained from random initialization (	exttt{seed=20260417}) without any pretrained weights or third-party tracker codebases.
+\end{enumerate}
+
+\textbf{Pre-registered hypotheses (locked in \texttt{docs/PREREG.md} prior to test evaluation):}
+\begin{itemize}
+    \item \textbf{H1 (Event-Level Hard Re-Association):} On the locked test split ($12,000$ events across $40$ camera-separated test sequences), GapLink-Lite improves Top-1 re-association accuracy on the geometrically hard subset by $\ge +4.0$ percentage points over the classical Kalman + Mahalanobis baseline (C-3) and $\ge +2.0$ percentage points over Kalman + Size + Color (C-4), with the 95\% paired cluster bootstrap confidence interval (CI) excluding zero. \textbf{Outcome: Achieved} ($+\mathbf{14.08}\%$ over C-3, 95\% CI $[12.89, 15.35]\%$; $+\mathbf{9.52}\%$ over C-4, 95\% CI $[8.31, 10.78]\%$).
+    \item \textbf{H2 (Calibrated Uncertainty Across Gap Bins):} Post-hoc gap-dependent variance scaling fitted on validation half-A brings empirical 90\% 2D Gaussian ellipse coverage on the test split within $[85\%, 95\%]$ across all three occlusion gap bins: short ($3$--$15$), medium ($16$--$45$), and long ($46$--$90$). \textbf{Outcome: Achieved} (overall test coverage $\mathbf{87.70}\%$, with short $\mathbf{86.46}\%$, medium $\mathbf{90.34}\%$, and long $\mathbf{84.72}\%$).
+    \item \textbf{H3 (Online Tracker Identity Recovery Under Full \& Partial Occlusion):} Inside the 2-stage online tracker evaluated across all $40$ test sequences, GapLink-Lite increases Identity Recovery Rate (IRR) over C-3 while maintaining Wrong-Link Rate (WLR) $\le 5.0\%$. \textbf{Outcome: Achieved} (Full occlusion IRR $\mathbf{96.15}\%$ vs.\ C-3 $90.06\%$, WLR $\mathbf{0.17}\%$; Partial occlusion IRR $\mathbf{96.08}\%$ vs.\ C-3 $88.89\%$, WLR $\mathbf{0.17}\%$).
+\end{itemize}
+
+\section{Members and Role Assignments}
+\label{sec:members_roles}
+
+This is an individual capstone project. Table~\ref{tab:team_roles} summarizes the student's responsibilities and deliverables, and Table~\ref{tab:contributions} explicitly distinguishes self-developed components from external data and libraries.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Project responsibilities and deliverables}
+    \label{tab:team_roles}
+    \begin{tabularx}{\textwidth}{l p{3.5cm} X}
+        \toprule
+        \textbf{No.} & \textbf{Student} & \textbf{Responsibilities and Deliverables} \\
+        \midrule
+        1 & \memberOne & Design and implement GapLink-Lite ($327,979$ parameters), write the UA-DETRAC conversion and camera-location clustering pipeline, implement classical baselines (C-1 to C-4), conduct ablation and calibration studies, execute locked test evaluation with paired cluster bootstrap CIs, render side-by-side MP4 demo clips, and author the final report. \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\begin{table}[htbp]
+    \centering
+    \caption{Explicit separation between self-developed components and external resources}
+    \label{tab:contributions}
+    \begin{tabularx}{\textwidth}{p{4.2cm} p{3.0cm} X}
+        \toprule
+        \textbf{Component} & \textbf{Origin} & \textbf{Implementation Details} \\
+        \midrule
+        UA-DETRAC Dataset & External Benchmark & $100$ real traffic video sequences ($960\times 540$, 25 fps) \cite{wen2020uadetrac}; converted via \texttt{scripts/convert\_detrac.py}. \\
+        Camera-Clustered Split & Self-Developed & 64$\times$36 median background extraction + agglomerative clustering into $48$ train / $12$ val / $40$ test sequences across $91$ camera viewpoints (\texttt{scripts/group\_locations.py}). \\
+        Event \& Injection Protocol & Self-Developed & Unified pure function \texttt{assemble\_event} and deterministic \texttt{make\_hide\_plan} / \texttt{make\_detections} (\texttt{src/events.py}, \texttt{src/inject.py}). \\
+        GapLink-Lite Network & Self-Developed & 2-layer GRU + DeepSets Context + Residual Gaussian Predictor + Pairwise/Dustbin Scorer + Log-Sinkhorn (\texttt{src/model/*.py}, $327,979$ random-init params). \\
+        Uncertainty Calibration & Self-Developed & Gap-aware quadratic log-scale post-hoc calibration $\sigma'(g) = \sigma \exp(a + b\ln(1+g) + c\ln^2(1+g))$ (\texttt{src/calib.py}). \\
+        2-Stage Online Tracker & Self-Developed & Stage-1 IoU Hungarian + Stage-2 GapLink-Lite / C-2 / C-3 / C-4 re-association (\texttt{src/tracker.py}). \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\section{Schedule and Milestones}
+\label{sec:schedule_milestones}
+
+Table~\ref{tab:milestones} summarizes the 8-day execution schedule and verification gates (G1--G6).
+
+\begin{table}[htbp]
+    \centering
+    \caption{8-day execution schedule and verification gates}
+    \label{tab:milestones}
+    \begin{tabularx}{\textwidth}{l p{2.6cm} X}
+        \toprule
+        \textbf{Day} & \textbf{Gate} & \textbf{Completed Deliverables} \\
+        \midrule
+        Day 1 & Gate G1 (Data) & Converted $100$ UA-DETRAC sequences ($0$ human boxes), clustered camera viewpoints ($48/12/40$ split), extracted 128-bin HSV histograms. \\
+        Day 2 & Gate G2 (Events) & Built event generator, locked \texttt{val\_events.pkl} ($6,000$) and \texttt{test\_events.pkl} ($12,000$, SHA256-locked), generated $120,000$ training pool events, verified \texttt{v0\_check.mp4}. \\
+        Day 3 & Gate G3 (Overfit) & Implemented \texttt{GapLinkLite} ($327,979$ params), passed 16/16 unit tests, achieved $\mathbf{99.35}\%$ Top-1 accuracy on 64-event overfit sanity check. \\
+        Day 4 & Gate G4 (Main \& Calib) & Trained main model ($6,000$ steps, $250\text{ s}$ on RTX 3050 6GB), reached $\mathbf{83.89}\%$ val Top-1 vs.\ C-3 $82.88\%$, fitted post-hoc calibration. \\
+        Day 5 & Gate G5 (Tracker) & Integrated 2-stage online tracker + full/partial occlusion injection; trained 3 ablations (No-Context, No-Color, Gap-Blind). \\
+        Day 6 & Gate G6 (Freeze) & Selected $\tau = 0.20$ on val under WLR $\le 5.0\%$, froze \texttt{release/final.pt} and tagged \texttt{v1.0-frozen}. \\
+        Day 7 & Test \& Video & Executed single test evaluation (\texttt{runs/test\_final/test\_results.json}), paired bootstrap CIs, failure analysis, and 4 side-by-side MP4 demo clips. \\
+        Day 8 & Final Report & Compiled full LaTeX report, figures, and reproducible code release tagged \texttt{final-v2}. \\
+        \bottomrule
+    \end{tabularx}
+\end{table}

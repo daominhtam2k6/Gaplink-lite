@@ -1,0 +1,70 @@
+\appendix
+\chapter{Source Code and Implementation Details}
+\label{app:code}
+
+This appendix provides the core implementation of the log-domain Sinkhorn optimal transport layer with track and candidate dustbins (\texttt{src/model/sinkhorn.py}) and the GapLink-Lite forward and loss computation (\texttt{src/model/gaplink.py}).
+
+\begin{lstlisting}[language=Python, caption={Log-Domain Sinkhorn Optimal Transport with Dustbin Marginals (src/model/sinkhorn.py)}, label={lst:sinkhorn}]
+import torch
+
+def log_sinkhorn(
+    S: torch.Tensor,
+    z_t: torch.Tensor,
+    z_c: torch.Tensor,
+    trk_mask: torch.Tensor,
+    cand_mask: torch.Tensor,
+    iters: int = 20,
+) -> torch.Tensor:
+    B, N, M = S.shape
+    neg_inf = -1e9
+    tm_f = trk_mask.float()
+    cm_f = cand_mask.float()
+    N_act = tm_f.sum(dim=1).clamp(min=1.0)
+    M_act = cm_f.sum(dim=1).clamp(min=1.0)
+
+    valid_pair = trk_mask[:, :, None] & cand_mask[:, None, :]
+    S_masked = torch.where(valid_pair, S, S.new_full(S.shape, neg_inf))
+    zt_masked = torch.where(trk_mask, z_t, z_t.new_full(z_t.shape, neg_inf))
+    zc_masked = torch.where(cand_mask, z_c, z_c.new_full(z_c.shape, neg_inf))
+
+    top = torch.cat([S_masked, zt_masked.unsqueeze(-1)], dim=2)
+    bot_c = torch.cat([zc_masked, S.new_zeros((B, 1))], dim=1).unsqueeze(1)
+    log_alpha = torch.cat([top, bot_c], dim=1)
+
+    log_r = S.new_zeros((B, N + 1))
+    log_r[:, :N] = torch.where(trk_mask, 0.0, neg_inf)
+    log_r[:, N] = torch.log(M_act)
+
+    log_c = S.new_zeros((B, M + 1))
+    log_c[:, :M] = torch.where(cand_mask, 0.0, neg_inf)
+    log_c[:, M] = torch.log(N_act)
+
+    for _ in range(iters):
+        log_alpha = log_alpha - torch.logsumexp(log_alpha, dim=2, keepdim=True) + log_r.unsqueeze(2)
+        log_alpha = log_alpha - torch.logsumexp(log_alpha, dim=1, keepdim=True) + log_c.unsqueeze(1)
+    return log_alpha
+\end{lstlisting}
+
+\chapter{Hyperparameter \& Frozen Release Configurations}
+\label{app:hyperparameters}
+
+\begin{table}[htbp]
+    \centering
+    \caption{Frozen Hyperparameter and Release Settings (\texttt{release/main.yaml}, \texttt{release/tracker.yaml})}
+    \label{tab:hyperparameters}
+    \begin{tabularx}{\textwidth}{l l X}
+        \toprule
+        \textbf{Parameter} & \textbf{Frozen Value} & \textbf{Description} \\
+        \midrule
+        Random Seed & \texttt{20260417} & Global PyTorch, NumPy, and Python RNG seed \\
+        Trainable Parameters & $327,979$ & Strictly $< 1,000,000$ budget; 100\% randomly initialized \\
+        Hidden Dimension $d$ & $128$ & 2-layer GRU motion encoder \& DeepSets context encoder \\
+        Sinkhorn Iterations $T$ & $20$ & Log-domain row/column normalization steps \\
+        Optimizer \& Peak LR & AdamW, $5\times 10^{-4}$ & Weight decay $10^{-4}$, 300 warmup steps, cosine decay \\
+        Batch Size \& Steps & $64 \times 6,000$ & Curriculum hard-event ratio $0.40 \to 0.80$ \\
+        Acceptance Gate $\tau$ & $0.20$ & Selected on validation under WLR $\le 5.0\%$ rule \\
+        Calibration $(a, b, c)$ & $(-1.133, 0.920, -0.142)$ & Fitted on val half-A; test Cov90 $= 87.70\%$ \\
+        Frozen Model SHA256 & \texttt{589b4154a7e39d92ca09d5f8...} & Stored in \texttt{release/final.sha256} \\
+        \bottomrule
+    \end{tabularx}
+\end{table}

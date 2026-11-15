@@ -1,0 +1,22 @@
+\chapter{Projected Impact}
+\label{chap:projected_impact}
+
+\section{Accomplishments and Benefits}
+\label{sec:accomplishments}
+
+This project delivered a complete, reproducible, and lightweight neural re-association framework for multi-vehicle tracking under occlusion:
+\begin{enumerate}
+    \item \textbf{Significant Accuracy \& Safety-Critical WLR Improvement:} Across $12,000$ locked test events on UA-DETRAC, GapLink-Lite improves Top-1 re-association accuracy from $68.13\%$ (C-3 Kalman+Mahalanobis) to $\mathbf{83.59}\%$ ($+\mathbf{15.46}\%$) and reduces false identity links (WLR) from $20.61\%$ to $\mathbf{4.30}\%$. In online tracking across $40$ test sequences, Identity Recovery Rate reaches $\mathbf{96.15}\%$ (full occlusion) and $\mathbf{96.08}\%$ (partial occlusion).
+    \item \textbf{Well-Calibrated Spatial Uncertainty:} Post-hoc gap-dependent variance scaling achieves $\mathbf{87.70}\%$ empirical 90\% ellipse coverage on unseen test sequences (vs.\ $86.08\%$ for uncalibrated Kalman), providing interpretable uncertainty bounds for downstream traffic analytics.
+    \item \textbf{Edge-Friendly Computational Footprint:} With only $327,979$ parameters ($1.3\text{ MB}$ checkpoint) and no heavy CNN Re-ID backbone, GapLink-Lite trains in $4.2\text{ minutes}$ on a single laptop GPU (RTX 3050 6GB) and executes Stage-2 Sinkhorn inference in $< 1.5\text{ ms}$ per event.
+\end{enumerate}
+
+\section{Future Improvements}
+\label{sec:future_improvements}
+
+\textbf{Honest Limitations \& Threats to Validity:}
+\begin{itemize}
+    \item \textbf{Fixed-Camera Urban Traffic Domain:} UA-DETRAC sequences are captured from elevated static traffic cameras. Moving-camera (ego-vehicle dashcam) scenes would require integrating camera ego-motion compensation (e.g., optical flow or homography updates) before computing normalized kinematic features.
+    \item \textbf{Unimodal Gaussian Assumption:} While a single calibrated 2D Gaussian handles straight and gently curving highway/arterial lanes well, multi-branch intersections where an occluded vehicle can turn left or right would benefit from extending the predictor head to a $K=2$ or $K=3$ Gaussian Mixture Model (GMM).
+    \item \textbf{Synthetic Occlusion Injection on Ground-Truth Detections:} To isolate the re-association module from detector false-negative noise, our tracker evaluation injects controlled full and partial occlusions onto ground-truth trajectories. Future work will pair GapLink-Lite directly with live YOLOv8/RT-DETR detector outputs on multi-camera city-scale benchmarks (e.g., AI City Challenge).
+\end{itemize}

@@ -1,0 +1,69 @@
+\chapter{Introduction}
+\label{chap:introduction}
+
+\section{Background Information}
+\label{sec:background}
+
+Theo dõi đa vật thể (\textit{multi-object tracking}, MOT) là bài toán ước lượng vị trí của nhiều đối tượng trong video và duy trì mã định danh (ID) của từng đối tượng qua các khung hình. Trong cách tiếp cận theo dõi dựa trên phát hiện (\textit{tracking-by-detection}), bộ phát hiện cung cấp các quan sát ở từng khung hình, còn bộ theo dõi liên kết các quan sát đó với những quỹ đạo đã hình thành. SORT minh họa cách tiếp cận này bằng bộ lọc Kalman và phép gán giữa các khung hình \cite{bewley2016sort}. OC-SORT phân tích sự tích lũy sai số ước lượng chuyển động khi thiếu quan sát, đặc biệt với chuyển động phi tuyến \cite{cao2023ocsort}. Khi một vật thể bị che khuất, bộ theo dõi có thể mất quan sát trong nhiều khung hình liên tiếp. Lúc vật thể xuất hiện trở lại, hệ thống phải xác định quan sát mới có thuộc về một quỹ đạo đang mất dấu hay không.
+
+Đề tài xem xét tình huống từ hai đến bốn vật thể nhỏ có ngoại hình tương tự chuyển động trên mặt bàn. Ví dụ, hai vật đi vào cùng một vùng che, sau đó một vật tiếp tục đi thẳng còn vật kia đổi hướng. Khi chúng xuất hiện trở lại, các vị trí quan sát được có thể phù hợp với nhiều cách nối quỹ đạo. Nếu bộ theo dõi dựa vào một vị trí dự báo duy nhất, sai lệch của dự báo trong khoảng mất quan sát có thể dẫn đến đổi ID hoặc làm gián đoạn quỹ đạo. Nếu hệ thống nối nhầm hai phát hiện với hai quỹ đạo, cả hai vật vẫn xuất hiện trong kết quả, nhưng ID và lịch sử chuyển động của chúng bị hoán đổi. Với các vật có ngoại hình gần giống nhau, đặc trưng hình ảnh cũng có thể cung cấp ít thông tin để phân biệt các phương án ghép.
+
+Đề tài tập trung vào thông tin chuyển động có trước thời điểm mất quan sát. Lịch sử này có thể cho biết xu hướng vận tốc hoặc thay đổi hướng, trong khi phân bố dự báo biểu diễn những vị trí mà vật thể có khả năng xuất hiện sau một khoảng thời gian nhất định. Chất lượng của dự báo cần được xem xét ở hai cấp độ: mức độ phù hợp giữa phân bố và vị trí thực tế, và khả năng sử dụng phân bố đó để khôi phục danh tính. Dự báo vị trí chính xác hơn về trung bình vẫn có thể dẫn đến ghép sai nếu các ứng viên nằm gần nhau hoặc độ bất định bị ước lượng sai.
+
+\section{Motivation and Objective}
+\label{sec:motivation_objective}
+
+\textbf{Mục tiêu tổng quát.} Đề tài phát triển OPM-Track (\textit{Occlusion-Aware Probabilistic Motion Modeling and Identity Association for Multi-Object Tracking}), một phương pháp theo dõi sử dụng mô hình học sâu để dự báo phân bố vị trí trong khoảng mất quan sát và khai thác phân bố đó khi liên kết danh tính. Câu hỏi trung tâm là liệu phương pháp này có cải thiện khả năng khôi phục đúng ID so với bộ lọc Kalman kết hợp khoảng cách Mahalanobis, khi các phương pháp nhận cùng đầu vào phát hiện và được đánh giá trên cùng các sự kiện che khuất. Bộ lọc Kalman đã biểu diễn độ bất định vị trí qua hiệp phương sai dự báo. Vì vậy, thí nghiệm đối chứng kiểm tra riêng đóng góp của lịch sử chuyển động do GRU mã hóa và hiệp phương sai học được. Bên cạnh Kalman, nghiên cứu so sánh các biến thể GRU dùng hiệp phương sai cố định, xác định theo quy tắc và học được trong cùng giao thức liên kết.
+
+\textbf{Phạm vi nghiên cứu.} Hệ thống theo dõi từ hai đến bốn vật thể nhỏ trên mặt bàn bằng một camera cố định, tập trung vào các khoảng che khuất từ 0,5 đến 3 giây. Hệ thống xử lý theo thứ tự thời gian và chỉ sử dụng thông tin có đến khung hình hiện tại. Dữ liệu mô phỏng là nguồn thực nghiệm chính vì cung cấp vị trí và ID tham chiếu ngay cả khi vật thể bị che. Trong giai đoạn suy luận, vị trí tham chiếu trong vùng che được giữ riêng để chấm điểm. Video webcam được dùng để khảo sát khả năng khôi phục ID trong điều kiện thực tế.
+
+\textbf{Phương pháp đề xuất.} Mạng hồi tiếp GRU (\textit{Gated Recurrent Unit}) mã hóa lịch sử chuyển động của từng quỹ đạo. Từ trạng thái tại thời điểm quan sát cuối và thời lượng mất quan sát $\tau$, mô hình dự báo trực tiếp phân bố vị trí tại thời điểm cần ghép. Phiên bản cốt lõi sử dụng một phân bố Gaussian hai chiều với trung bình và hiệp phương sai học được. Chi phí ghép được tính từ log-likelihood của vị trí quan sát dưới phân bố dự báo, đồng thời cho phép quỹ đạo không được ghép khi thiếu quan sát phù hợp. Sau khi phiên bản Gaussian đơn và các đối chứng hoạt động ổn định, nghiên cứu có thể khảo sát hỗn hợp Gaussian gồm hai đến ba thành phần cho các tình huống có nhiều hướng chuyển động khả dĩ. Cơ chế tạm hoãn quyết định cũng được khảo sát như một phần mở rộng khi các phương án ghép còn mơ hồ.
+
+\textbf{Câu hỏi nghiên cứu và tiêu chí đánh giá.}
+\begin{enumerate}
+    \item \textbf{RQ1 — Dự báo chuyển động.} GRU dự báo vị trí sau che khuất chính xác đến mức nào so với các đối chứng vận tốc không đổi và Kalman, đặc biệt trên quỹ đạo phi tuyến? Đánh giá bằng sai số dịch chuyển trung bình (ADE) và sai số dịch chuyển tại thời điểm cuối (FDE) trên dữ liệu mô phỏng.
+    \item \textbf{RQ2 — Chất lượng ước lượng độ bất định.} Phân bố dự báo có được hiệu chuẩn theo thời lượng che khuất hay không? Đánh giá bằng negative log-likelihood (NLL), tỷ lệ vị trí thực nằm trong các vùng dự báo ở những mức xác suất đã chọn và diện tích của các vùng đó. Nếu triển khai hỗn hợp Gaussian, khảo sát thêm khả năng biểu diễn các vị trí khả dĩ tách biệt.
+    \item \textbf{RQ3 — Khôi phục danh tính.} Liên kết dựa trên phân bố vị trí có cải thiện tỷ lệ khôi phục đúng ID ở lần phát hiện đầu tiên sau khi vật xuất hiện trở lại hay không? Chỉ số chính là tỷ lệ sự kiện mà lần phát hiện đó nhận lại ID quỹ đạo đã gán cho cùng vật trước che khuất. Sự kiện được tính nếu vật có ID hợp lệ trước khoảng che được gán nhãn từ 0,5 đến 3 giây và được phát hiện lại sau khi xuất hiện. Gán sai ID hoặc bỏ ghép ở lần phát hiện đầu tiên được tính là khôi phục thất bại. Các sự kiện không có phát hiện sau che khuất được báo cáo riêng. So sánh với Kalman + Mahalanobis và các cấu hình GRU có hiệp phương sai cố định hoặc xác định theo quy tắc. Nếu khảo sát cơ chế tạm hoãn, báo cáo đồng thời tỷ lệ ghép đúng trong số quyết định đã đưa ra và tỷ lệ sự kiện có quyết định.
+\end{enumerate}
+
+Để tách ảnh hưởng của mô hình chuyển động khỏi ảnh hưởng của hiệp phương sai học được, các cấu hình đối chứng dùng chung tập phát hiện, cách chia dữ liệu theo chuỗi và tập sự kiện đánh giá. Kết quả dự kiến được phân tích theo thời lượng che khuất và dạng chuyển động, bao gồm các trường hợp ghép thất bại và trường hợp mô hình học được có thể không cải thiện so với Kalman. Đầu ra cốt lõi gồm bộ mô phỏng tái lập được, bộ theo dõi GRU Gaussian và bảng thực nghiệm đối chứng.
+
+\section{Members and Role Assignments}
+\label{sec:members_roles}
+
+Đây là đề tài cá nhân do một sinh viên thực hiện. Bảng~\ref{tab:team_roles} ghi phạm vi phụ trách và các đầu ra tương ứng.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Phân công thực hiện đề tài}
+    \label{tab:team_roles}
+    \begin{tabularx}{\textwidth}{l p{3.8cm} X}
+        \toprule
+        \textbf{STT} & \textbf{Sinh viên} & \textbf{Công việc và đầu ra} \\
+        \midrule
+        1 & \memberOne & Xây dựng bộ mô phỏng và giao thức đánh giá, triển khai các phương pháp đối chứng, huấn luyện GRU, tích hợp liên kết danh tính, phân tích kết quả và hoàn thiện báo cáo. \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\section{Schedule and Milestones}
+\label{sec:schedule_milestones}
+
+Kế hoạch gồm tám tuần chính và hai tuần dự phòng. Cuối tuần 6 là mốc kiểm tra phiên bản cốt lõi. Nếu bộ theo dõi Gaussian đơn hoặc các thí nghiệm đối chứng chưa đạt yêu cầu, thời gian còn lại được ưu tiên cho việc hoàn thiện và đánh giá phiên bản này.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Kế hoạch thực hiện và mốc bàn giao}
+    \label{tab:milestones}
+    \begin{tabularx}{\textwidth}{l X}
+        \toprule
+        \textbf{Tuần} & \textbf{Đầu ra dự kiến} \\
+        \midrule
+        1--2 & Chốt câu hỏi, định nghĩa sự kiện che khuất và giao thức đánh giá. Hoàn thành bộ mô phỏng có nhãn vị trí, ID và tập thử ngoài phân phối. \\
+        3--4 & Chạy các phương pháp đối chứng, gồm Kalman + Mahalanobis. Huấn luyện GRU dự báo điểm và so sánh sai số theo thời lượng che. \\
+        5--6 & Hoàn thành bộ theo dõi Gaussian đơn chạy được, bảng đối chứng và thí nghiệm loại bỏ thành phần trên cùng tập sự kiện che khuất, cùng phân tích các ca đổi ID và khôi phục thất bại. Báo cáo độ hiệu chuẩn cùng kết quả khôi phục ID. \\
+        7--8 & Hoàn thiện phân tích và báo cáo. Khảo sát hỗn hợp Gaussian nếu đạt mốc tuần 6, đồng thời thu video webcam để kiểm tra khả năng khôi phục ID trên dữ liệu thực. \\
+        9--10 & Dự phòng để bổ sung lần chạy, hoàn thiện đồ thị, chuẩn hóa cấu hình và đóng gói mã nguồn phục vụ tái lập thực nghiệm. \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
