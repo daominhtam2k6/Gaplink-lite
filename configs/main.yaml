@@ -1,0 +1,35 @@
+seed: 42
+data:
+  mot_dir: D:/gaplink/data/mot
+  cache_dir: D:/gaplink/data/cache
+  val_events: D:/gaplink/data/cache/val_events.pkl
+  test_events: D:/gaplink/data/cache/test_events.pkl
+  gap_probs: [0.4, 0.4, 0.2]
+  p_partial: 0.4
+  hard_ratio:
+    start: 0.3
+    end: 0.6
+    ramp_steps: 40000
+model:
+  d: 128
+  hist_len: 20
+  n_ctx: 8
+  n_cand_max: 10
+  n_trk_max: 6
+  use_ctx: true
+  use_color: true
+  gap_aware: true
+train:
+  batch: 256
+  steps: 40000
+  lr: 5.0e-4
+  wd: 1.0e-2
+  warmup: 500
+  clip: 1.0
+  amp: true
+  eval_every: 2000
+  patience: 5
+loss:
+  assign: 1.0
+  nll: 0.5
+num_workers: 6

@@ -1,0 +1,10 @@
+.venv/
+data/
+runs/
+release/*.pt
+__pycache__/
+*.pyc
+*.npy
+*.pkl
+*.mp4
+*.log

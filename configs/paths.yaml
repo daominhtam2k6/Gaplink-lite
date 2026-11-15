@@ -1,0 +1,14 @@
+root_dir: D:/gaplink
+raw_dir: D:/gaplink/data/raw
+mot_dir: D:/gaplink/data/mot
+cache_dir: D:/gaplink/data/cache
+hist_dir: D:/gaplink/data/cache/hist
+pool_dir: D:/gaplink/data/cache/pool/train
+splits_csv: D:/gaplink/data/splits.csv
+classes_json: D:/gaplink/data/classes.json
+stats_json: D:/gaplink/data/stats.json
+runs_dir: D:/gaplink/runs
+release_dir: D:/gaplink/release
+report_dir: D:/gaplink/report
+demo_out_dir: D:/gaplink/demo/out
+latex_template_dir: D:/Capstone-Project_latex/Capstone-Project_latex

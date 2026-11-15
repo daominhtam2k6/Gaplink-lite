@@ -1,0 +1,4 @@
+seed: 42
+inherit: configs/main.yaml
+model:
+  gap_aware: false

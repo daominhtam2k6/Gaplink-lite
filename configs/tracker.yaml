@@ -1,0 +1,4 @@
+tau: 0.5
+a_max: 100
+iou_gate: 0.3
+chi2_gate: 9.21
