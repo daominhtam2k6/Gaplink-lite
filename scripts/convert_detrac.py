@@ -1,8 +1,8 @@
-"""Convert extracted UA-DETRAC sequences (CSV + optional XML) into internal MOTChallenge format."""
-import os
+"""Convert extracted UA-DETRAC sequences (CSV + optional XML) into internal MOTChallenge format.
+Properly separates `class == 'ignored'` (target_id == -1) rows into `{seq}_ignore.txt` and keeps only real vehicle tracks (`target_id > 0`).
+"""
 import csv
 import json
-import zipfile
 from pathlib import Path
 import numpy as np
 from lxml import etree
@@ -18,11 +18,12 @@ CLASS_MAP = {
 }
 FORBIDDEN_HUMAN = {"person", "pedestrian", "human", "people", "man", "woman"}
 
+
 def load_optional_sequence_xml(xml_dir: Path, seq_name: str):
     """Return (ignore_boxes (K,4), class_by_frame_id dict, vis_by_frame_id dict) if official XML exists."""
     xml_path = xml_dir / f"{seq_name}.xml"
     if not xml_path.exists():
-        matches = list(xml_dir.rglob(f"*{seq_name}.xml"))
+        matches = list(xml_dir.rglob(f"*{seq_name}.xml")) if xml_dir.exists() else []
         if not matches:
             return np.zeros((0, 4), dtype=np.float32), {}, {}
         xml_path = matches[0]
@@ -61,6 +62,7 @@ def load_optional_sequence_xml(xml_dir: Path, seq_name: str):
                 vis_map[(fnum, tid)] = max(0.0, min(1.0, 1.0 - trunc))
     return ignore, cls_map, vis_map
 
+
 def convert_seq_folder(seq_dir: Path, source_split: str, xml_dir: Path, mot_dir: Path) -> dict | None:
     csv_path = seq_dir / "annotations.csv"
     if not csv_path.exists():
@@ -69,9 +71,13 @@ def convert_seq_folder(seq_dir: Path, source_split: str, xml_dir: Path, mot_dir:
     folder_name = seq_dir.name
     seq_name = folder_name[folder_name.find("MVI_"):] if "MVI_" in folder_name else folder_name
 
-    ignore, cls_map, vis_map = load_optional_sequence_xml(xml_dir, seq_name)
+    ignore_xml, cls_map, vis_map = load_optional_sequence_xml(xml_dir, seq_name)
 
     rows = []
+    ignore_set = set()
+    for b in ignore_xml:
+        ignore_set.add((round(float(b[0]), 2), round(float(b[1]), 2), round(float(b[2]), 2), round(float(b[3]), 2)))
+
     max_frame = 0
     W, H = 960, 540
 
@@ -82,7 +88,6 @@ def convert_seq_folder(seq_dir: Path, source_split: str, xml_dir: Path, mot_dir:
             if cls_str in FORBIDDEN_HUMAN:
                 continue
             fname = r["filename"]
-            # Extract integer frame number from img00001.jpg or image000001.jpg
             digits = "".join(ch for ch in fname if ch.isdigit())
             if not digits:
                 continue
@@ -99,7 +104,11 @@ def convert_seq_folder(seq_dir: Path, source_split: str, xml_dir: Path, mot_dir:
             tid = int(float(r["target_id"]))
             conf = float(r.get("confidence", 1.0))
 
-            # Heuristic sub-class by aspect ratio/area when XML vehicle_type is absent
+            # Separate static ignore regions (`class == 'ignored'` or `tid < 0`) from vehicle trajectories!
+            if cls_str == "ignored" or tid < 0:
+                ignore_set.add((round(xmin, 2), round(ymin, 2), round(w, 2), round(h, 2)))
+                continue
+
             if (fnum, tid) in cls_map:
                 cid = cls_map[(fnum, tid)]
             else:
@@ -110,6 +119,7 @@ def convert_seq_folder(seq_dir: Path, source_split: str, xml_dir: Path, mot_dir:
     if not rows:
         return None
 
+    ignore = np.array(sorted(ignore_set), dtype=np.float32) if ignore_set else np.zeros((0, 4), dtype=np.float32)
     arr = np.array(rows, dtype=np.float32)
     if len(ignore) > 0:
         inside = center_in_ignored(arr[:, 2:6], ignore)
@@ -145,6 +155,7 @@ def convert_seq_folder(seq_dir: Path, source_split: str, xml_dir: Path, mot_dir:
     meta_file.write_text(json.dumps(meta, indent=2), encoding="utf-8")
     return meta
 
+
 def main():
     raw_dir = Path(r"D:\gaplink\data\raw")
     img_root = raw_dir / "images"
@@ -164,6 +175,7 @@ def main():
                     converted.append(meta)
 
     print(f"Converted {len(converted)} sequences into {mot_dir}")
+
 
 if __name__ == "__main__":
     main()

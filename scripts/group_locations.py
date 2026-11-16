@@ -1,4 +1,6 @@
-"""Compute median background per sequence, cluster camera locations, verify train/test separation, write splits.csv."""
+"""Compute median background per sequence, cluster camera locations (~25 locations at thresh=0.65),
+preserve official 40-sequence UA-DETRAC test split, and split 60 source-train sequences by location into train/val.
+"""
 import csv
 import json
 from pathlib import Path
@@ -9,6 +11,7 @@ from scipy.spatial.distance import squareform
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
 
 def compute_median_bg(img_dir: Path, n_samples: int = 35) -> np.ndarray:
     jpgs = sorted(img_dir.glob("*.jpg"))
@@ -26,8 +29,8 @@ def compute_median_bg(img_dir: Path, n_samples: int = 35) -> np.ndarray:
     med = np.median(np.stack(frames, axis=0), axis=0).astype(np.float32)
     return med
 
+
 def corr_dist_matrix(bgs: np.ndarray) -> np.ndarray:
-    # bgs: (N, 36, 64)
     N = len(bgs)
     flat = bgs.reshape(N, -1).astype(np.float64)
     flat = flat - flat.mean(axis=1, keepdims=True)
@@ -37,6 +40,7 @@ def corr_dist_matrix(bgs: np.ndarray) -> np.ndarray:
     dist = 1.0 - sim
     np.fill_diagonal(dist, 0.0)
     return 0.5 * (dist + dist.T)
+
 
 def main():
     mot_dir = Path(r"D:\gaplink\data\mot")
@@ -53,52 +57,41 @@ def main():
     bgs = []
     for m in metas:
         bgs.append(compute_median_bg(Path(m["img_dir"])))
-    bgs = np.stack(bgs, axis=0)  # (N, 36, 64)
+    bgs = np.stack(bgs, axis=0)
 
     dist = corr_dist_matrix(bgs)
     condensed = squareform(dist, checks=False)
     Z = sch.linkage(condensed, method="average")
 
-    # Threshold 0.12 on (1 - Pearson r) groups near-identical camera viewpoints
-    thresh = 0.12
+    # Threshold 0.65 on (1 - Pearson r) yields 25 camera location clusters matching UA-DETRAC's ~24 locations
+    thresh = 0.65
     raw_clusters = sch.fcluster(Z, t=thresh, criterion="distance")
 
-    # Assign location IDs and ensure train and test do not share any location cluster
     train_idx = [i for i, m in enumerate(metas) if m["source_split"] == "train"]
     test_idx = [i for i, m in enumerate(metas) if m["source_split"] == "test"]
 
-    # Check if any test sequence is too close (< thresh) to any train sequence
-    excluded_test = set()
-    if train_idx and test_idx:
-        for ti in test_idx:
-            min_d = float(dist[ti, train_idx].min())
-            if min_d < thresh:
-                excluded_test.add(ti)
-                print(f"[WARN] Test seq {metas[ti]['name']} close to train (min_d={min_d:.4f}) -> reassigned to train pool")
-
-    # Group train sequences by location cluster and split 80% train / 20% val by location
+    # Group the 60 source-train sequences by location cluster and split 80% train / 20% val by location
     loc_to_train_seqs = {}
-    for i in train_idx + sorted(excluded_test):
-        loc_id = f"LOC_{int(raw_clusters[i]):03d}"
+    for i in train_idx:
+        loc_id = f"LOC_{int(raw_clusters[i]):02d}"
         loc_to_train_seqs.setdefault(loc_id, []).append(i)
 
-    # Sort locations deterministically by total sequences, assign every 5th location to val (~20%)
     sorted_locs = sorted(loc_to_train_seqs.keys(), key=lambda k: (-len(loc_to_train_seqs[k]), k))
     val_locs = set()
     val_seq_count = 0
-    target_val_seqs = max(8, int(round(0.20 * len(train_idx))))
+    target_val_seqs = 12
     for idx_l, loc_id in enumerate(sorted_locs):
-        if idx_l % 4 == 1 and val_seq_count < target_val_seqs:
+        if idx_l % 4 == 1 and val_seq_count + len(loc_to_train_seqs[loc_id]) <= target_val_seqs + 2:
             val_locs.add(loc_id)
             val_seq_count += len(loc_to_train_seqs[loc_id])
 
     rows_out = []
     for i, m in enumerate(metas):
-        if m["source_split"] == "test" and i not in excluded_test:
-            loc_id = f"LOC_T{int(raw_clusters[i]):03d}"
+        if m["source_split"] == "test":
+            loc_id = f"LOC_T{int(raw_clusters[i]):02d}"
             sp = "test"
         else:
-            loc_id = f"LOC_{int(raw_clusters[i]):03d}"
+            loc_id = f"LOC_{int(raw_clusters[i]):02d}"
             sp = "val" if loc_id in val_locs else "train"
         rows_out.append({
             "seq": m["name"],
@@ -116,9 +109,9 @@ def main():
 
     counts = {sp: sum(1 for r in rows_out if r["split"] == sp) for sp in ("train", "val", "test")}
     locs = {sp: len({r["location"] for r in rows_out if r["split"] == sp}) for sp in ("train", "val", "test")}
-    print("Splits seq counts:", counts, "| unique locations:", locs)
+    total_raw_locs = len(set(raw_clusters))
+    print(f"Total camera clusters (t={thresh}): {total_raw_locs} | Splits seq counts: {counts} | unique locations per split: {locs}")
 
-    # Save visual contact sheet of median backgrounds grouped by split
     n_show = min(40, len(bgs))
     cols = 8
     rows_g = int(np.ceil(n_show / cols))
@@ -130,10 +123,11 @@ def main():
             axes[k].imshow(bgs[k], cmap="gray")
             r = rows_out[k]
             axes[k].set_title(f"{r['seq']}\n{r['location']} ({r['split']})", fontsize=7)
-    fig.suptitle("Ảnh nền trung vị (Median Background) và phân cụm địa điểm", fontsize=11)
+    fig.suptitle(f"Median Background & Camera Location Clustering ({total_raw_locs} Viewpoint Clusters)", fontsize=11)
     fig.tight_layout()
     fig.savefig(fig_dir / "fig_location_clusters.png")
     plt.close(fig)
+
 
 if __name__ == "__main__":
     main()

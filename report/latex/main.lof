@@ -1,0 +1,18 @@
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {2.1}{\ignorespaces Vector Architecture Diagram of GapLink-Lite ($327,979$ Parameters) and Stage-2 Optimal Transport Re-Association}}{7}{figure.caption.10}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {3.1}{\ignorespaces Exploratory Data Analysis: Trajectory Length \& Density (left) and 25 Camera Viewpoint Clusters (right)}}{8}{figure.caption.11}%
+\contentsline {figure}{\numberline {3.2}{\ignorespaces GapLink-Lite Convergence: Smoothed EMA Assignment Loss (left) and Validation Top-1 Accuracy (right)}}{8}{figure.caption.12}%
+\contentsline {figure}{\numberline {3.3}{\ignorespaces Test Event-Level Top-1 Accuracy Across Occlusion Gap Bins (GapLink-Lite 5-Seed Mean $\pm $ SD vs.\ Baselines)}}{9}{figure.caption.14}%
+\contentsline {figure}{\numberline {3.4}{\ignorespaces Operating-Point Trade-Off Curve on Locked Test Split: Event Top-1 Accuracy vs.\ Wrong-Link Rate (WLR)}}{10}{figure.caption.15}%
+\contentsline {figure}{\numberline {3.5}{\ignorespaces Empirical 90\% Ellipse Coverage Across Occlusion Gap Bins on Locked Test Split}}{10}{figure.caption.17}%
+\contentsline {figure}{\numberline {3.6}{\ignorespaces Online Tracker Identity Recovery Rate (IRR) and Wrong-Link Rate (WLR) under Full and Partial Occlusion}}{11}{figure.caption.19}%
+\contentsline {figure}{\numberline {3.7}{\ignorespaces Side-by-Side Visual Demo Comparing C-3 (Left) vs.\ GapLink-Lite (Right) on Test Sequences Where C-3 Fails}}{12}{figure.caption.20}%
+\contentsline {figure}{\numberline {3.8}{\ignorespaces 5-Seed Ablation Study on Locked Test Events (Mean $\pm $ SD Across 5 Random Seeds)}}{13}{figure.caption.22}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsfinish 

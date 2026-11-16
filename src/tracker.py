@@ -55,7 +55,7 @@ class OnlineTracker:
         self,
         associator=None,
         iou_thr: float = 0.30,
-        a_max: int = 60,
+        a_max: int = 95,
         W: int = 960,
         H: int = 540,
         seq_name: str = "seq",

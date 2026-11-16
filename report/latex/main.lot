@@ -1,0 +1,21 @@
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {1.1}{\ignorespaces Project responsibilities and deliverables}}{2}{table.caption.6}%
+\contentsline {table}{\numberline {1.2}{\ignorespaces Explicit declaration of self-developed components, external resources, and AI assistance}}{3}{table.caption.7}%
+\contentsline {table}{\numberline {1.3}{\ignorespaces Execution phases and verification gates (G1--G6)}}{4}{table.caption.8}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {2.1}{\ignorespaces Cleaned UA-DETRAC dataset statistics and camera-location split (\texttt {data/stats.json})}}{5}{table.caption.9}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {3.1}{\ignorespaces Event-level re-association benchmark on locked test split ($12,000$ events, $27,120$ lost tracks)}}{9}{table.caption.13}%
+\contentsline {table}{\numberline {3.2}{\ignorespaces Empirical 90\% 2D Gaussian ellipse coverage and pixel-space 2D NLL on locked test split}}{10}{table.caption.16}%
+\contentsline {table}{\numberline {3.3}{\ignorespaces Online tracker benchmark across $40$ test sequences ($1,922$ injected occlusion intervals, $a_{\max }=95$)}}{11}{table.caption.18}%
+\contentsline {table}{\numberline {3.4}{\ignorespaces 5-Seed controlled ablation study on locked test split ($12,000$ events, Mean $\pm $ SD across 5 seeds)}}{12}{table.caption.21}%
+\contentsline {table}{\numberline {3.5}{\ignorespaces Sensitivity analysis to synthetic event perturbation on locked test split ($12,000$ events)}}{13}{table.caption.23}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {5.1}{\ignorespaces Individual Team Member Reviews and Comments}}{15}{table.caption.24}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {6.1}{\ignorespaces Capstone Project Evaluation Rubric and Instructor Feedback}}{16}{table.caption.25}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {B.1}{\ignorespaces Frozen Hyperparameter and Release Settings}}{20}{table.caption.27}%
+\contentsfinish 

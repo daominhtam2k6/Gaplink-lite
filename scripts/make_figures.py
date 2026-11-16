@@ -52,12 +52,7 @@ def main():
     ev = test_res["event_level"]
     methods = ["C-2", "C-3", "C-4", "GapLink-Lite"]
     colors = ["#718096", "#3182CE", "#DD6B20", "#38A169"]
-    cats = ["Short Gap
-(3-15)", "Medium Gap
-(16-45)", "Long Gap
-(46-90)", "Hard
-Subset", "Overall
-(All)"]
+    cats = ["Short Gap (3-15)", "Medium Gap (16-45)", "Long Gap (46-90)", "Hard Subset", "Overall (All)"]
     keys = ["top1_gap_short", "top1_gap_med", "top1_gap_long", "top1_hard", "top1"]
 
     x = np.arange(len(cats))

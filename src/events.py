@@ -19,7 +19,7 @@ class EventCfg:
     cand_pos_sigma: float = 0.05
     cand_size_jitter: float = 0.10
     hist_pos_sigma: float = 0.03
-    hard_dist_factor: float = 1.5
+    hard_dist_factor: float = 1.15
 
 def box_iou_cxcywh(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     """Compute pairwise IoU between a (N,4) and b (M,4) in (cx,cy,w,h) format."""
@@ -168,10 +168,14 @@ class SeqIndex:
         self.H = seq.H
         if hist_cache is not None and len(hist_cache) == len(seq.rows):
             s = hist_cache.astype(np.float32)
-            sums = s.sum(axis=1, keepdims=True)
-            self.hist_norm = np.where(sums > 0, s / np.maximum(sums, 1e-6), 0.0).astype(np.float32)
+            if s.ndim == 2:
+                s = np.repeat(s[:, None, :], 5, axis=1)
+            sums = s.sum(axis=-1, keepdims=True)
+            self.hist_views = np.where(sums > 0, s / np.maximum(sums, 1e-6), 0.0).astype(np.float32)
+            self.hist_norm = self.hist_views[:, 0, :]
         else:
-            self.hist_norm = np.zeros((len(seq.rows), 128), dtype=np.float32)
+            self.hist_views = np.zeros((len(seq.rows), 5, 128), dtype=np.float32)
+            self.hist_norm = self.hist_views[:, 0, :]
 
         # Precompute track frame -> local index map and valid anchors
         self.track_ids = sorted(seq.tracks.keys())
@@ -339,13 +343,14 @@ def sample_event(idx: SeqIndex, rng, cfg: EventCfg, want_hard: bool | None = Non
                     # Add detector position and size jitter
                     cb[0:2] += rng.normal(0.0, cfg.cand_pos_sigma, size=2).astype(np.float32) * np.maximum(4.0, cb[2:4])
                     cb[2:4] *= rng.uniform(1.0 - cfg.cand_size_jitter, 1.0 + cfg.cand_size_jitter, size=2).astype(np.float32)
+                    s_i = 0
                     if rng.random() < cfg.p_partial:
                         s_i = int(rng.integers(1, 5))
-                        frac_i = float(rng.uniform(0.6, 0.95))
+                        frac_i = float(rng.uniform(0.6, 0.90))
                         cb = partial_crop(cb, s_i, frac_i)
                         side_arr[i] = s_i
                     cand_boxes_list.append(cb)
-                    cand_hists_list.append(idx.hist_norm[ridx] if ridx >= 0 else np.zeros((128,), dtype=np.float32))
+                    cand_hists_list.append(idx.hist_views[ridx, s_i] if ridx >= 0 else np.zeros((128,), dtype=np.float32))
                     cand_gt_ids_list.append(tid)
                     cand_kind_list.append(0)
 
