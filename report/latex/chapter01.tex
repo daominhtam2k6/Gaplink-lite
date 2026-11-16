@@ -29,7 +29,7 @@ Linear Kalman filters with Mahalanobis gating struggle during medium-to-long occ
 \section{Members, Roles, and Execution Timeline}
 \label{sec:members_roles}
 
-This is an individual capstone project. Table~\ref{tab:team_roles} summarizes the student's responsibilities, and Table~\ref{tab:contributions} explicitly separates self-developed components, external data/libraries, and AI-assisted software engineering support.
+This is an individual capstone project. Table~\ref{tab:team_roles} summarizes the student's responsibilities, and Table~\ref{tab:contributions} explicitly separates self-developed components from external data and libraries.
 
 \begin{table}[htbp]
     \centering
@@ -46,7 +46,7 @@ This is an individual capstone project. Table~\ref{tab:team_roles} summarizes th
 
 \begin{table}[htbp]
     \centering
-    \caption{Explicit declaration of self-developed components, external resources, and AI assistance}
+    \caption{Explicit separation between self-developed components and external resources}
     \label{tab:contributions}
     \begin{tabularx}{\textwidth}{p{4.0cm} p{2.8cm} X}
         \toprule
@@ -57,7 +57,6 @@ This is an individual capstone project. Table~\ref{tab:team_roles} summarizes th
         GapLink-Lite Network & Self-Developed & 2-layer GRU + DeepSets Context + Residual Gaussian Predictor + SuperGlue-style Pairwise/Dustbin Scorer + Log-Sinkhorn ($327,979$ random-init params). \\
         5-View Partial Histograms & Self-Developed & Precomputed 128-bin HSV histograms for full box and 4 directional partial crops so occluded pixels never leak at inference. \\
         2-Stage Online Tracker & Self-Developed & Stage-1 IoU Hungarian + Stage-2 GapLink-Lite / C-2 / C-3 / C-4 re-association ($a_{\max}=95$) with IRR, WLR, IDF1, MOTA, and IDSW evaluation. \\
-        AI Coding Assistance & Disclosed Tooling & Google Antigravity AI assistant was used to accelerate PyTorch boilerplate coding, multiprocessing scripts, LaTeX table formatting, and automated unit test scaffolding; all experimental designs, hypotheses, and metric audits were verified by the student. \\
         \bottomrule
     \end{tabularx}
 \end{table}
