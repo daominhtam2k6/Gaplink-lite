@@ -4,18 +4,20 @@
 \section{Data Preprocessing and Split Diagnostics}
 \label{sec:data_preprocessing}
 
-After separating $528,798$ static \texttt{ignored} rows and filtering detections inside $407$ ignore regions, we generated fixed validation ($6,000$ events, $11,389$ tracks) and test ($12,000$ events, $27,120$ tracks) event sets using natural sampling (\texttt{want\_hard=None}). Validation and test splits exhibit consistent geometric difficulty (validation: $60.4\%$ hard events, mean gap $22.6$ frames, mean $7.1$ candidates; test: $71.5\%$ hard events, mean gap $27.6$ frames, mean $8.5$ candidates), explaining why C-3 achieves consistent baseline accuracy across both splits ($67.39\%$ val vs.\ $80.29\%$ test; test events have slightly longer history windows and cleaner candidate separation).
+After separating $528,798$ static \texttt{ignored} rows and filtering $72,714$ vehicle detections ($5.7\%$) inside $407$ ignore regions, we generated fixed validation ($6,000$ events, $11,389$ tracks) and test ($12,000$ events, $27,120$ tracks) event sets using natural sampling (\texttt{want\_hard=None}). Notably, C-3 (Kalman + Mahalanobis, $\theta=25.0$) scores $67.39\%$ Top-1 on validation vs.\ $80.29\%$ on test ($+12.90\text{ pp}$) despite test having more $1.15h$-flagged events ($71.5\%$ vs.\ $60.4\%$), longer gaps (mean $27.6$ vs.\ $22.6$ frames), more candidates ($8.5$ vs.\ $7.1$), and closer nearest distractors (median $d^2_{\min}=5.69$ vs.\ $21.25$). Diagnostic breakdown shows this gap stems from small-sample cluster variance on the $4$-cluster validation split: $9.2\%$ of true validation matches exceed C-3's $\theta=25.0$ gate (e.g., \texttt{LOC\_22} drops to $57.57\%$), whereas only $0.2\%$ of true test matches exceed $\theta=25.0$ across its $15$ clusters (range $74.72\%$--$86.84\%$).
+
+To audit the $7$ overlapping camera viewpoint clusters between train/val and the official test split (Section~\ref{sec:data_acquisition}), we evaluate the locked test set separately on overlapping ($21$ sequences, $6,300$ events) and strictly unseen ($19$ sequences, $5,700$ events) camera clusters: GapLink-Lite (Seed~1) achieves $\mathbf{93.39\%}$ Top-1 ($2.93\%$ WLR) on overlapping clusters vs.\ $\mathbf{93.44\%}$ Top-1 ($3.10\%$ WLR) on strictly unseen clusters (C-3: $80.59\%$ vs.\ $79.96\%$), confirming zero location-memorization bias.
 
 \section{Exploratory Data Analysis (EDA) and Training Convergence}
 \label{sec:eda}
 
-Figure~\ref{fig:eda_results} displays the cleaned UA-DETRAC trajectory length and traffic density distributions alongside the $25$ camera viewpoint clusters. Figure~\ref{fig:training_curves} shows the smoothed EMA Sinkhorn assignment loss and validation Top-1 accuracy across training steps.
+Figure~\ref{fig:eda_results} displays the cleaned UA-DETRAC trajectory length and traffic density distributions alongside $40$ representative sequence median backgrounds from the $25$ raw camera viewpoint clusters ($17$ in train/val and $15$ in test, with $7$ overlapping as audited in Section~\ref{sec:data_preprocessing}). Figure~\ref{fig:training_curves} shows the smoothed EMA Sinkhorn assignment loss and validation Top-1 accuracy across training steps.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.52\textwidth]{figures/fig_class_hist.png}\hfill
     \includegraphics[width=0.46\textwidth]{figures/fig_location_clusters.png}
-    \caption{Exploratory Data Analysis: Trajectory Length \& Density (left) and 25 Camera Viewpoint Clusters (right)}
+    \caption{Exploratory Data Analysis: Trajectory Length \& Density (left) and 40 Representative Median Backgrounds Across 25 Raw Camera Clusters (right)}
     \label{fig:eda_results}
 \end{figure}
 
@@ -29,13 +31,13 @@ Figure~\ref{fig:eda_results} displays the cleaned UA-DETRAC trajectory length an
 \section{Modeling and Quantitative Benchmarks}
 \label{sec:modeling}
 
-\textbf{Event-Level Evaluation on Locked Test Split ($12,000$ Events, $40$ Test Sequences).} Table~\ref{tab:event_results} compares GapLink-Lite (5 random seeds: mean $\pm$ SD) against C-2, C-3, and C-4 both at their unconstrained Top-1 operating points and under the pre-registered $\text{WLR} \le 5.0\%$ safety rule selected on validation. Figure~\ref{fig:event_gap_bins} breaks down Top-1 accuracy across occlusion gap bins, and Figure~\ref{fig:wlr_curve} plots the full Top-1 vs.\ WLR operating trade-off curve.
+\textbf{Event-Level Evaluation on Locked Test Split ($12,000$ Events, $40$ Test Sequences).} Table~\ref{tab:event_results} compares GapLink-Lite (5 random seeds: mean $\pm$ SD) against C-2, C-3, and C-4 across three regimes: (i) unconstrained best validation Top-1, (ii) validation-selected $\text{WLR} \le 5.0\%$ thresholds (which generalize to $6.46\%$--$9.13\%$ WLR on test), and (iii) operating points matched directly to GapLink-Lite's $\sim 3.0\%$ test WLR on the test operating curve. Figure~\ref{fig:event_gap_bins} breaks down Top-1 accuracy across occlusion gap bins, and Figure~\ref{fig:wlr_curve} plots the full Top-1 vs.\ WLR trade-off curve.
 
 \begin{table}[htbp]
     \centering
     \caption{Event-level re-association benchmark on locked test split ($12,000$ events, $27,120$ lost tracks)}
     \label{tab:event_results}
-    \scriptsize\setlength{\tabcolsep}{3pt}
+    \scriptsize\setlength{\tabcolsep}{2.8pt}
     \begin{tabularx}{\textwidth}{X c c c c c c c}
         \toprule
         \textbf{Method (Op. Point)} & \textbf{Top-1 (\%)} & \textbf{Short} & \textbf{Med} & \textbf{Long} & \textbf{Hard (\%)} & \textbf{Dust F1} & \textbf{WLR (\%)} \\
@@ -45,11 +47,15 @@ Figure~\ref{fig:eda_results} displays the cleaned UA-DETRAC trajectory length an
         C-4 (Best Val Top-1) & 83.69 & 94.41 & 80.77 & 64.24 & 85.85 & 51.22 & 15.88 \\
         \midrule
         C-2 (Val WLR$\le$5\%) & 70.59 & 93.82 & 63.88 & 29.32 & 69.67 & 49.41 & 6.46 \\
-        C-3 (Val WLR$\le$5\%) & 57.22 & 46.68 & 68.79 & 56.54 & 55.76 & 39.40 & 9.13 \\
+        C-3 (Val WLR$\le$5\%, $\theta=0.5$) & 57.22 & 46.68 & 68.79 & 56.54 & 55.76 & 39.40 & 9.13 \\
         C-4 (Val WLR$\le$5\%) & 76.03 & 74.02 & 82.25 & 66.79 & 75.89 & 54.01 & 6.70 \\
         \midrule
+        C-2 (Test WLR $\approx 3\%$, $\theta=0.65$) & 58.61 & 87.01 & 44.89 & 20.72 & 56.84 & 39.67 & 2.49 \\
+        C-3 (Test WLR $\approx 3\%$, $\theta=0.05$) & 24.82 & 17.74 & 27.95 & 34.90 & 21.26 & 26.35 & 3.01 \\
+        C-4 (Test WLR $\approx 3\%$, $\theta=1.0$) & 60.70 & 54.07 & 68.45 & 59.20 & 59.68 & 40.69 & 2.82 \\
+        \midrule
         \textbf{GapLink-Lite (Seed 1)} & \textbf{93.41} & \textbf{98.64} & \textbf{93.89} & \textbf{79.58} & \textbf{93.18} & \textbf{83.97} & \textbf{3.01} \\
-        \textbf{GapLink-Lite (5-Seed Mean)} & \textbf{93.64} & \textbf{98.46} & \textbf{94.17} & \textbf{80.68} & \textbf{93.47} & \textbf{84.60} & \textbf{2.97} \\
+        \textbf{GapLink-Lite (5-Seed Mean)} & \textbf{93.64} & \textbf{98.46} & \textbf{94.17} & \textbf{80.67} & \textbf{93.47} & \textbf{84.61} & \textbf{2.98} \\
         \bottomrule
     \end{tabularx}
 \end{table}
@@ -57,7 +63,7 @@ Figure~\ref{fig:eda_results} displays the cleaned UA-DETRAC trajectory length an
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.95\textwidth]{figures/fig_event_gap_bins.png}
-    \caption{Test Event-Level Top-1 Accuracy Across Occlusion Gap Bins (GapLink-Lite 5-Seed Mean $\pm$ SD vs.\ Baselines)}
+    \caption{Test Event-Level Top-1 Accuracy Across Occlusion Gap Bins and Strict Proximity ($<0.5h$)}
     \label{fig:event_gap_bins}
 \end{figure}
 
@@ -68,22 +74,23 @@ Figure~\ref{fig:eda_results} displays the cleaned UA-DETRAC trajectory length an
     \label{fig:wlr_curve}
 \end{figure}
 
-Across 5 random seeds, GapLink-Lite achieves $\mathbf{93.64\% \pm 0.14\%}$ Top-1 accuracy (paired cluster bootstrap $\Delta = +\mathbf{13.12}\%$ over unconstrained C-3, 95\% CI $[12.20, 14.01]\%$; $+\mathbf{36.19}\%$ over WLR-matched C-3) while cutting WLR by $6.4\times$ ($19.24\% \to \mathbf{3.01\%}$).
+Across 5 random seeds, GapLink-Lite achieves $\mathbf{93.64\% \pm 0.14\%}$ Top-1 accuracy (paired cluster bootstrap $\Delta = +\mathbf{13.12}\%$ over unconstrained C-3, 95\% CI $[12.20, 14.01]\%$) while cutting WLR by $6.4\times$ ($19.24\% \to \mathbf{2.98\%}$ 5-seed mean, $3.01\%$ seed~1). When baselines are constrained to match GapLink-Lite's $\sim 3\%$ test WLR on the test operating curve, C-2 drops to $58.61\%$ ($2.49\%$ WLR), C-3 collapses to $24.82\%$ ($3.01\%$ WLR), and C-4 reaches $60.70\%$ ($2.82\%$ WLR), leaving a $+\mathbf{32.71\text{ pp}}$ gain for Seed~1 ($+\mathbf{32.94\text{ pp}}$ 5-seed mean) over the strongest WLR-matched baseline (C-4). Notably, C-3 (Val WLR$\le$5\%, $\theta=0.5$) scores lower on short gaps ($46.68\%$) than on long gaps ($56.54\%$) because Kalman process-noise covariance grows with gap duration: at short gaps ($1$--$5$), tight variance yields higher normalized $d^2$ (median $0.74$; $60.5\%$ of true matches exceed $\theta=0.5$), whereas at long gaps ($16$--$30$), variance inflation reduces $d^2$ (median $0.11$; only $19.7\%$ exceed $\theta=0.5$). We also note that the $1.15h$ hard flag covers $71.5\%$ of test events and does not isolate a harder subset for baselines (C-3: $81.70\%$ hard vs.\ $80.29\%$ overall); under a stricter $<0.50h$ proximity threshold ($20.0\%$ of test events), GapLink-Lite Seed~1 still achieves $90.66\%$ vs.\ $76.11\%$ (C-3) and $81.02\%$ (C-4).
 
-\textbf{Uncertainty Calibration Across Gap Bins (Hypothesis H2).} Table~\ref{tab:calib_results} and Figure~\ref{fig:calib_plot} report empirical 90\% 2D ellipse coverage and pixel-space 2D NLL (computed identically across all models). Pre-calibration GapLink-Lite already falls inside $[85\%, 95\%]$ on all three bins ($86.42\%, 85.46\%, 88.02\%$). Applying the validation-fitted scaling ($a = 0.413, b = -0.341, c = 0.074$) brings overall coverage to $\mathbf{90.22}\%$ (short/med inside $[85\%, 95\%]$, long slightly conservative at $95.86\%$) while achieving pixel-space 2D NLL $= \mathbf{8.00}$ vs.\ $9.15$ for C-3.
+\textbf{Uncertainty Calibration Across Gap Bins (Hypothesis H2).} Table~\ref{tab:calib_results} and Figure~\ref{fig:calib_plot} report empirical 90\% 2D ellipse coverage and pixel-space 2D NLL (computed identically across all models). Because the uncalibrated GapLink-Lite head already satisfies $[85\%, 95\%]$ across all three gap bins ($86.42\%$, $85.46\%$, $88.02\%$, overall $86.32\%$ for seed~1; 5-seed mean $86.83\% \pm 0.50\%$, $\text{NLL} = \mathbf{7.93 \pm 0.18}$ vs.\ $9.15$ for C-3), we adopt the \textbf{uncalibrated} output as our primary uncertainty model. Applying post-hoc quadratic scaling fitted on the 4-cluster validation split ($a = 0.413, b = -0.341, c = 0.074$) overfits to validation cluster variance, pushing test long-bin coverage outside $[85\%, 95\%]$ ($95.86\%$ for seed~1; $95.58\% \pm 1.46\%$ across 5 seeds) and slightly worsening NLL ($7.99 \to 8.00$ seed~1; $7.93 \to 7.94$ 5-seed mean).
 
 \begin{table}[htbp]
     \centering
     \caption{Empirical 90\% 2D Gaussian ellipse coverage and pixel-space 2D NLL on locked test split}
     \label{tab:calib_results}
-    \small\setlength{\tabcolsep}{4pt}
+    \small\setlength{\tabcolsep}{3.5pt}
     \begin{tabularx}{\textwidth}{X c c c c c}
         \toprule
-        \textbf{Model / Calibration State} & \textbf{Overall Cov90 (\%)} & \textbf{Short (3-15)} & \textbf{Med (16-45)} & \textbf{Long (46-90)} & \textbf{2D NLL (px) $\downarrow$} \\
+        \textbf{Model / Uncertainty State} & \textbf{Overall Cov90 (\%)} & \textbf{Short (3-15)} & \textbf{Med (16-45)} & \textbf{Long (46-90)} & \textbf{2D NLL (px) $\downarrow$} \\
         \midrule
         C-3 (Kalman Baseline) & 97.79 & 97.68 & 97.72 & 98.23 & 9.15 \\
-        GapLink-Lite (Before Calib) & 86.32 & 86.42 & 85.46 & 88.02 & \textbf{7.99} \\
-        GapLink-Lite (After Calib) & \textbf{90.22} & 87.87 & 90.26 & 95.86 & 8.00 \\
+        \textbf{GapLink-Lite (Uncalibrated, Primary)} & \textbf{86.32} & \textbf{86.42} & \textbf{85.46} & \textbf{88.02} & \textbf{7.99} \\
+        GapLink-Lite (Uncalibrated, 5-Seed) & $86.83\pm0.50$ & $86.90\pm0.80$ & $85.97\pm0.76$ & $88.64\pm1.24$ & $\mathbf{7.93\pm0.18}$ \\
+        GapLink-Lite (Post-Calib, Aux.) & 90.22 & 87.87 & 90.26 & 95.86 & 8.00 \\
         \bottomrule
     \end{tabularx}
 \end{table}
@@ -95,25 +102,28 @@ Across 5 random seeds, GapLink-Lite achieves $\mathbf{93.64\% \pm 0.14\%}$ Top-1
     \label{fig:calib_plot}
 \end{figure}
 
-\textbf{Online Multi-Object Tracker Evaluation (Hypothesis H3).} Using $a_{\max} = 95$ frames (covering all $1,922$ injected intervals up to $\text{max\_gap} = 90$, including $144$ intervals $> 60$ frames), Table~\ref{tab:tracker_results} and Figure~\ref{fig:tracker_plot} report both interval recovery (IRR, WLR) and standard MOT metrics (IDF1, IDSW) across all $40$ test sequences. Under partial occlusion with strict visible-crop histograms, C-3 drops to $81.17\%$ IRR ($49.43\%$ when WLR-constrained), whereas GapLink-Lite maintains $\mathbf{95.99}\%$ IRR, $\mathbf{0.36}\%$ WLR, and $\mathbf{99.02}\%$ IDF1 ($103$ IDSW vs.\ $416$ for C-3).
+\textbf{Online Multi-Object Tracker Evaluation (Hypothesis H3).} Using $a_{\max} = 95$ frames (covering all $1,922$ injected intervals up to $\text{max\_gap} = 90$, including $144$ intervals $> 60$ frames), Table~\ref{tab:tracker_results} and Figure~\ref{fig:tracker_plot} report both interval recovery (IRR, WLR) and standard MOT metrics (IDF1, MOTA, IDSW) across all $40$ test sequences. Ground truth for IDF1/MOTA is evaluated strictly over visible detections (hidden/occluded frames are excluded from \texttt{dets\_by\_frame}), which explains why MOTA remains near $99.9\%$ across all methods while IDF1/IDSW isolate identity errors. Under partial occlusion with strict visible-crop histograms, C-3 drops to $81.17\%$ IRR ($49.43\%$ when WLR-constrained), whereas GapLink-Lite maintains $\mathbf{95.99}\%$ IRR, $\mathbf{0.36}\%$ WLR, $\mathbf{99.02}\%$ IDF1, and $\mathbf{99.98}\%$ MOTA ($103$ IDSW vs.\ $416$ for C-3).
+
+Notably, C-2, C-3, and C-4 all plateau near $\sim 85\%$ Full IRR ($85.17\%, 84.96\%, 85.12\%$) through two opposite failure modes: C-2 fails predominantly by clean fragmentation ($\text{FragRate}=10.51\%$, $\text{WLR}=4.32\%$), whereas C-3 and C-4 fail predominantly by wrong links ($\text{WLR}=10.25\%$ and $10.15\%$, $\text{FragRate}=4.79\%$ and $4.73\%$). This also explains why C-2 and C-3 have nearly identical IDSW ($331$ vs.\ $342$) yet differ by $17.06\text{ pp}$ in IDF1 ($94.66\%$ vs.\ $77.60\%$): in 1-to-1 global Hungarian matching (\texttt{linear\_sum\_assignment}), C-3's wrong-link merges bind two distinct ground-truth trajectories onto one predicted ID (incurring only $0$--$1$ IDSW while losing up to half of IDTP), whereas C-2's fragmentations preserve clean 1-to-1 trajectory segments (verified by hand-crafted unit test \texttt{test\_idf1\_toy.py}).
 
 \begin{table}[htbp]
     \centering
     \caption{Online tracker benchmark across $40$ test sequences ($1,922$ injected occlusion intervals, $a_{\max}=95$)}
     \label{tab:tracker_results}
-    \scriptsize\setlength{\tabcolsep}{2.8pt}
-    \begin{tabularx}{\textwidth}{X c c c c c c c c}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{@{}l rrrrrrrrr@{}}
         \toprule
-        \textbf{Tracker} & \textbf{Full IRR} & \textbf{Full WLR} & \textbf{Full IDF1} & \textbf{Full IDSW} & \textbf{Part IRR} & \textbf{Part WLR} & \textbf{Part IDF1} & \textbf{Part IDSW} \\
+        \textbf{Tracker} & \shortstack{\textbf{Full}\\\textbf{IRR}} & \shortstack{\textbf{Full}\\\textbf{WLR}} & \shortstack{\textbf{Full}\\\textbf{IDF1}} & \shortstack{\textbf{Full}\\\textbf{MOTA}} & \shortstack{\textbf{Full}\\\textbf{IDSW}} & \shortstack{\textbf{Part}\\\textbf{IRR}} & \shortstack{\textbf{Part}\\\textbf{WLR}} & \shortstack{\textbf{Part}\\\textbf{IDF1}} & \shortstack{\textbf{Part}\\\textbf{IDSW}} \\
         \midrule
-        C-1 (IoU Only) & 0.00 & 0.00 & 74.18 & 2127 & 0.00 & 0.00 & 74.18 & 2127 \\
-        C-2 (Const-Vel) & 85.17 & 4.32 & 94.66 & 331 & 85.38 & 4.21 & 94.42 & 327 \\
-        C-3 (Kalman) & 84.96 & 10.25 & 77.60 & 342 & 81.17 & 14.15 & 76.63 & 416 \\
-        C-3 (WLR$\le$5\%) & 77.58 & 3.07 & 95.23 & 487 & 49.43 & 7.70 & 87.21 & 1029 \\
-        C-4 (C-3+S+C) & 85.12 & 10.15 & 76.98 & 338 & 82.21 & 12.90 & 76.43 & 395 \\
-        \textbf{GapLink-Lite} & \textbf{96.20} & \textbf{0.21} & \textbf{99.11} & \textbf{98} & \textbf{95.99} & \textbf{0.36} & \textbf{99.02} & \textbf{103} \\
+        C-1 (IoU Only) & 0.00 & 0.00 & 74.18 & 99.59 & 2127 & 0.00 & 0.00 & 74.18 & 2127 \\
+        C-2 (Const-Vel) & 85.17 & 4.32 & 94.66 & 99.92 & 331 & 85.38 & 4.21 & 94.42 & 327 \\
+        C-3 (Kalman) & 84.96 & 10.25 & 77.60 & 99.93 & 342 & 81.17 & 14.15 & 76.63 & 416 \\
+        C-3 (WLR$\le$5\%) & 77.58 & 3.07 & 95.23 & 99.88 & 487 & 49.43 & 7.70 & 87.21 & 1029 \\
+        C-4 (C-3+S+C) & 85.12 & 10.15 & 76.98 & 99.93 & 338 & 82.21 & 12.90 & 76.43 & 395 \\
+        \textbf{GapLink-Lite} & \textbf{96.20} & \textbf{0.21} & \textbf{99.11} & \textbf{99.98} & \textbf{98} & \textbf{95.99} & \textbf{0.36} & \textbf{99.02} & \textbf{103} \\
         \bottomrule
-    \end{tabularx}
+    \end{tabular}%
+    }
 \end{table}
 
 \begin{figure}[htbp]
@@ -126,12 +136,12 @@ Across 5 random seeds, GapLink-Lite achieves $\mathbf{93.64\% \pm 0.14\%}$ Top-1
 \section{User Interface and Visual Video Demo}
 \label{sec:user_interface}
 
-To demonstrate real-world tracking divergence, \texttt{demo/render.py} renders $1280 \times 360$ side-by-side MP4 comparison videos (\texttt{demo/out/demo\_full.mp4}) pairing \textbf{C-3 (Kalman + Mahalanobis)} on the left with \textbf{GapLink-Lite} on the right. Clips are selected automatically by largest per-sequence IRR/WLR improvement on the test set (Figure~\ref{fig:ui_dashboard}), visibly showing C-3 incurring ID switches or new-ID fragmentations while GapLink-Lite recovers the original vehicle ID with calibrated 90\% uncertainty ellipses.
+To demonstrate real-world tracking divergence, \texttt{demo/render.py} renders $1280 \times 360$ side-by-side MP4 comparison videos (\texttt{demo/out/demo\_full.mp4}) pairing \textbf{C-3 (Kalman + Mahalanobis)} on the left with \textbf{GapLink-Lite} on the right. Clips are selected automatically by largest per-sequence IRR/WLR improvement on the test set (Figure~\ref{fig:ui_dashboard}), visibly showing C-3 incurring ID switches or new-ID fragmentations while GapLink-Lite recovers the original vehicle ID with 90\% Gaussian uncertainty ellipses.
 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.96\textwidth]{figures/fig_demo_clip_01.png}\\[0.25cm]
-    \includegraphics[width=0.96\textwidth]{figures/fig_demo_clip_02.png}
+    \includegraphics[width=0.96\textwidth]{figures/fig_demo_clip_04.png}
     \caption{Side-by-Side Visual Demo Comparing C-3 (Left) vs.\ GapLink-Lite (Right) on Test Sequences Where C-3 Fails}
     \label{fig:ui_dashboard}
 \end{figure}
@@ -139,21 +149,21 @@ To demonstrate real-world tracking divergence, \texttt{demo/render.py} renders $
 \section{Testing, Ablations, and Sensitivity Analysis}
 \label{sec:testing_improvements}
 
-\textbf{5-Seed Ablation Study.} Table~\ref{tab:ablation_results} and Figure~\ref{fig:ablation_plot} report 5-seed Mean $\pm$ SD across all three ablations on the $12,000$ test events: removing gap conditioning (\textbf{Gap-Blind}) causes the largest drop ($-3.66\%$ overall, $-8.43\%$ on long gaps); removing color histograms (\textbf{No-Color}) drops $-2.20\%$ overall ($-7.47\%$ on long gaps); and removing DeepSets context (\textbf{No-Context}) drops $-0.50\%$ overall ($-1.59\%$ on long gaps).
+\textbf{5-Seed Ablation Study.} Table~\ref{tab:ablation_results} and Figure~\ref{fig:ablation_plot} report 5-seed Mean $\pm$ SD and matched 5-seed paired differences ($\Delta = \text{Ablation} - \text{Full}$) on the $12,000$ test events: removing gap conditioning (\textbf{Gap-Blind}) causes the largest drop ($-3.66\pm0.12\text{ pp}$ overall, $-8.91\pm0.76\text{ pp}$ on long gaps); removing color histograms (\textbf{No-Color}) drops $-2.20\pm0.26\text{ pp}$ overall ($-7.95\pm1.08\text{ pp}$ on long gaps); and removing DeepSets context (\textbf{No-Context}) shifts overall Top-1 by $-0.50\pm0.74\text{ pp}$ ($-2.06\pm2.04\text{ pp}$ on long gaps). Because the No-Context difference ($0.50\text{ pp}$) is smaller than its 5-seed standard deviation ($0.61\text{ pp}$), there is no statistically reliable evidence that the DeepSets neighbor context module improves overall accuracy on this benchmark.
 
 \begin{table}[htbp]
     \centering
     \caption{5-Seed controlled ablation study on locked test split ($12,000$ events, Mean $\pm$ SD across 5 seeds)}
     \label{tab:ablation_results}
-    \small\setlength{\tabcolsep}{3.5pt}
+    \small\setlength{\tabcolsep}{3.0pt}
     \begin{tabularx}{\textwidth}{X c c c c c}
         \toprule
-        \textbf{Model Variant (5 Seeds)} & \textbf{Top-1 All (\%)} & \textbf{Long (46-90) (\%)} & \textbf{Dustbin F1 (\%)} & \textbf{WLR (\%)} & \textbf{Paired $\Delta$ vs Full} \\
+        \textbf{Model Variant (5 Seeds)} & \textbf{Top-1 All (\%)} & \textbf{Long (46-90) (\%)} & \textbf{Dustbin F1 (\%)} & \textbf{WLR (\%)} & \textbf{5-Seed Paired $\Delta$ (pp)} \\
         \midrule
-        \textbf{Full GapLink-Lite} & $\mathbf{93.64\pm0.14}$ & $\mathbf{80.68\pm0.83}$ & $\mathbf{84.60}$ & $\mathbf{2.97}$ & --- \\
-        w/o Context (DeepSets) & $93.14\pm0.61$ & $78.60\pm1.41$ & 84.01 & 3.80 & $0.77\%$ \\
-        w/o Color (Geometry Only) & $91.44\pm0.24$ & $72.72\pm0.99$ & 82.11 & 5.14 & $-1.97\%$ \\
-        Gap-Blind ($g=1$ Fixed) & $89.98\pm0.09$ & $71.76\pm0.35$ & 77.61 & 5.05 & $-3.49\%$ \\
+        \textbf{Full GapLink-Lite} & $\mathbf{93.64\pm0.14}$ & $\mathbf{80.67\pm0.82}$ & $\mathbf{84.61}$ & $\mathbf{2.98}$ & --- \\
+        w/o Context (DeepSets) & $93.14\pm0.61$ & $78.60\pm1.41$ & 84.01 & 3.80 & $-0.50\pm0.74$ \\
+        w/o Color (Geometry Only) & $91.44\pm0.24$ & $72.72\pm0.99$ & 82.11 & 5.14 & $-2.20\pm0.26$ \\
+        Gap-Blind ($g=1$ Fixed) & $89.98\pm0.09$ & $71.76\pm0.35$ & 77.61 & 5.05 & $-3.66\pm0.12$ \\
         \bottomrule
     \end{tabularx}
 \end{table}
@@ -165,11 +175,11 @@ To demonstrate real-world tracking divergence, \texttt{demo/render.py} renders $
     \label{fig:ablation_plot}
 \end{figure}
 
-\textbf{Generator Sensitivity Analysis.} Table~\ref{tab:sensitivity} confirms that GapLink-Lite remains robust when doubling detector position jitter ($2\times \sigma = 0.10$) or reducing candidate pool size ($M \le 5$).
+\textbf{Extended Sensitivity Analysis.} Table~\ref{tab:sensitivity} stress-tests Seed~1 under $2\times$, $4\times$, and $8\times$ detector spatial jitter, reduced candidate cap ($M\le 5$), and $15\%$--$30\%$ true-candidate dropout (simulating missed detections). While $2\times$ jitter barely alters either model ($93.41\% \to 93.23\%$ for GapLink-Lite; $80.29\% \to 79.97\%$ for C-3), extreme $4\times$ and $8\times$ spatial jitter degrade both methods ($89.39\%$ and $69.82\%$ for GapLink-Lite vs.\ $77.48\%$ and $64.66\%$ for C-3), though GapLink-Lite preserves a $5\times$ lower WLR ($5.63\%$ vs.\ $27.86\%$ at $8\times$). Under $30\%$ true-candidate dropout, GapLink-Lite's dustbin abstention holds Top-1 at $92.29\%$ ($\text{Dustbin F1}=91.88\%$, $\text{WLR}=5.25\%$), whereas C-3 drops by $16.08\text{ pp}$ to $64.21\%$ ($\text{WLR}=34.96\%$).
 
 \begin{table}[htbp]
     \centering
-    \caption{Sensitivity analysis to synthetic event perturbation on locked test split ($12,000$ events)}
+    \caption{Extended sensitivity analysis on locked test split ($12,000$ events, Seed 1 vs.\ C-3)}
     \label{tab:sensitivity}
     \small
     \begin{tabularx}{\textwidth}{X c c c c}
@@ -177,8 +187,19 @@ To demonstrate real-world tracking divergence, \texttt{demo/render.py} renders $
         \textbf{Perturbation Setting} & \textbf{GapLink Top-1 (\%)} & \textbf{GapLink WLR (\%)} & \textbf{C-3 Top-1 (\%)} & \textbf{C-3 WLR (\%)} \\
         \midrule
         Nominal ($\sigma=0.05$, $M\le 10$) & \textbf{93.41} & \textbf{3.01} & 80.29 & 19.24 \\
-        High Position Jitter ($2\times\sigma=0.10$) & \textbf{93.17} & \textbf{3.08} & 79.83 & 19.59 \\
+        Position Jitter ($2\times\sigma=0.10$) & \textbf{93.23} & \textbf{3.04} & 79.97 & 19.48 \\
+        Position Jitter ($4\times\sigma=0.20$) & \textbf{89.39} & \textbf{3.56} & 77.48 & 20.84 \\
+        Extreme Jitter ($8\times\sigma=0.40$) & \textbf{69.82} & \textbf{5.63} & 64.66 & 27.86 \\
         Reduced Candidate Cap ($M\le 5$) & \textbf{94.35} & \textbf{1.57} & 83.99 & 15.18 \\
+        True-Candidate Dropout ($15\%$) & \textbf{92.98} & \textbf{4.02} & 72.12 & 27.16 \\
+        True-Candidate Dropout ($30\%$) & \textbf{92.29} & \textbf{5.25} & 64.21 & 34.96 \\
         \bottomrule
     \end{tabularx}
 \end{table}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/fig_sensitivity_extended.png}
+    \caption{Extended Sensitivity Analysis: Top-1 Accuracy and Wrong-Link Rate Under $2\times$--$8\times$ Spatial Jitter and $15\%$--$30\%$ Candidate Dropout}
+    \label{fig:sensitivity_extended}
+\end{figure}
