@@ -15,12 +15,13 @@
 \contentsline {section}{\numberline {3.3}Modeling and Quantitative Benchmarks}{9}{section.3.3}%
 \contentsline {section}{\numberline {3.4}User Interface and Visual Video Demo}{12}{section.3.4}%
 \contentsline {section}{\numberline {3.5}Testing, Ablations, and Sensitivity Analysis}{14}{section.3.5}%
-\contentsline {chapter}{\numberline {4}Projected Impact}{17}{chapter.4}%
-\contentsline {section}{\numberline {4.1}Accomplishments and Benefits}{17}{section.4.1}%
-\contentsline {section}{\numberline {4.2}Future Improvements}{17}{section.4.2}%
-\contentsline {chapter}{\numberline {5}Team Member Review and Comment}{18}{chapter.5}%
-\contentsline {chapter}{\numberline {6}Instructor Review and Comment}{19}{chapter.6}%
-\contentsline {chapter}{References}{20}{chapter*.27}%
-\contentsline {chapter}{\numberline {A}Source Code and Implementation Details}{21}{appendix.A}%
-\contentsline {chapter}{\numberline {B}Hyperparameter \& Frozen Release Configurations}{23}{appendix.B}%
+\contentsline {section}{\numberline {3.6}End-to-End Surveillance Deployment with Live YOLOv8 Detection (GapLink-VMS)}{16}{section.3.6}%
+\contentsline {chapter}{\numberline {4}Projected Impact}{19}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Accomplishments and Benefits}{19}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Future Improvements}{19}{section.4.2}%
+\contentsline {chapter}{\numberline {5}Team Member Review and Comment}{20}{chapter.5}%
+\contentsline {chapter}{\numberline {6}Instructor Review and Comment}{21}{chapter.6}%
+\contentsline {chapter}{References}{22}{chapter*.30}%
+\contentsline {chapter}{\numberline {A}Source Code and Implementation Details}{23}{appendix.A}%
+\contentsline {chapter}{\numberline {B}Hyperparameter \& Frozen Release Configurations}{25}{appendix.B}%
 \contentsfinish 

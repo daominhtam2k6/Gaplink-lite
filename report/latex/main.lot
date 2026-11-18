@@ -10,12 +10,13 @@
 \contentsline {table}{\numberline {3.3}{\ignorespaces Online tracker benchmark across $40$ test sequences ($1,922$ injected occlusion intervals, $a_{\max }=95$)}}{12}{table.caption.18}%
 \contentsline {table}{\numberline {3.4}{\ignorespaces 5-Seed controlled ablation study on locked test split ($12,000$ events, Mean $\pm $ SD across 5 seeds)}}{14}{table.caption.21}%
 \contentsline {table}{\numberline {3.5}{\ignorespaces Extended sensitivity analysis on locked test split ($12,000$ events, Seed 1 vs.\ C-3)}}{15}{table.caption.23}%
+\contentsline {table}{\numberline {3.6}{\ignorespaces End-to-end live YOLOv8n security analytics across $40$ raw UA-DETRAC test videos ($3,103$ natural gaps, $162$ occluded $Z_A\!\to \!Z_B$ routes, $160$ occlusion-interrupted dwellers $\ge 5\text { s}$; \%)}}{17}{table.caption.25}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {5.1}{\ignorespaces Individual Team Member Reviews and Comments}}{18}{table.caption.25}%
+\contentsline {table}{\numberline {5.1}{\ignorespaces Individual Team Member Reviews and Comments}}{20}{table.caption.28}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {6.1}{\ignorespaces Capstone Project Evaluation Rubric and Instructor Feedback}}{19}{table.caption.26}%
+\contentsline {table}{\numberline {6.1}{\ignorespaces Capstone Project Evaluation Rubric and Instructor Feedback}}{21}{table.caption.29}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {B.1}{\ignorespaces Frozen Hyperparameter and Release Settings}}{23}{table.caption.28}%
+\contentsline {table}{\numberline {B.1}{\ignorespaces Frozen Hyperparameter and Release Settings}}{25}{table.caption.31}%
 \contentsfinish 

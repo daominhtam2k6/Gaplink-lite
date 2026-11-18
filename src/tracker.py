@@ -17,8 +17,10 @@ class TrackState:
         self.ctx_mask_lost = np.zeros((8,), dtype=bool)
         self.initial_gt_tid = int(gt_tid)
         self.last_gt_tid = int(gt_tid)
+        self.hits = 1
 
     def update(self, frame_id: int, box: np.ndarray, hist_vec: np.ndarray, gt_tid: int = -1, alpha: float = 0.8):
+        self.hits += 1
         self.boxes.append(box.astype(np.float32).copy())
         self.frames.append(int(frame_id))
         if len(self.boxes) > self.k_len:
@@ -59,6 +61,7 @@ class OnlineTracker:
         W: int = 960,
         H: int = 540,
         seq_name: str = "seq",
+        min_hits: int = 1,
     ):
         self.associator = associator
         self.iou_thr = float(iou_thr)
@@ -66,6 +69,7 @@ class OnlineTracker:
         self.W = int(W)
         self.H = int(H)
         self.seq_name = seq_name
+        self.min_hits = max(1, int(min_hits))
         self.cfg = EventCfg()
 
         self.next_id = 1
@@ -150,11 +154,12 @@ class OnlineTracker:
                 trk.update(frame_id, det_boxes[c], det_hists[c], int(det_gt_tids[c]))
                 new_active.append(trk)
             else:
-                trk.age = frame_id - trk.last_frame
-                trk.ctx_lost, trk.ctx_mask_lost = build_neighbor_context(
-                    trk.boxes[-1], prev_vis_boxes, 0.0, self.cfg.n_ctx
-                )
-                newly_lost.append(trk)
+                if trk.hits >= self.min_hits:
+                    trk.age = frame_id - trk.last_frame
+                    trk.ctx_lost, trk.ctx_mask_lost = build_neighbor_context(
+                        trk.boxes[-1], prev_vis_boxes, 0.0, self.cfg.n_ctx
+                    )
+                    newly_lost.append(trk)
 
         vis_boxes_now = np.stack([t.boxes[-1] for t in new_active], axis=0) if new_active else np.zeros((0, 4), dtype=np.float32)
 
@@ -239,7 +244,9 @@ class OnlineTracker:
                 "box": t.boxes[-1].copy(),
                 "gt_tid": t.last_gt_tid,
                 "initial_gt_tid": t.initial_gt_tid,
+                "hits": t.hits,
             }
             for t in self.active_tracks
+            if t.hits >= self.min_hits
         ]
         return self.frame_outputs[frame_id]

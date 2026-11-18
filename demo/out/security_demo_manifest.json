@@ -1,0 +1,32 @@
+[
+  {
+    "video": "security_demo_01_intersection.mp4",
+    "frames": 340,
+    "c3_route_alerts": 2,
+    "gl_route_alerts": 2,
+    "c3_dwell_alerts": 20,
+    "gl_dwell_alerts": 19,
+    "c3_reacquired": 10,
+    "gl_reacquired": 7
+  },
+  {
+    "video": "security_demo_02_rain_dwell.mp4",
+    "frames": 340,
+    "c3_route_alerts": 6,
+    "gl_route_alerts": 4,
+    "c3_dwell_alerts": 11,
+    "gl_dwell_alerts": 11,
+    "c3_reacquired": 0,
+    "gl_reacquired": 0
+  },
+  {
+    "video": "security_demo_03_gore_zone.mp4",
+    "frames": 340,
+    "c3_route_alerts": 7,
+    "gl_route_alerts": 6,
+    "c3_dwell_alerts": 7,
+    "gl_dwell_alerts": 7,
+    "c3_reacquired": 5,
+    "gl_reacquired": 4
+  }
+]

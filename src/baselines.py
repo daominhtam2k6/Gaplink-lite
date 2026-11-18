@@ -18,66 +18,83 @@ def predict_constant_velocity(hist_boxes: np.ndarray, hist_len: int, gap: int) -
     pred[1] += vel[1] * float(gap)
     return pred.astype(np.float32), vel.astype(np.float32)
 
+_KALMAN_HIST_CACHE: dict = {}
+
 def kalman_predict_1track(hist_boxes: np.ndarray, hist_len: int, gap: int, sigma_a: float = 0.5, obs_frac: float = 0.03):
     """8-state linear Kalman filter [cx,cy,w,h,vx,vy,vw,vh] run over history then extrapolated `gap` steps.
     Returns mean (4,) and diagonal variance (4,) on (cx,cy,w,h).
     """
     L = max(1, int(hist_len))
-    valid = hist_boxes[-L:].astype(np.float64)
-    h_ref = max(8.0, float(valid[-1, 3]))
-    w_ref = max(8.0, float(valid[-1, 2]))
+    valid_f32 = np.ascontiguousarray(hist_boxes[-L:], dtype=np.float32)
+    cache_key = (valid_f32.tobytes(), L, float(sigma_a), float(obs_frac))
+    cached = _KALMAN_HIST_CACHE.get(cache_key)
 
-    # State x (8,), covariance P (8,8)
-    x = np.zeros((8,), dtype=np.float64)
-    x[:4] = valid[0]
-    if L >= 2:
-        x[4:6] = valid[1, :2] - valid[0, :2]
-    P = np.diag([
-        (0.1 * w_ref) ** 2,
-        (0.1 * h_ref) ** 2,
-        (0.1 * w_ref) ** 2,
-        (0.1 * h_ref) ** 2,
-        (0.15 * w_ref) ** 2,
-        (0.15 * h_ref) ** 2,
-        (0.05 * w_ref) ** 2,
-        (0.05 * h_ref) ** 2,
-    ])
+    if cached is None:
+        valid = valid_f32.astype(np.float64)
+        h_ref = max(8.0, float(valid[-1, 3]))
+        w_ref = max(8.0, float(valid[-1, 2]))
 
-    F = np.eye(8, dtype=np.float64)
-    for i in range(4):
-        F[i, i + 4] = 1.0
-    H = np.zeros((4, 8), dtype=np.float64)
-    for i in range(4):
-        H[i, i] = 1.0
+        x = np.zeros((8,), dtype=np.float64)
+        x[:4] = valid[0]
+        if L >= 2:
+            x[4:6] = valid[1, :2] - valid[0, :2]
+        P = np.diag([
+            (0.1 * w_ref) ** 2,
+            (0.1 * h_ref) ** 2,
+            (0.1 * w_ref) ** 2,
+            (0.1 * h_ref) ** 2,
+            (0.15 * w_ref) ** 2,
+            (0.15 * h_ref) ** 2,
+            (0.05 * w_ref) ** 2,
+            (0.05 * h_ref) ** 2,
+        ])
 
-    q_pos = (0.5 * sigma_a) ** 2
-    q_vel = (sigma_a) ** 2
-    Q = np.diag([q_pos, q_pos, 0.25 * q_pos, 0.25 * q_pos, q_vel, q_vel, 0.1 * q_vel, 0.1 * q_vel])
-    R = np.diag([
-        (obs_frac * w_ref) ** 2,
-        (obs_frac * h_ref) ** 2,
-        (1.5 * obs_frac * w_ref) ** 2,
-        (1.5 * obs_frac * h_ref) ** 2,
-    ])
+        F = np.eye(8, dtype=np.float64)
+        for i in range(4):
+            F[i, i + 4] = 1.0
+        H = np.zeros((4, 8), dtype=np.float64)
+        for i in range(4):
+            H[i, i] = 1.0
 
-    for step in range(1, L):
-        x = F @ x
-        P = F @ P @ F.T + Q
-        z = valid[step]
-        y = z - (H @ x)
-        S = H @ P @ H.T + R
-        K = P @ H.T @ np.linalg.inv(S)
-        x = x + K @ y
-        P = (np.eye(8) - K @ H) @ P
+        q_pos = (0.5 * sigma_a) ** 2
+        q_vel = (sigma_a) ** 2
+        q_pos_vec = np.array([q_pos, q_pos, 0.25 * q_pos, 0.25 * q_pos], dtype=np.float64)
+        q_vel_vec = np.array([q_vel, q_vel, 0.1 * q_vel, 0.1 * q_vel], dtype=np.float64)
+        Q = np.diag(np.concatenate([q_pos_vec, q_vel_vec]))
+        r_diag = np.array([
+            (obs_frac * w_ref) ** 2,
+            (obs_frac * h_ref) ** 2,
+            (1.5 * obs_frac * w_ref) ** 2,
+            (1.5 * obs_frac * h_ref) ** 2,
+        ], dtype=np.float64)
+        R = np.diag(r_diag)
 
-    # Extrapolate `gap` steps without observation
-    for _ in range(int(gap)):
-        x = F @ x
-        P = F @ P @ F.T + Q
+        for step in range(1, L):
+            x = F @ x
+            P = F @ P @ F.T + Q
+            z = valid[step]
+            y = z - (H @ x)
+            S = H @ P @ H.T + R
+            K = P @ H.T @ np.linalg.inv(S)
+            x = x + K @ y
+            P = (np.eye(8) - K @ H) @ P
 
-    S_out = np.diag(P[:4, :4]) + np.diag(R)
-    S_out = np.maximum(S_out, 4.0)
-    return x[:4].astype(np.float32), S_out.astype(np.float32)
+        p0 = np.diag(P[:4, :4]).copy()
+        c0 = np.array([P[i, i + 4] for i in range(4)], dtype=np.float64)
+        v0 = np.diag(P[4:, 4:]).copy()
+        cached = (x, p0, c0, v0, q_pos_vec, q_vel_vec, r_diag)
+        if len(_KALMAN_HIST_CACHE) > 8192:
+            _KALMAN_HIST_CACHE.clear()
+        _KALMAN_HIST_CACHE[cache_key] = cached
+
+    x, p0, c0, v0, q_pos_vec, q_vel_vec, r_diag = cached
+    gi = int(gap)
+    g = float(gi)
+    x_out = x[:4] + g * x[4:]
+    s_k2 = float(gi * (gi - 1) * (2 * gi - 1) // 6)
+    p_out = p0 + 2.0 * g * c0 + (g * g) * v0 + g * q_pos_vec + s_k2 * q_vel_vec
+    S_out = np.maximum(p_out + r_diag, 4.0)
+    return x_out.astype(np.float32), S_out.astype(np.float32)
 
 class ConstantVelocityBaseline:
     """C-2: Constant velocity extrapolation + normalized distance + size penalty + Hungarian."""

@@ -1,28 +1,36 @@
-# GapLink-Lite: Vehicle Identity Re-Association Across Occlusion Gaps
+# GapLink-Lite & GapLink-VMS: Uncertainty-Aware Vehicle Re-Association & Real-Time Security Analytics
 
-A 100% self-developed, compact neural network (`327,979` parameters, randomly initialized) for re-associating vehicle trajectories across occlusion gaps ($3$ to $90$ frames) with calibrated 2D Gaussian uncertainty on the **UA-DETRAC** benchmark.
+A compact, self-developed neural network (**327,979 parameters**, `1.3 MB`, randomly initialized) for re-associating vehicle trajectories across multi-second occlusion gaps ($3$ to $90$ frames) using gap-conditioned 2D Gaussian uncertainty and differentiable Sinkhorn Optimal Transport with a learnable dustbin.
 
-## Key Results on Locked Test Split (40 Sequences, 12,000 Events)
-- **Event-Level Top-1 Accuracy:** **83.59%** vs `68.13%` for Kalman+Mahalanobis (`C-3`) and `72.42%` for Kalman+Size+Color (`C-4`).
-- **Wrong-Link Rate (WLR):** Reduced $6\times$ from `20.61%` (`C-3`) down to **4.30%**.
-- **Calibrated 90% Ellipse Coverage:** **87.70%** overall (`86.46%` short, `90.34%` medium, `84.72%` long).
-- **Online Tracker Identity Recovery Rate (IRR):** **96.15%** (full occlusion) and **96.08%** (partial occlusion) vs `90.06%` / `88.89%` for `C-3`.
+Packaged end-to-end with **Live YOLOv8n + Online 128-bin HSV Extraction** into **GapLink-VMS** — an OCR-free real-time security camera analytics console solving three concrete CCTV operational tasks on raw video streams (`.mp4` / RTSP):
+1. **Forbidden Zone-to-Zone Route & Origin-Destination (OD) Flow Enforcement (`Z_A → Z_B`)**
+2. **Restricted-Zone Anti-Loitering / Dwell-Time Alerts (`Dwell > T_max` across passing occluders)**
+3. **Click-to-Lock Suspect Target Pursuit (`2σ` Gaussian Search Zone & Dustbin Safe-Hold)**
 
-## Quick Reproduce Commands
+## Key Results on Locked UA-DETRAC Test Split (40 Sequences)
+- **5-Seed Event-Level Accuracy (`12,000` locked test events):** **`93.64% ± 0.14%`** Top-1 (`93.41%` Seed 1) vs. `80.29%` for Kalman+Mahalanobis (`C-3`), cutting Wrong-Link Rate (WLR) by **$6.5\times$** (`19.24% → 2.98%`).
+- **Online Tracker Identity Recovery (`1,922` controlled occlusions):** **`96.20%` IRR / `99.11%` IDF1** (full occlusion) and **`95.99%` IRR / `99.02%` IDF1** (partial occlusion).
+- **Live YOLOv8n End-to-End Speed (Laptop RTX 3050 6GB):** **`12.54 ms/frame` (`79.7 FPS`)** single-frame streaming latency (`9.99 ms` YOLOv8n + `1.45 ms` online HSV + `1.10 ms` GapLink-Lite VMS).
+
+## Quick Start & Reproduce Commands
 ```powershell
-# 1. Run all 16 unit tests
+# 1. Run full unit test suite (19 tests: core model, tracker, IDF1 toy, and VMS security analytics)
 D:\gaplink\.venv\Scripts\pytest.exe -c D:\gaplink\pytest.ini D:\gaplink\tests -s -q
 
-# 2. Verify frozen release checkpoint and reproduce test evaluation
-D:\gaplink\.venv\Scripts\python.exe D:\gaplink\scripts\run_test.py --ckpt release/final.pt
+# 2. Launch Interactive Local Web VMS Security Dashboard (http://127.0.0.1:8000)
+D:\gaplink\.venv\Scripts\python.exe D:\gaplink\demo\security_vms_app.py --port 8000
 
-# 3. Regenerate all report figures and side-by-side MP4 demo clips
-D:\gaplink\.venv\Scripts\python.exe D:\gaplink\scripts\make_figures.py
-D:\gaplink\.venv\Scripts\python.exe -m demo.select_clips
+# 3. Reproduce Live YOLOv8n end-to-end security evaluation across all 40 raw test videos
+D:\gaplink\.venv\Scripts\python.exe D:\gaplink\scripts\eval_live_security.py
+
+# 4. Render side-by-side VMS security MP4 demo videos
+D:\gaplink\.venv\Scripts\python.exe D:\gaplink\demo\render_security_demo.py
+
+# 5. Reproduce controlled 12,000-event & tracker benchmark from frozen release checkpoint
+D:\gaplink\.venv\Scripts\python.exe D:\gaplink\scripts\run_test.py --ckpt release/final.pt
 ```
 
 ## Key Deliverables
 - **Frozen Model & Configs:** `release/final.pt`, `release/final.sha256`, `release/calib.json`, `release/tracker.yaml`
-- **Visual Demo Videos (MP4):** `demo/out/demo_full.mp4` and 4 individual sequence clips in `demo/out/clip_01_*.mp4` .. `clip_04_*.mp4`
-- **LaTeX Report (SIC Template):** `report/latex/main.tex` (also synced to `D:\Capstone-Project_latex\Capstone-Project_latex`)
-- **Markdown Report:** `report/report.md`
+- **Live Security Camera Pipeline & VMS App:** `src/live_detector.py`, `src/security_analytics.py`, `demo/security_vms_app.py`, `demo/render_security_demo.py`
+- **LaTeX Report (SIC Template):** `report/latex/main.tex` (synced to `D:\Capstone-Project_latex\Capstone-Project_latex`)

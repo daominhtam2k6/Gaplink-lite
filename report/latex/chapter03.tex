@@ -203,3 +203,45 @@ To demonstrate real-world tracking divergence, \texttt{demo/render.py} renders $
     \caption{Extended Sensitivity Analysis: Top-1 Accuracy and Wrong-Link Rate Under $2\times$--$8\times$ Spatial Jitter and $15\%$--$30\%$ Candidate Dropout}
     \label{fig:sensitivity_extended}
 \end{figure}
+
+\section{End-to-End Surveillance Deployment with Live YOLOv8 Detection (GapLink-VMS)}
+\label{sec:live_security_vms}
+
+To bridge controlled trajectory benchmarking and real-world CCTV deployment without relying on ground-truth detections, synthetic occlusion masks, or license-plate OCR (infeasible at $960\times 540$ wide-angle resolution), we package frozen GapLink-Lite ($\tau=0.25$) directly downstream of a live \textbf{YOLOv8n} detector (\texttt{imgsz=640}, \texttt{conf=0.28}, class-agnostic NMS $0.52$, track confirmation \texttt{min\_hits=3}) and online $128$-bin HSV extraction into \textbf{GapLink-VMS} (\texttt{demo/security\_vms\_app.py}). The system operates on raw `.mp4`/RTSP camera feeds to solve three concrete security tasks: (1) \textbf{Forbidden Zone-to-Zone Route \& Origin--Destination (OD) Enforcement} ($Z_A \to Z_B$ alerts vs.\ permitted $Z_C \to Z_B$ flows, auto-cropping entry and violation snapshots), (2) \textbf{Restricted-Zone Anti-Loitering / Dwell-Time Alerts} ($\text{dwell} \ge T_{\max}=5.0\text{ s}$ without timer resets when passing buses occlude stopped vehicles), and (3) \textbf{Click-to-Lock Suspect Pursuit} ($2\sigma$ Gaussian search zone during occlusion and dustbin safe-hold against jumping onto innocent vehicles). On a laptop RTX 3050 6GB GPU, single-frame streaming runs at $\mathbf{28.95\text{ ms/frame}}$ ($\mathbf{34.5\text{ FPS}}$) on dense 4-way intersections ($12.53\text{ ms}$ YOLOv8n, $3.26\text{ ms}$ HSV/NMS, $13.16\text{ ms}$ GapLink-Lite + VMS) and $46$--$80\text{ FPS}$ on sparser street/facility cameras.
+
+Table~\ref{tab:live_security} and Figure~\ref{fig:live_security_eval} evaluate all methods across all $40$ unmodified UA-DETRAC test videos under $100\%$ natural YOLOv8n occlusions and detector noise ($3,103$ natural gaps of $3$--$95$ frames; ground truth used strictly post-hoc for scoring). Without retraining on YOLO boxes, GapLink-Lite achieves $\mathbf{87.30\%}$ Natural Identity Recovery Rate (\textbf{Nat-IRR}, $+9.95\text{ pp}$ over C-3's $77.35\%$) while cutting Natural Wrong-Link Rate (\textbf{Nat-WLR}) by $3.7\times$ ($37.78\% \to \mathbf{10.20\%}$). On downstream security rules, C-3's high wrong-link rate causes nearly half of its forbidden-route alerts to be false alarms ($\mathbf{49.22\%}$ FAR, swapping lost $Z_A$ IDs onto legal vehicles) and degrades dwell-alert precision to $54.28\%$; conversely, C-1 (no relinking) suffers timer resets on $95.6\%$ of occlusion-interrupted dwellers ($4.37\%$ recall). GapLink-Lite achieves the highest occluded route recall ($\mathbf{45.68\%}$) while slashing route false-alarm rate by $3.8\times$ ($\mathbf{12.88\%}$) and boosting occlusion-interrupted dwell-alert F1 by $+17.87\text{ pp}$ over C-3 ($35.39\% \to \mathbf{53.26\%}$, $85.12\%$ precision). Figure~\ref{fig:vms_live_demo} illustrates live side-by-side VMS execution on raw intersection and ramp-island feeds.
+
+\begin{table}[htbp]
+    \centering
+    \caption{End-to-end live YOLOv8n security analytics across $40$ raw UA-DETRAC test videos ($3,103$ natural gaps, $162$ occluded $Z_A\!\to\!Z_B$ routes, $160$ occlusion-interrupted dwellers $\ge 5\text{ s}$; \%)}
+    \label{tab:live_security}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{@{}l rrrrrrr@{}}
+        \toprule
+        \textbf{Live YOLOv8n + Tracker} & \shortstack{\textbf{Nat-IRR}\\\textbf{(\%) $\uparrow$}} & \shortstack{\textbf{Nat-WLR}\\\textbf{(\%) $\downarrow$}} & \shortstack{\textbf{Occl.\ Route}\\\textbf{Recall (\%) $\uparrow$}} & \shortstack{\textbf{Route False}\\\textbf{Alarm (\%) $\downarrow$}} & \shortstack{\textbf{Occl.\ Dwell}\\\textbf{Recall (\%) $\uparrow$}} & \shortstack{\textbf{Dwell}\\\textbf{Prec.\ (\%) $\uparrow$}} & \shortstack{\textbf{Occl.\ Dwell}\\\textbf{F1 (\%) $\uparrow$}} \\
+        \midrule
+        C-1 (IoU Only) & 8.93 & \textbf{0.00} & 33.33 & \textbf{3.45} & 4.37 & \textbf{97.80} & 8.38 \\
+        C-2 (Const-Vel) & 82.23 & 31.53 & 37.04 & 33.33 & 30.00 & 68.01 & 41.63 \\
+        C-3 (Kalman) & 77.35 & 37.78 & 42.59 & 49.22 & 26.25 & 54.28 & 35.39 \\
+        C-4 (C-3+S+C) & 78.42 & 36.38 & 40.12 & 50.00 & 28.12 & 54.90 & 37.19 \\
+        C-3 (Strict $\theta=0.5$) & 48.57 & 23.55 & 45.06 & 32.08 & 31.25 & 66.46 & 42.51 \\
+        \textbf{GapLink-Lite (Ours)} & \textbf{87.30} & 10.20 & \textbf{45.68} & 12.88 & \textbf{38.75} & 85.12 & \textbf{53.26} \\
+        \bottomrule
+    \end{tabular}%
+    }
+\end{table}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.98\textwidth]{figures/fig_live_security_eval.png}
+    \caption{End-to-End Live YOLOv8n Security Evaluation Across 40 Raw Test Videos: (a) Natural Occlusion Recovery, (b) Forbidden Route Enforcement ($Z_A \to Z_B$), and (c) Anti-Loitering Dwell Alert F1}
+    \label{fig:live_security_eval}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.96\textwidth]{figures/fig_vms_demo_intersection.png}\\[0.22cm]
+    \includegraphics[width=0.96\textwidth]{figures/fig_vms_demo_facility.png}
+    \caption{Live YOLOv8n + GapLink-VMS Console (Right) vs.\ C-3 Kalman (Left) on Raw Test Videos (\texttt{MVI\_40855} Intersection and \texttt{MVI\_39311} Restricted Gore Island), Showing Forbidden-Route Alerts, Dwell Timers, and Target Re-Acquisition}
+    \label{fig:vms_live_demo}
+\end{figure}

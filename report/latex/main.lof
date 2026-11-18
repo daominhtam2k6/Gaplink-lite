@@ -11,6 +11,8 @@
 \contentsline {figure}{\numberline {3.7}{\ignorespaces Side-by-Side Visual Demo Comparing C-3 (Left) vs.\ GapLink-Lite (Right) on Test Sequences Where C-3 Fails}}{13}{figure.caption.20}%
 \contentsline {figure}{\numberline {3.8}{\ignorespaces 5-Seed Ablation Study on Locked Test Events (Mean $\pm $ SD Across 5 Random Seeds)}}{15}{figure.caption.22}%
 \contentsline {figure}{\numberline {3.9}{\ignorespaces Extended Sensitivity Analysis: Top-1 Accuracy and Wrong-Link Rate Under $2\times $--$8\times $ Spatial Jitter and $15\%$--$30\%$ Candidate Dropout}}{16}{figure.caption.24}%
+\contentsline {figure}{\numberline {3.10}{\ignorespaces End-to-End Live YOLOv8n Security Evaluation Across 40 Raw Test Videos: (a) Natural Occlusion Recovery, (b) Forbidden Route Enforcement ($Z_A \to Z_B$), and (c) Anti-Loitering Dwell Alert F1}}{17}{figure.caption.26}%
+\contentsline {figure}{\numberline {3.11}{\ignorespaces Live YOLOv8n + GapLink-VMS Console (Right) vs.\ C-3 Kalman (Left) on Raw Test Videos (\texttt {MVI\_40855} Intersection and \texttt {MVI\_39311} Restricted Gore Island), Showing Forbidden-Route Alerts, Dwell Timers, and Target Re-Acquisition}}{18}{figure.caption.27}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
