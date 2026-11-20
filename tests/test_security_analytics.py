@@ -5,6 +5,7 @@ from src.baselines import KalmanMahalanobisBaseline
 from src.security_analytics import (
     PolygonZone,
     SecurityVMSEngine,
+    auto_calibrate_zones_from_detections,
 )
 
 
@@ -119,3 +120,35 @@ def test_dwell_time_survives_passing_occluder_and_target_lock():
 
     # Without relink, timer resets to 0.0s on every passing bus -> 0 alerts!
     assert len(vms_norelink.dwell_mon.alerts) == 0
+
+
+def test_gt_free_appearance_hijack_and_auto_zone_calibration():
+    """Verify GT-free appearance hijack detector flags C-3 wrong-color switches and auto-zone calibration works."""
+    dets = {}
+    for f in range(1, 30):
+        dets[f] = {
+            "boxes": np.array([[200.0 + f * 8.0, 150.0 + f * 6.0, 48.0, 34.0]], dtype=np.float32),
+            "hists": np.stack([_hist(5)]),
+        }
+    zones = auto_calibrate_zones_from_detections(dets, W=960, H=540)
+    assert len(zones) == 4
+    assert {z.zone_id for z in zones} == {"Z_A", "Z_C", "Z_B", "Z_DWELL"}
+
+    # Test GT-free hijack detection when C-3 links a track with _hist(1) to a completely different color _hist(80)
+    vms_c3 = SecurityVMSEngine(OnlineTracker(associator=KalmanMahalanobisBaseline(theta=30.0)), zones=zones, fps=10.0)
+    for f in range(1, 14):
+        if f <= 5:
+            b = np.array([[300.0, 220.0, 46.0, 32.0]], dtype=np.float32)
+            h = np.stack([_hist(1)])
+        elif f <= 8:
+            b = np.zeros((0, 4), dtype=np.float32)
+            h = np.zeros((0, 128), dtype=np.float32)
+        else:
+            # A different vehicle with orthogonal color _hist(80) appears at the same position (no GT labels passed!)
+            b = np.array([[302.0, 221.0, 46.0, 32.0]], dtype=np.float32)
+            h = np.stack([_hist(80)])
+        res = vms_c3.step(f, b, h)
+        if f == 2:
+            vms_c3.target_lock.lock_by_click(300.0, 220.0, res["tracks"], frame_id=f)
+    assert vms_c3.target_lock.state == "HIJACKED_WRONG"
+    assert vms_c3.target_lock.hijack_count == 1

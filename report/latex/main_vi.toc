@@ -1,0 +1,27 @@
+\contentsline {chapter}{Danh mục Từ viết tắt}{v}{chapter*.4}%
+\contentsline {chapter}{\numberline {1}Giới thiệu}{1}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Bối cảnh bài toán}{1}{section.1.1}%
+\contentsline {section}{\numberline {1.2}Động lực và Mục tiêu}{1}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Thành viên, Vai trò và Tiến độ thực hiện}{2}{section.1.3}%
+\contentsline {section}{\numberline {1.4}Các giai đoạn thực hiện và Cổng kiểm chứng}{2}{section.1.4}%
+\contentsline {chapter}{\numberline {2}Thực hiện Dự án}{4}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Thu thập và Làm sạch Dữ liệu}{4}{section.2.1}%
+\contentsline {section}{\numberline {2.2}Phương pháp Huấn luyện}{5}{section.2.2}%
+\contentsline {section}{\numberline {2.3}Quy trình vận hành}{6}{section.2.3}%
+\contentsline {section}{\numberline {2.4}Thiết kế Hệ thống}{6}{section.2.4}%
+\contentsline {chapter}{\numberline {3}Kết quả}{7}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Tiền xử lý dữ liệu và Chẩn đoán phân chia tập}{7}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Phân tích Khám phá Dữ liệu (EDA) và Hội tụ Huấn luyện}{7}{section.3.2}%
+\contentsline {section}{\numberline {3.3}Mô hình hóa và Đánh giá Định lượng}{8}{section.3.3}%
+\contentsline {section}{\numberline {3.4}Giao diện và Video Demo Trực quan}{12}{section.3.4}%
+\contentsline {section}{\numberline {3.5}Kiểm thử, Ablation và Phân tích Độ nhạy}{12}{section.3.5}%
+\contentsline {section}{\numberline {3.6}Triển khai Giám sát An ninh Đầu-Cuối với Live YOLOv8 (GapLink-VMS)}{14}{section.3.6}%
+\contentsline {chapter}{\numberline {4}Tác động và Hướng phát triển}{17}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Thành tựu và Lợi ích đạt được}{17}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Hướng cải tiến trong tương lai}{17}{section.4.2}%
+\contentsline {chapter}{\numberline {5}Tự đánh giá của Thành viên}{18}{chapter.5}%
+\contentsline {chapter}{\numberline {6}Nhận xét và Đánh giá của Giảng viên}{19}{chapter.6}%
+\contentsline {chapter}{Tài liệu tham khảo}{20}{chapter*.30}%
+\contentsline {chapter}{\numberline {A}Mã nguồn và Chi tiết Cài đặt}{21}{appendix.A}%
+\contentsline {chapter}{\numberline {B}Siêu tham số và Cấu hình Đóng băng}{23}{appendix.B}%
+\contentsfinish 

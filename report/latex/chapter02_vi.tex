@@ -1,0 +1,92 @@
+\chapter{Thực hiện Dự án}
+\label{chap:project_execution}
+
+\section{Thu thập và Làm sạch Dữ liệu}
+\label{sec:data_acquisition}
+
+Đồ án sử dụng toàn bộ bộ dữ liệu chuẩn theo dõi đa phương tiện \textbf{UA-DETRAC} \cite{wen2020uadetrac}, gồm $100$ chuỗi video giao thông thực tế quay ở tốc độ $25\text{ fps}$ ($960 \times 540$ pixel). Trong bản CSV thô, các vùng bỏ qua tĩnh (\texttt{class='ignored'}, \texttt{target\_id=-1}, $528.798$ dòng) nằm lẫn với $1.274.055$ dòng phương tiện. Bộ chuyển đổi (\texttt{scripts/convert\_detrac.py}) tách toàn bộ $407$ đa giác vùng bỏ qua sang tệp \texttt{{seq}\_ignore.txt} và loại bỏ các hộp giới hạn phương tiện có tâm rơi vào vùng bỏ qua. Thao tác này loại bỏ $72.714$ hộp xe ($\approx 5.7\%$), giữ lại $1.201.341$ hộp xe hợp lệ trên $8.251$ quỹ đạo (khớp gần đúng trong khoảng $\sim 0.7\%$ so với $1.21\text{M}$ hộp và $8.250$ xe công bố trong \cite{wen2020uadetrac}); do việc lọc theo vùng bỏ qua có thể cắt ngang quỹ đạo gần biên vùng che, $242$ quỹ đạo xuất hiện khoảng trống khung hình tự nhiên. Lưu ý rằng bản CSV gộp các loại xe chi tiết thành một nhãn \texttt{vehicle} duy nhất, nên Hình~\ref{fig:eda_results} báo cáo phân bố độ dài quỹ đạo và mật độ phương tiện thay cho số lượng loại xe giả tạo.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Thống kê bộ dữ liệu UA-DETRAC sau làm sạch và phân chia theo cụm camera (\texttt{data/stats.json})}
+    \label{tab:dataset_stats}
+    \begin{tabularx}{\textwidth}{l r X}
+        \toprule
+        \textbf{Thuộc tính} & \textbf{Giá trị} & \textbf{Kiểm chứng / Ghi chú} \\
+        \midrule
+        Tổng số chuỗi video & $100$ & $60$ chuỗi source-train + $40$ chuỗi source-test chính thức ($960\times 540$) \\
+        Số khung hình có nhãn & $138.045$ & $45.603$ khung hình đông đúc có $\ge 10$ xe cùng lúc (TB $8.70$ xe/khung hình) \\
+        Tổng số quỹ đạo xe & $8.251$ & Phân vị độ dài quỹ đạo: $P_{10} = 31$, $P_{50} = 86$, $P_{90} = 245$ khung hình \\
+        Tổng số hộp giới hạn xe & $1.201.341$ & Đã lọc $72.714$ hộp ($5.7\%$) trong $407$ vùng ignore; $0$ hộp người đi bộ \\
+        Tập Train (Tách camera) & $47$ chuỗi & $13$ cụm góc nhìn camera ($120.038$ sự kiện huấn luyện) \\
+        Tập Validation (Tách camera) & $13$ chuỗi & $4$ cụm góc nhìn camera ($6.000$ sự kiện validation cố định) \\
+        Tập Test (Độc lập chính thức) & $40$ chuỗi & $15$ cụm ($7$ cụm trùng góc với train/val, $8$ cụm hoàn toàn mới; $12.000$ sự kiện) \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+Để tránh rò rỉ góc nhìn camera giữa train và validation, \texttt{scripts/group\_locations.py} tính ảnh nền trung vị xám $64 \times 36$ cho mỗi chuỗi và áp dụng Gom cụm Phân cấp ($1 - r \le 0.65$), thu được $25$ cụm góc nhìn gốc tương ứng $\sim 24$ vị trí camera vật lý của UA-DETRAC. $60$ chuỗi source-train được chia tách tuyệt đối theo cụm thành $13$ cụm train và $4$ cụm validation (tổng $17$ cụm). Do giữ nguyên $40$ chuỗi source-test chính thức của UA-DETRAC, $15$ cụm gốc trong tập test gồm $7$ cụm góc quay ($21$ chuỗi, $6.300$ sự kiện) có mặt trong train/val và $8$ cụm hoàn toàn chưa từng thấy ($19$ chuỗi, $5.700$ sự kiện); cả hai nhóm được đánh giá tách riêng tại Chương~\ref{chap:results}. Ngoài ra, để đảm bảo không rò rỉ ngoại hình khi bị che khuất một phần, \texttt{scripts/extract\_hist.py} tính trước tensor histogram HSV 128-bin gồm 5 góc nhìn \texttt{(R, 5, 128)}: góc nhìn $0$ lấy $60\%$ vùng lõi hộp đầy đủ, trong khi các góc nhìn $1$--$4$ chỉ trích xuất từ phần hộp còn nhìn thấy (trên, dưới, trái, phải).
+
+\section{Phương pháp Huấn luyện}
+\label{sec:training_methodology}
+
+\textbf{Mô hình hóa Toán học của GapLink-Lite.} Với $N \le 6$ quỹ đạo mất dấu và $M \le 10$ ứng viên phát hiện tại khung hình xác nhận $t_{\text{conf}}$, GapLink-Lite tính phân phối gán song ngẫu nhiên trên ma trận mở rộng $(N+1) \times (M+1)$:
+\begin{enumerate}
+    \item \textbf{Động học chuẩn hóa tỷ lệ \& Bộ mã hóa chuyển động:} Với mỗi quỹ đạo mất dấu $i$ có độ dài lịch sử $L_i \in [1, 20]$ kết thúc tại $t_{\text{lost},i}$ và hộp cuối $b_{i,L_i} = (c_x, c_y, w_l, h_l)$, mỗi bước lịch sử được biểu diễn bằng 9 đặc trưng bất biến tỷ lệ chuẩn hóa theo $h_l$. Một mạng GRU 2 tầng ($d = 128$) tạo trạng thái ẩn $h_i \in \mathbb{R}^{128}$, trong khi độ dài che khuất $g_i = t_{\text{conf}} - t_{\text{lost},i}$ được nhúng qua $\phi(g_i) = [\ln(1+g_i), g_i/90, \mathbb{I}(g_i\le 15), \mathbb{I}(16\le g_i\le 45), \mathbb{I}(g_i>45)] \in \mathbb{R}^5$ thành $g_{\text{emb},i} \in \mathbb{R}^{32}$.
+    \item \textbf{Bộ mã hóa Ngữ cảnh DeepSets đối xứng:} Tối đa $N_{\text{ctx}} = 8$ xe lân cận trong bán kính $5 h_l$ tại $t_{\text{lost},i}$ và $t_{\text{conf}}$ được mã hóa qua MLP dùng chung và gộp max+mean bất biến hoán vị \cite{zaheer2017deepsets} thành $c_i \in \mathbb{R}^{128}$.
+    \item \textbf{Mốc Vận tốc Không đổi + Bộ dự đoán Gaussian Phần dư:} Dùng mốc vận tốc không đổi $\hat{\mu}^{\text{CV}}_i = v_i \cdot g_i / h_l$, mô hình xuất trung bình phần dư chuẩn hóa và log-phương sai đường chéo:
+    \begin{equation}
+        \mu_i = \hat{\mu}^{\text{CV}}_i + f_{\mu}(h_i, c_i, g_i), \qquad \ln \sigma_i^2 = \text{clamp}\big(f_{\sigma}(h_i, c_i, g_i), -6.0, 4.0\big)
+    \end{equation}
+    \item \textbf{Bộ chấm điểm Cặp đôi \& Dustbin (Kiểu SuperGlue):} Với mỗi cặp $(i, j)$ có độ lệch chuẩn hóa $y_{ij}$, mật độ log Gaussian $m_{ij}$ được kết hợp cùng khoảng cách Mahalanobis tâm, IoU hộp dự đoán, chênh lệch tỷ lệ kích thước và độ tương đồng cosine HSV vùng hiển thị thành logit $S_{ij}$. Theo cơ chế dustbin học được của SuperGlue \cite{sarlin2020superglue}, dustbin quỹ đạo $z_i^t$ và dustbin ứng viên $z_j^c$ nhận thông tin biên khung hình, ngoại hình và thống kê cạnh tranh ($\max_j S_{ij}, \max_j \text{IoU}_{ij}, \max_j \cos_{ij}$) để từ chối chính xác các xe đã rời khỏi khung hình.
+    \item \textbf{Vận chuyển tối ưu Sinkhorn miền Log:} Tạo ma trận điểm mở rộng $\tilde{S}$ kích thước $(N+1)\times(M+1)$ với cột cuối $z^t$, hàng cuối $(z^c)^\top$ và góc $0$, chạy $T = 20$ vòng lặp chuẩn hóa log-sum-exp luân phiên theo hàng và cột với biên mục tiêu $\mathbf{r} = [1, \dots, 1, M]^\top$ và $\mathbf{c} = [1, \dots, 1, N]^\top$ \cite{sinkhorn1967,cuturi2013sinkhorn,sarlin2020superglue} để thu về $\log P$.
+\end{enumerate}
+
+\textbf{Hàm mất mát kết hợp \& Huấn luyện đa Seed.} Mô hình được huấn luyện bằng AdamW ($\text{lr} = 7\times 10^{-4}$, suy giảm cosine sau 200 bước warmup, batch size $64$, $2.400$ bước, gradient clipping $1.0$) trên GPU NVIDIA GeForce RTX 3050 6GB với $\mathcal{L} = \mathcal{L}_{\text{assign}} + 0.5\,\mathcal{L}_{\text{NLL}}$ và xác suất sự kiện khó tăng dần từ $0.40$ lên $0.75$. Toàn bộ cấu hình chính và ablation được huấn luyện qua 5 seed ngẫu nhiên (tổng 20 lần chạy GPU; $\sim 100\text{ s}$ mỗi lần chạy chính).
+
+\section{Quy trình vận hành}
+\label{sec:workflow}
+
+Để đảm bảo không có lệch phân phối giữa lúc huấn luyện sự kiện và chạy tracker trực tuyến, cả bộ lấy mẫu huấn luyện lẫn Tầng 2 của tracker đều gọi cùng một hàm thuần túy \texttt{assemble\_event} (được kiểm chứng bởi \texttt{tests/test\_parity.py}). Khi chạy trực tuyến: Tầng 1 ghép các quỹ đạo đang hoạt động với phát hiện mới qua Hungarian IoU ($\ge 0.30$); Tầng 2 ghép các quỹ đạo mất dấu ($2 \le \text{age} \le a_{\max}$, $a_{\max}=95$) với các phát hiện chưa ghép bằng bộ liên kết được chọn. Với GapLink-Lite, phép ghép Hungarian trên $-P_{1:N,1:M}$ chấp nhận $(i,j)$ khi và chỉ khi $P_{ij} \ge \tau$ ($\tau = 0.25$) và $P_{ij} > P_{i,M+1}$.
+
+\section{Thiết kế Hệ thống}
+\label{sec:system_design}
+
+Hình~\ref{fig:system_design} trình bày sơ đồ kiến trúc vector của GapLink-Lite và quá trình tích hợp vào bộ theo dõi phương tiện trực tuyến 2 tầng.
+
+\begin{figure}[htbp]
+    \centering
+    \resizebox{\textwidth}{!}{%
+    \begin{tikzpicture}[
+        node distance=0.9cm and 1.1cm,
+        box/.style={draw=SamsungBlue!80!black, rounded corners=4pt, fill=SamsungLightBlue!35, text width=3.1cm, align=center, minimum height=1.35cm, font=\small},
+        inp/.style={draw=gray!70!black, rounded corners=4pt, fill=gray!10, text width=2.9cm, align=center, minimum height=1.35cm, font=\small},
+        outb/.style={draw=red!65!black, rounded corners=4pt, fill=red!6, text width=3.2cm, align=center, minimum height=2.2cm, font=\small},
+        arr/.style={-{Stealth[length=2.5mm]}, thick, draw=black!75}
+    ]
+        \node[inp] (lost) {\textbf{Tập Lost Track ($1\dots N$)}\\ \scriptsize Hộp ($K\le 20$), Gap $g_i$\\ HSV EMA 128-bin, Ctx@$t_{\text{lost}}$};
+        \node[inp, below=1.1cm of lost] (cand) {\textbf{Tập Ứng viên ($1\dots M$)}\\ \scriptsize Phát hiện lẻ@$t_{\text{conf}}$\\ HSV vùng thấy, Ctx@$t_{\text{conf}}$};
+
+        \node[box, right=1.0cm of lost] (mot) {\textbf{1. Mã hóa Chuyển động}\\ \scriptsize GRU 2 tầng ($d=128$)\\ + Gap MLP $\rightarrow (h_i, g_{\text{emb},i})$};
+        \node[box, right=1.0cm of cand] (ctx) {\textbf{2. Mã hóa Ngữ cảnh}\\ \scriptsize DeepSets Đối xứng\\ Max+Mean Pool $\rightarrow c_i$};
+
+        \node[box, fill=green!8, draw=green!55!black, right=1.0cm of mot] (pred) {\textbf{3. Dự đoán Gaussian}\\ \scriptsize Mốc CV + Residual MLP\\ $\rightarrow (\mu_i, \ln\sigma_i^2)$};
+        \node[box, fill=purple!8, draw=purple!60!black, right=1.0cm of ctx] (scor) {\textbf{4. Chấm điểm \& Dustbin}\\ \scriptsize Logit $S_{ij}$ + Track $z_i^t$\\ + Cand $z_j^c$ (kiểu SuperGlue)};
+
+        \node[outb, right=1.0cm of $(pred.east)!0.5!(scor.east)$] (sink) {\textbf{5. Log-Sinkhorn ($T=20$)}\\ \scriptsize Ma trận $(N+1)\times(M+1)$\\ Song ngẫu nhiên $P$\\ Hungarian + Ngưỡng $\tau=0.25$\\ $\rightarrow$ Hồi phục ID / Từ chối};
+
+        \draw[arr] (lost) -- (mot);
+        \draw[arr] (cand) -- (ctx);
+        \draw[arr] (lost.south east) -- (ctx.north west);
+        \draw[arr] (mot) -- (pred);
+        \draw[arr] (ctx) -- (scor);
+        \draw[arr] (ctx.north east) -- (pred.south west);
+        \draw[arr] (mot.south east) -- (scor.north west);
+        \draw[arr] (pred) -- (scor);
+        \draw[arr] (pred.east) -- (sink.west |- pred.east);
+        \draw[arr] (scor.east) -- (sink.west |- scor.east);
+    \end{tikzpicture}%
+    }
+    \caption{Sơ đồ kiến trúc vector của GapLink-Lite ($327.979$ tham số) và tầng tái liên kết Vận chuyển tối ưu}
+    \label{fig:system_design}
+\end{figure}

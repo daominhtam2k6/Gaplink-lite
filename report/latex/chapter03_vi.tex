@@ -1,0 +1,247 @@
+\chapter{Kết quả}
+\label{chap:results}
+
+\section{Tiền xử lý dữ liệu và Chẩn đoán phân chia tập}
+\label{sec:data_preprocessing}
+
+Sau khi tách $528.798$ dòng \texttt{ignored} tĩnh và lọc $72.714$ hộp xe ($5.7\%$) nằm trong $407$ vùng ignore, chúng tôi tạo bộ sự kiện cố định cho validation ($6.000$ sự kiện, $11.389$ quỹ đạo) và test ($12.000$ sự kiện, $27.120$ quỹ đạo) bằng lấy mẫu tự nhiên (\texttt{want\_hard=None}). Đáng chú ý, C-3 (Kalman + Mahalanobis, $\theta=25.0$) đạt $67.39\%$ Top-1 trên validation so với $80.29\%$ trên test ($+12.90\text{ pp}$), dù tập test có nhiều ca gắn cờ $1.15h$ hơn ($71.5\%$ so với $60.4\%$), khoảng trống dài hơn (trung bình $27.6$ so với $22.6$ khung hình), nhiều ứng viên hơn ($8.5$ so với $7.1$) và ứng viên nhiễu gần hơn (trung vị $d^2_{\min}=5.69$ so với $21.25$). Phân tích chẩn đoán cho thấy chênh lệch này bắt nguồn từ dao động mẫu nhỏ trên tập validation chỉ có $4$ cụm camera: $9.2\%$ ca đúng trên validation vượt ngưỡng $\theta=25.0$ của C-3 (ví dụ \texttt{LOC\_22} tụt xuống $57.57\%$), trong khi trên test ($15$ cụm) chỉ có $0.2\%$ ca đúng vượt $\theta=25.0$ (dao động theo cụm từ $74.72\%$ đến $86.84\%$).
+
+Để kiểm toán $7$ cụm góc nhìn camera trùng giữa train/val và tập test chính thức (Mục~\ref{sec:data_acquisition}), chúng tôi đánh giá riêng tập test trên nhóm cụm trùng ($21$ chuỗi, $6.300$ sự kiện) và nhóm cụm hoàn toàn chưa từng thấy ($19$ chuỗi, $5.700$ sự kiện): GapLink-Lite (Seed~1) đạt $\mathbf{93.39\%}$ Top-1 ($2.93\%$ WLR) trên cụm trùng so với $\mathbf{93.44\%}$ Top-1 ($3.10\%$ WLR) trên cụm hoàn toàn mới (C-3: $80.59\%$ so với $79.96\%$), khẳng định mô hình không học thuộc bối cảnh camera.
+
+\section{Phân tích Khám phá Dữ liệu (EDA) và Hội tụ Huấn luyện}
+\label{sec:eda}
+
+Hình~\ref{fig:eda_results} hiển thị phân bố độ dài quỹ đạo và mật độ giao thông của UA-DETRAC sau làm sạch cùng $40$ ảnh nền trung vị đại diện cho $25$ cụm camera gốc ($17$ cụm trong train/val và $15$ cụm trong test, với $7$ cụm trùng như đã kiểm toán ở Mục~\ref{sec:data_preprocessing}). Hình~\ref{fig:training_curves} biểu diễn hàm mất mát gán Sinkhorn làm mượt (EMA) và độ chính xác Top-1 trên tập validation theo bước huấn luyện.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.52\textwidth]{figures/fig_class_hist.png}\hfill
+    \includegraphics[width=0.46\textwidth]{figures/fig_location_clusters.png}
+    \caption{Phân tích Khám phá Dữ liệu: Độ dài quỹ đạo \& Mật độ (trái) và 40 ảnh nền trung vị đại diện qua 25 cụm camera gốc (phải)}
+    \label{fig:eda_results}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/fig_training_curves.png}
+    \caption{Hội tụ của GapLink-Lite: Hàm mất mát Sinkhorn EMA (trái) và Độ chính xác Top-1 trên Validation (phải)}
+    \label{fig:training_curves}
+\end{figure}
+
+\section{Mô hình hóa và Đánh giá Định lượng}
+\label{sec:modeling}
+
+\textbf{Đánh giá Cấp sự kiện trên Tập Test Khóa cứng ($12.000$ Sự kiện, $40$ Chuỗi Test).} Bảng~\ref{tab:event_results} so sánh GapLink-Lite (5 seed ngẫu nhiên: trung bình $\pm$ SD) với C-2, C-3 và C-4 ở ba chế độ: (i) tối ưu Top-1 không ràng buộc trên validation, (ii) chọn ngưỡng $\text{WLR} \le 5.0\%$ trên validation (cho WLR thực tế $6.46\%$--$9.13\%$ trên test), và (iii) các điểm vận hành khớp trực tiếp mức $\sim 3.0\%$ WLR của GapLink-Lite trên đường cong test. Hình~\ref{fig:event_gap_bins} phân tách Top-1 theo độ dài che khuất và ngưỡng gần nhau chặt ($<0.5h$), còn Hình~\ref{fig:wlr_curve} vẽ toàn bộ đường cong đánh đổi Top-1 với WLR.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Kết quả tái liên kết cấp sự kiện trên tập test khóa cứng ($12.000$ sự kiện, $27.120$ quỹ đạo mất dấu)}
+    \label{tab:event_results}
+    \scriptsize\setlength{\tabcolsep}{2.8pt}
+    \begin{tabularx}{\textwidth}{X c c c c c c c}
+        \toprule
+        \textbf{Phương pháp (Điểm vận hành)} & \textbf{Top-1 (\%)} & \textbf{Ngắn} & \textbf{TB} & \textbf{Dài} & \textbf{Hard (\%)} & \textbf{Dust F1} & \textbf{WLR (\%)} \\
+        \midrule
+        C-2 (Best Val Top-1) & 76.58 & 87.80 & 76.64 & 49.10 & 77.73 & 44.77 & 21.14 \\
+        C-3 (Best Val Top-1) & 80.29 & 94.23 & 76.74 & 54.39 & 81.70 & 52.31 & 19.24 \\
+        C-4 (Best Val Top-1) & 83.69 & 94.41 & 80.77 & 64.24 & 85.85 & 51.22 & 15.88 \\
+        \midrule
+        C-2 (Val WLR$\le$5\%) & 70.59 & 93.82 & 63.88 & 29.32 & 69.67 & 49.41 & 6.46 \\
+        C-3 (Val WLR$\le$5\%, $\theta=0.5$) & 57.22 & 46.68 & 68.79 & 56.54 & 55.76 & 39.40 & 9.13 \\
+        C-4 (Val WLR$\le$5\%) & 76.03 & 74.02 & 82.25 & 66.79 & 75.89 & 54.01 & 6.70 \\
+        \midrule
+        C-2 (Test WLR $\approx 3\%$, $\theta=0.65$) & 58.61 & 87.01 & 44.89 & 20.72 & 56.84 & 39.67 & 2.49 \\
+        C-3 (Test WLR $\approx 3\%$, $\theta=0.05$) & 24.82 & 17.74 & 27.95 & 34.90 & 21.26 & 26.35 & 3.01 \\
+        C-4 (Test WLR $\approx 3\%$, $\theta=1.0$) & 60.70 & 54.07 & 68.45 & 59.20 & 59.68 & 40.69 & 2.82 \\
+        \midrule
+        \textbf{GapLink-Lite (Seed 1)} & \textbf{93.41} & \textbf{98.64} & \textbf{93.89} & \textbf{79.58} & \textbf{93.18} & \textbf{83.97} & \textbf{3.01} \\
+        \textbf{GapLink-Lite (TB 5 Seed)} & \textbf{93.64} & \textbf{98.46} & \textbf{94.17} & \textbf{80.67} & \textbf{93.47} & \textbf{84.61} & \textbf{2.98} \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/fig_event_gap_bins.png}
+    \caption{Độ chính xác Top-1 cấp sự kiện trên tập Test theo nhóm độ dài gap và ngưỡng gần nhau chặt ($<0.5h$)}
+    \label{fig:event_gap_bins}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.86\textwidth]{figures/fig_top1_vs_wlr_curve.png}
+    \caption{Đường cong đánh đổi trên tập Test: Độ chính xác Top-1 so với Tỷ lệ ghép nhầm (WLR)}
+    \label{fig:wlr_curve}
+\end{figure}
+
+Qua 5 seed ngẫu nhiên, GapLink-Lite đạt $\mathbf{93.64\% \pm 0.14\%}$ Top-1 (paired cluster bootstrap $\Delta = +\mathbf{13.12}\%$ so với C-3 không ràng buộc, 95\% CI $[12.20, 14.01]\%$) đồng thời giảm WLR đi $6.4\times$ ($19.24\% \to \mathbf{2.98\%}$ trung bình 5 seed, $3.01\%$ ở Seed~1). Khi ép các baseline về cùng mức $\sim 3\%$ WLR trên đường cong test, C-2 giảm xuống $58.61\%$ ($2.49\%$ WLR), C-3 sụp xuống $24.82\%$ ($3.01\%$ WLR) và C-4 đạt $60.70\%$ ($2.82\%$ WLR), cho thấy mức vượt trội $+\mathbf{32.71\text{ pp}}$ ở Seed~1 ($+\mathbf{32.94\text{ pp}}$ trung bình 5 seed) so với baseline mạnh nhất cùng WLR (C-4). Đáng chú ý, C-3 (Val WLR$\le$5\%, $\theta=0.5$) đạt điểm ở gap ngắn ($46.68\%$) thấp hơn gap dài ($56.54\%$) vì hiệp phương sai nhiễu quá trình của Kalman tăng theo thời gian che khuất: ở gap ngắn ($1$--$5$), phương sai hẹp khiến $d^2$ lớn (trung vị $0.74$; $60.5\%$ ca đúng vượt $\theta=0.5$), còn ở gap dài ($16$--$30$), phương sai phình to làm giảm $d^2$ (trung vị $0.11$; chỉ $19.7\%$ vượt $\theta=0.5$). Chúng tôi cũng ghi nhận cờ ``hard'' $1.15h$ bao phủ $71.5\%$ tập test nên không tách được tập khó hơn cho baseline (C-3: $81.70\%$ trên hard so với $80.29\%$ tổng thể); ở ngưỡng chặt hơn $<0.50h$ ($20.0\%$ tập test), GapLink-Lite Seed~1 vẫn đạt $90.66\%$ so với $76.11\%$ (C-3) và $81.02\%$ (C-4).
+
+\textbf{Độ bao phủ Bất định qua các nhóm Gap (Giả thuyết H2).} Bảng~\ref{tab:calib_results} và Hình~\ref{fig:calib_plot} báo cáo độ bao phủ thực nghiệm của elip 90\% và 2D NLL theo không gian pixel. Do đầu ra chưa hiệu chuẩn của GapLink-Lite tự thân đã nằm gọn trong $[85\%, 95\%]$ ở cả ba bin ($86.42\%$, $85.46\%$, $88.02\%$, tổng thể $86.32\%$ ở Seed~1; trung bình 5 seed $86.83\% \pm 0.50\%$, $\text{NLL} = \mathbf{7.93 \pm 0.18}$ so với $9.15$ của C-3), chúng tôi chọn bản \textbf{chưa hiệu chuẩn} làm mô hình bất định chính. Áp dụng hiệu chuẩn bậc hai khớp trên tập validation 4 cụm ($a = 0.413, b = -0.341, c = 0.074$) bị quá khớp vào dao động cụm của validation, đẩy độ bao phủ bin dài trên test vượt $95\%$ ($95.86\%$ Seed~1; $95.58\% \pm 1.46\%$ qua 5 seed) và làm tăng nhẹ NLL ($7.99 \to 8.00$ Seed~1; $7.93 \to 7.94$ trung bình 5 seed).
+
+\begin{table}[htbp]
+    \centering
+    \caption{Độ bao phủ thực nghiệm elip Gaussian 2D 90\% và 2D NLL theo pixel trên tập test khóa cứng}
+    \label{tab:calib_results}
+    \small\setlength{\tabcolsep}{3.5pt}
+    \begin{tabularx}{\textwidth}{X c c c c c}
+        \toprule
+        \textbf{Mô hình / Trạng thái bất định} & \textbf{Cov90 chung (\%)} & \textbf{Ngắn (3-15)} & \textbf{TB (16-45)} & \textbf{Dài (46-90)} & \textbf{2D NLL (px) $\downarrow$} \\
+        \midrule
+        C-3 (Kalman Baseline) & 97.79 & 97.68 & 97.72 & 98.23 & 9.15 \\
+        \textbf{GapLink-Lite (Chưa hiệu chuẩn, Chính)} & \textbf{86.32} & \textbf{86.42} & \textbf{85.46} & \textbf{88.02} & \textbf{7.99} \\
+        GapLink-Lite (Chưa hiệu chuẩn, 5-Seed) & $86.83\pm0.50$ & $86.90\pm0.80$ & $85.97\pm0.76$ & $88.64\pm1.24$ & $\mathbf{7.93\pm0.18}$ \\
+        GapLink-Lite (Sau hiệu chuẩn, Phụ) & 90.22 & 87.87 & 90.26 & 95.86 & 8.00 \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.86\textwidth]{figures/fig_calibration_coverage.png}
+    \caption{Độ bao phủ thực nghiệm elip 90\% qua các nhóm gap trên tập Test: Bản chính chưa hiệu chuẩn (3/3 bin đạt chuẩn) so với sau hiệu chuẩn}
+    \label{fig:calib_plot}
+\end{figure}
+
+\textbf{Đánh giá Tracker Đa đối tượng Trực tuyến (Giả thuyết H3).} Với $a_{\max} = 95$ khung hình (bao phủ toàn bộ $1.922$ khoảng che khuất nhân tạo tới $\text{max\_gap} = 90$, gồm $144$ khoảng $> 60$ khung hình), Bảng~\ref{tab:tracker_results} và Hình~\ref{fig:tracker_plot} báo cáo đồng thời chỉ số hồi phục khoảng (IRR, WLR) và các chỉ số MOT chuẩn (IDF1, MOTA, IDSW) trên $40$ chuỗi test. Ground truth cho IDF1/MOTA được tính nghiêm ngặt trên các khung hình hiển thị (loại các khung hình đang bị che khuất khỏi \texttt{dets\_by\_frame}), giải thích vì sao MOTA đạt quanh $99.9\%$ ở các phương pháp trong khi IDF1/IDSW tách bạch rõ lỗi định danh. Dưới che khuất một phần với histogram vùng nhìn thấy, C-3 giảm xuống $81.17\%$ IRR ($49.43\%$ khi siết WLR), trong khi GapLink-Lite duy trì $\mathbf{95.99}\%$ IRR, $\mathbf{0.36}\%$ WLR, $\mathbf{99.02}\%$ IDF1 và $\mathbf{99.98}\%$ MOTA ($103$ IDSW so với $416$ của C-3).
+
+Đáng chú ý, C-2, C-3 và C-4 đều chững quanh $\sim 85\%$ Full IRR ($85.17\%, 84.96\%, 85.12\%$) theo hai cơ chế lỗi trái ngược: C-2 lỗi chủ yếu do phân mảnh sạch ($\text{FragRate}=10.51\%$, $\text{WLR}=4.32\%$), còn C-3 và C-4 lỗi chủ yếu do ghép nhầm ($\text{WLR}=10.25\%$ và $10.15\%$, $\text{FragRate}=4.79\%$ và $4.73\%$). Điều này cũng giải thích vì sao C-2 và C-3 có số IDSW gần bằng nhau ($331$ so với $342$) nhưng lệch tới $17.06\text{ pp}$ về IDF1 ($94.66\%$ so với $77.60\%$): trong phép ghép toàn cục 1--1 Hungarian (\texttt{linear\_sum\_assignment}), việc C-3 ghép nhầm gộp hai quỹ đạo GT riêng biệt vào một ID dự đoán (chỉ tốn $0$--$1$ IDSW nhưng làm mất tới nửa IDTP), trong khi phân mảnh của C-2 vẫn giữ các đoạn 1--1 sạch (đã kiểm chứng bằng unit test \texttt{test\_idf1\_toy.py}).
+
+\begin{table}[htbp]
+    \centering
+    \caption{Kết quả Tracker trực tuyến trên $40$ chuỗi test ($1.922$ khoảng che khuất, $a_{\max}=95$)}
+    \label{tab:tracker_results}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{@{}l rrrrrrrrr@{}}
+        \toprule
+        \textbf{Tracker} & \shortstack{\textbf{Full}\\\textbf{IRR}} & \shortstack{\textbf{Full}\\\textbf{WLR}} & \shortstack{\textbf{Full}\\\textbf{IDF1}} & \shortstack{\textbf{Full}\\\textbf{MOTA}} & \shortstack{\textbf{Full}\\\textbf{IDSW}} & \shortstack{\textbf{Part}\\\textbf{IRR}} & \shortstack{\textbf{Part}\\\textbf{WLR}} & \shortstack{\textbf{Part}\\\textbf{IDF1}} & \shortstack{\textbf{Part}\\\textbf{IDSW}} \\
+        \midrule
+        C-1 (IoU Only) & 0.00 & 0.00 & 74.18 & 99.59 & 2127 & 0.00 & 0.00 & 74.18 & 2127 \\
+        C-2 (Const-Vel) & 85.17 & 4.32 & 94.66 & 99.92 & 331 & 85.38 & 4.21 & 94.42 & 327 \\
+        C-3 (Kalman) & 84.96 & 10.25 & 77.60 & 99.93 & 342 & 81.17 & 14.15 & 76.63 & 416 \\
+        C-3 (WLR$\le$5\%) & 77.58 & 3.07 & 95.23 & 99.88 & 487 & 49.43 & 7.70 & 87.21 & 1029 \\
+        C-4 (C-3+S+C) & 85.12 & 10.15 & 76.98 & 99.93 & 338 & 82.21 & 12.90 & 76.43 & 395 \\
+        \textbf{GapLink-Lite} & \textbf{96.20} & \textbf{0.21} & \textbf{99.11} & \textbf{99.98} & \textbf{98} & \textbf{95.99} & \textbf{0.36} & \textbf{99.02} & \textbf{103} \\
+        \bottomrule
+    \end{tabular}%
+    }
+\end{table}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/fig_tracker_irr_wlr.png}
+    \caption{Tỷ lệ Hồi phục Định danh (IRR), IDF1 và Ghép nhầm (WLR) dưới che khuất Toàn phần và Một phần}
+    \label{fig:tracker_plot}
+\end{figure}
+
+\section{Giao diện và Video Demo Trực quan}
+\label{sec:user_interface}
+
+Để minh họa trực quan sự khác biệt thực tế, \texttt{demo/render.py} xuất video đối chứng song song $1280 \times 360$ (\texttt{demo/out/demo\_full.mp4}) đặt \textbf{C-3 (Kalman + Mahalanobis)} bên trái và \textbf{GapLink-Lite} (bản chính chưa hiệu chuẩn) bên phải. Các đoạn trích được chọn tự động theo mức cải thiện IRR/WLR lớn nhất trên tập test (Hình~\ref{fig:ui_dashboard}), cho thấy C-3 liên tục dính chuyển đổi ID hoặc đứt gãy ID mới trong khi GapLink-Lite hồi phục đúng ID ban đầu kèm elip bất định 90\% bám sát xe.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.96\textwidth]{figures/fig_demo_clip_01.png}\\[0.25cm]
+    \includegraphics[width=0.96\textwidth]{figures/fig_demo_clip_04.png}
+    \caption{Demo trực quan song song so sánh C-3 (Trái) và GapLink-Lite (Phải) tại Frame 0320 trên các chuỗi Test}
+    \label{fig:ui_dashboard}
+\end{figure}
+
+\section{Kiểm thử, Ablation và Phân tích Độ nhạy}
+\label{sec:testing_improvements}
+
+\textbf{Nghiên cứu Ablation 5-Seed.} Bảng~\ref{tab:ablation_results} và Hình~\ref{fig:ablation_plot} báo cáo Mean $\pm$ SD qua 5 seed và độ lệch ghép cặp 5 seed ($\Delta = \text{Biến thể} - \text{Full}$) trên $12.000$ sự kiện test: loại bỏ nhúng độ dài gap (\textbf{Gap-Blind}) gây sụt giảm mạnh nhất ($-3.66\pm0.12\text{ pp}$ tổng thể, $-8.91\pm0.76\text{ pp}$ trên gap dài); loại bỏ histogram màu (\textbf{No-Color}) giảm $-2.20\pm0.26\text{ pp}$ tổng thể ($-7.95\pm1.08\text{ pp}$ trên gap dài); còn loại bỏ ngữ cảnh DeepSets (\textbf{No-Context}) chỉ thay đổi $-0.50\pm0.74\text{ pp}$ ($-2.06\pm2.04\text{ pp}$ trên gap dài). Vì chênh lệch của No-Context ($0.50\text{ pp}$) nhỏ hơn độ lệch chuẩn ($0.61\text{ pp}$), không có bằng chứng thống kê đáng tin rằng mô-đun ngữ cảnh DeepSets giúp cải thiện độ chính xác tổng thể trên tập dữ liệu này.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Nghiên cứu ablation có kiểm soát qua 5 seed trên tập test khóa cứng ($12.000$ sự kiện, Mean $\pm$ SD)}
+    \label{tab:ablation_results}
+    \small\setlength{\tabcolsep}{3.0pt}
+    \begin{tabularx}{\textwidth}{X c c c c c}
+        \toprule
+        \textbf{Biến thể Mô hình (5 Seed)} & \textbf{Top-1 chung (\%)} & \textbf{Gap Dài (46-90)} & \textbf{Dustbin F1 (\%)} & \textbf{WLR (\%)} & \textbf{Paired $\Delta$ 5-Seed (pp)} \\
+        \midrule
+        \textbf{Full GapLink-Lite} & $\mathbf{93.64\pm0.14}$ & $\mathbf{80.67\pm0.82}$ & $\mathbf{84.61}$ & $\mathbf{2.98}$ & --- \\
+        Bỏ Ngữ cảnh (DeepSets) & $93.14\pm0.61$ & $78.60\pm1.41$ & 84.01 & 3.80 & $-0.50\pm0.74$ \\
+        Bỏ Màu sắc (Chỉ hình học) & $91.44\pm0.24$ & $72.72\pm0.99$ & 82.11 & 5.14 & $-2.20\pm0.26$ \\
+        Mù độ dài Gap ($g=1$ cố định) & $89.98\pm0.09$ & $71.76\pm0.35$ & 77.61 & 5.05 & $-3.66\pm0.12$ \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.88\textwidth]{figures/fig_ablation_study.png}
+    \caption{Nghiên cứu Ablation 5-Seed trên Tập Test Khóa cứng (Mean $\pm$ SD và Paired $\Delta$ qua 5 Seed)}
+    \label{fig:ablation_plot}
+\end{figure}
+
+\textbf{Phân tích Độ nhạy Mở rộng.} Bảng~\ref{tab:sensitivity} và Hình~\ref{fig:sensitivity_extended} kiểm thử Seed~1 dưới nhiễu vị trí $2\times$, $4\times$, $8\times$, giới hạn ứng viên ($M\le 5$) và loại bỏ ứng viên đúng $15\%$--$30\%$ (mô phỏng detector bỏ sót). Trong khi nhiễu $2\times$ hầu như không làm đổi kết quả của cả hai mô hình ($93.41\% \to 93.23\%$ với GapLink-Lite; $80.29\% \to 79.97\%$ với C-3), nhiễu cực lớn $4\times$ và $8\times$ làm suy giảm mạnh cả hai ($89.39\%$ và $69.82\%$ với GapLink-Lite so với $77.48\%$ và $64.66\%$ của C-3), dù GapLink-Lite vẫn giữ WLR thấp hơn $5\times$ ($5.63\%$ so với $27.86\%$ ở $8\times$). Khi mất $30\%$ ứng viên đúng, cơ chế dustbin giúp GapLink-Lite giữ Top-1 ở $92.29\%$ ($\text{Dustbin F1}=91.88\%$, $\text{WLR}=5.25\%$), trong khi C-3 tụt $16.08\text{ pp}$ xuống $64.21\%$ ($\text{WLR}=34.96\%$).
+
+\begin{table}[htbp]
+    \centering
+    \caption{Phân tích độ nhạy mở rộng trên tập test khóa cứng ($12.000$ sự kiện, Seed 1 so với C-3)}
+    \label{tab:sensitivity}
+    \small
+    \begin{tabularx}{\textwidth}{X c c c c}
+        \toprule
+        \textbf{Cấu hình nhiễu / khuyết thiếu} & \textbf{GapLink Top-1 (\%)} & \textbf{GapLink WLR (\%)} & \textbf{C-3 Top-1 (\%)} & \textbf{C-3 WLR (\%)} \\
+        \midrule
+        Chuẩn ($\sigma=0.05$, $M\le 10$) & \textbf{93.41} & \textbf{3.01} & 80.29 & 19.24 \\
+        Nhiễu vị trí ($2\times\sigma=0.10$) & \textbf{93.23} & \textbf{3.04} & 79.97 & 19.48 \\
+        Nhiễu vị trí ($4\times\sigma=0.20$) & \textbf{89.39} & \textbf{3.56} & 77.48 & 20.84 \\
+        Nhiễu cực đại ($8\times\sigma=0.40$) & \textbf{69.82} & \textbf{5.63} & 64.66 & 27.86 \\
+        Giảm giới hạn ứng viên ($M\le 5$) & \textbf{94.35} & \textbf{1.57} & 83.99 & 15.18 \\
+        Loại bỏ ứng viên đúng ($15\%$) & \textbf{92.98} & \textbf{4.02} & 72.12 & 27.16 \\
+        Loại bỏ ứng viên đúng ($30\%$) & \textbf{92.29} & \textbf{5.25} & 64.21 & 34.96 \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/fig_sensitivity_extended.png}
+    \caption{Phân tích Độ nhạy Mở rộng: Top-1 và WLR dưới Nhiễu vị trí $2\times$--$8\times$ và Loại bỏ ứng viên đúng $15\%$--$30\%$}
+    \label{fig:sensitivity_extended}
+\end{figure}
+
+\section{Triển khai Giám sát An ninh Đầu-Cuối với Live YOLOv8 (GapLink-VMS)}
+\label{sec:live_security_vms}
+
+Để chuyển từ đánh giá có kiểm soát sang triển khai thực tế trên hệ thống camera giám sát an ninh mà không phụ thuộc nhãn chuẩn (GT), không dùng che khuất giả lập và không cần OCR biển số (bất khả thi ở góc rộng $960\times 540$), chúng tôi đóng gói trực tiếp mô hình GapLink-Lite khóa cứng ($\tau=0.25$) phía sau bộ phát hiện \textbf{YOLOv8n} thời gian thực (\texttt{imgsz=640}, \texttt{conf=0.28}, NMS không phân biệt lớp $0.52$, xác nhận quỹ đạo \texttt{min\_hits=3}) cùng bước trích xuất trực tuyến histogram HSV $128$-bin thành hệ thống \textbf{GapLink-VMS} (\texttt{demo/security\_vms\_app.py}). Hệ thống nhận trực tiếp luồng video thô (`.mp4`/RTSP) và giải quyết ba bài toán an ninh cụ thể: (1) \textbf{Cảnh báo Xâm nhập Lộ trình Cấm \& Kiểm toán Luồng OD} ($Z_A \to Z_B$ so với luồng hợp lệ $Z_C \to Z_B$, tự động cắt ảnh bằng chứng đầu--cuối), (2) \textbf{Cảnh báo Đỗ dừng Trái phép / Rình rập Quá giờ} ($\text{dwell} \ge T_{\max}=5.0\text{ s}$ không bị reset đồng hồ khi xe buýt chạy ngang che khuất), và (3) \textbf{Click Khóa \& Bám đuổi Mục tiêu Nghi vấn} (hiển thị vùng dự báo bất định $2\sigma$ khi khuất và dùng dustbin giữ khóa an toàn không nhảy sang xe vô tội). Trên GPU laptop RTX 3050 6GB, xử lý đơn khung hình đạt $\mathbf{28.95\text{ ms/khung}}$ ($\mathbf{34.5\text{ FPS}}$) tại ngã tư đông xe ($12.53\text{ ms}$ YOLOv8n, $3.26\text{ ms}$ HSV/NMS, $13.16\text{ ms}$ GapLink-Lite + VMS) và $46$--$80\text{ FPS}$ trên camera đường phố/bãi xe thông thường.
+
+Bảng~\ref{tab:live_security} và Hình~\ref{fig:live_security_eval} đánh giá toàn bộ $40$ video thô tập test UA-DETRAC dưới $100\%$ che khuất và nhiễu tự nhiên của YOLOv8n ($3.103$ khoảng mất dấu tự nhiên $3$--$95$ khung hình; nhãn GT chỉ dùng độc lập ở bước chấm điểm sau cùng). Dù không huấn luyện lại trên hộp YOLO, GapLink-Lite đạt $\mathbf{87.30\%}$ tỷ lệ khôi phục tự nhiên (\textbf{Nat-IRR}, $+9.95\text{ pp}$ so với $77.35\%$ của C-3) đồng thời giảm tỷ lệ ghép nhầm tự nhiên (\textbf{Nat-WLR}) đi $3.7\times$ ($37.78\% \to \mathbf{10.20\%}$). Ở tầng nghiệp vụ an ninh, tỷ lệ ghép nhầm cao của C-3 khiến gần một nửa cảnh báo lộ trình cấm là báo động giả ($\mathbf{49.22\%}$ FAR, gán nhầm ID mất dấu từ $Z_A$ sang xe đi hợp lệ) và kéo độ chính xác cảnh báo đỗ xuống $54.28\%$; ngược lại, C-1 bị reset bộ đếm trên $95.6\%$ các xe đỗ bị xe lớn cắt mặt ($4.37\%$ recall). GapLink-Lite đạt recall lộ trình cấm khi khuất cao nhất ($\mathbf{45.68\%}$), giảm báo động giả lộ trình đi $3.8\times$ ($\mathbf{12.88\%}$) và tăng điểm F1 cảnh báo đỗ quá giờ khi bị che thêm $+17.87\text{ pp}$ so với C-3 ($35.39\% \to \mathbf{53.26\%}$, độ chính xác $85.12\%$). Hình~\ref{fig:vms_live_demo} minh họa giao diện đối chiếu trực tiếp trên video camera thô.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Đánh giá an ninh đầu-cuối với Live YOLOv8n trên $40$ video thô tập test UA-DETRAC ($3.103$ khoảng mất dấu tự nhiên, $162$ lộ trình $Z_A\!\to\!Z_B$ bị che, $160$ lượt đỗ $\ge 5\text{ s}$ bị ngắt quãng; \%)}
+    \label{tab:live_security}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{@{}l rrrrrrr@{}}
+        \toprule
+        \textbf{Live YOLOv8n + Tracker} & \shortstack{\textbf{Nat-IRR}\\\textbf{(\%) $\uparrow$}} & \shortstack{\textbf{Nat-WLR}\\\textbf{(\%) $\downarrow$}} & \shortstack{\textbf{Recall Lộ trình}\\\textbf{Khi khuất (\%) $\uparrow$}} & \shortstack{\textbf{Báo giả}\\\textbf{Lộ trình (\%) $\downarrow$}} & \shortstack{\textbf{Recall Đỗ}\\\textbf{Khi khuất (\%) $\uparrow$}} & \shortstack{\textbf{Độ chính xác}\\\textbf{Báo đỗ (\%) $\uparrow$}} & \shortstack{\textbf{F1 Báo đỗ}\\\textbf{Khi khuất (\%) $\uparrow$}} \\
+        \midrule
+        C-1 (Chỉ IoU) & 8.93 & \textbf{0.00} & 33.33 & \textbf{3.45} & 4.37 & \textbf{97.80} & 8.38 \\
+        C-2 (Vận tốc hằng) & 82.23 & 31.53 & 37.04 & 33.33 & 30.00 & 68.01 & 41.63 \\
+        C-3 (Kalman) & 77.35 & 37.78 & 42.59 & 49.22 & 26.25 & 54.28 & 35.39 \\
+        C-4 (C-3+S+C) & 78.42 & 36.38 & 40.12 & 50.00 & 28.12 & 54.90 & 37.19 \\
+        C-3 (Ngưỡng chặt $\theta=0.5$) & 48.57 & 23.55 & 45.06 & 32.08 & 31.25 & 66.46 & 42.51 \\
+        \textbf{GapLink-Lite (Đề xuất)} & \textbf{87.30} & 10.20 & \textbf{45.68} & 12.88 & \textbf{38.75} & 85.12 & \textbf{53.26} \\
+        \bottomrule
+    \end{tabular}%
+    }
+\end{table}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.98\textwidth]{figures/fig_live_security_eval.png}
+    \caption{Đánh giá Thực tế Đầu-Cuối với Live YOLOv8n trên 40 Video Thô Tập Test: (a) Khôi phục Che khuất Tự nhiên, (b) Phát hiện Lộ trình Cấm ($Z_A \to Z_B$), và (c) Điểm F1 Cảnh báo Đỗ Quá giờ}
+    \label{fig:live_security_eval}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.96\textwidth]{figures/fig_vms_demo_intersection.png}\\[0.22cm]
+    \includegraphics[width=0.96\textwidth]{figures/fig_vms_demo_facility.png}
+    \caption{Đối chiếu Trực tiếp Live YOLOv8n + GapLink-VMS (Phải) và C-3 Kalman (Trái) trên Video Camera Thô (\texttt{MVI\_40855} Ngã tư 4 hướng và \texttt{MVI\_39311} Đảo phân làn cấm đỗ)}
+    \label{fig:vms_live_demo}
+\end{figure}

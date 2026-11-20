@@ -1,0 +1,21 @@
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {2.1}{\ignorespaces Sơ đồ kiến trúc vector của GapLink-Lite ($327.979$ tham số) và tầng tái liên kết Vận chuyển tối ưu}}{6}{figure.caption.10}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {3.1}{\ignorespaces Phân tích Khám phá Dữ liệu: Độ dài quỹ đạo \& Mật độ (trái) và 40 ảnh nền trung vị đại diện qua 25 cụm camera gốc (phải)}}{7}{figure.caption.11}%
+\contentsline {figure}{\numberline {3.2}{\ignorespaces Hội tụ của GapLink-Lite: Hàm mất mát Sinkhorn EMA (trái) và Độ chính xác Top-1 trên Validation (phải)}}{8}{figure.caption.12}%
+\contentsline {figure}{\numberline {3.3}{\ignorespaces Độ chính xác Top-1 cấp sự kiện trên tập Test theo nhóm độ dài gap và ngưỡng gần nhau chặt ($<0.5h$)}}{9}{figure.caption.14}%
+\contentsline {figure}{\numberline {3.4}{\ignorespaces Đường cong đánh đổi trên tập Test: Độ chính xác Top-1 so với Tỷ lệ ghép nhầm (WLR)}}{9}{figure.caption.15}%
+\contentsline {figure}{\numberline {3.5}{\ignorespaces Độ bao phủ thực nghiệm elip 90\% qua các nhóm gap trên tập Test: Bản chính chưa hiệu chuẩn (3/3 bin đạt chuẩn) so với sau hiệu chuẩn}}{10}{figure.caption.17}%
+\contentsline {figure}{\numberline {3.6}{\ignorespaces Tỷ lệ Hồi phục Định danh (IRR), IDF1 và Ghép nhầm (WLR) dưới che khuất Toàn phần và Một phần}}{11}{figure.caption.19}%
+\contentsline {figure}{\numberline {3.7}{\ignorespaces Demo trực quan song song so sánh C-3 (Trái) và GapLink-Lite (Phải) tại Frame 0320 trên các chuỗi Test}}{12}{figure.caption.20}%
+\contentsline {figure}{\numberline {3.8}{\ignorespaces Nghiên cứu Ablation 5-Seed trên Tập Test Khóa cứng (Mean $\pm $ SD và Paired $\Delta $ qua 5 Seed)}}{13}{figure.caption.22}%
+\contentsline {figure}{\numberline {3.9}{\ignorespaces Phân tích Độ nhạy Mở rộng: Top-1 và WLR dưới Nhiễu vị trí $2\times $--$8\times $ và Loại bỏ ứng viên đúng $15\%$--$30\%$}}{15}{figure.caption.24}%
+\contentsline {figure}{\numberline {3.10}{\ignorespaces Đánh giá Thực tế Đầu-Cuối với Live YOLOv8n trên 40 Video Thô Tập Test: (a) Khôi phục Che khuất Tự nhiên, (b) Phát hiện Lộ trình Cấm ($Z_A \to Z_B$), và (c) Điểm F1 Cảnh báo Đỗ Quá giờ}}{16}{figure.caption.26}%
+\contentsline {figure}{\numberline {3.11}{\ignorespaces Đối chiếu Trực tiếp Live YOLOv8n + GapLink-VMS (Phải) và C-3 Kalman (Trái) trên Video Camera Thô (\texttt {MVI\_40855} Ngã tư 4 hướng và \texttt {MVI\_39311} Đảo phân làn cấm đỗ)}}{16}{figure.caption.27}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsfinish 

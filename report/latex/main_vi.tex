@@ -1,0 +1,75 @@
+% ==============================================================================
+% SAMSUNG INNOVATION CAMPUS - AI COURSE
+% CAPSTONE PROJECT FINAL REPORT (VIETNAMESE)
+% ==============================================================================
+\documentclass{sicaireport}
+
+\input{metadata_vi}
+\input{preamble}
+
+\renewcommand{\figurename}{Hình}
+\renewcommand{\tablename}{Bảng}
+\renewcommand{\chaptername}{Chương}
+\renewcommand{\appendixname}{Phụ lục}
+\renewcommand{\listfigurename}{Danh mục Hình vẽ}
+\renewcommand{\listtablename}{Danh mục Bảng biểu}
+
+\begin{document}
+
+\makecoverpage
+\maketitledetailpage
+
+\pagenumbering{roman}
+\setcounter{page}{1}
+
+\renewcommand{\contentsname}{Mục lục}
+\tableofcontents
+\clearpage
+
+\listoffigures
+\clearpage
+
+\listoftables
+\clearpage
+
+\chapter*{Danh mục Từ viết tắt}
+\addcontentsline{toc}{chapter}{Danh mục Từ viết tắt}
+\begin{table}[htbp]
+    \renewcommand{\arraystretch}{1.4}
+    \begin{tabularx}{\textwidth}{p{3.5cm} X}
+        \toprule
+        \textbf{Từ viết tắt} & \textbf{Định nghĩa / Mô tả đầy đủ} \\
+        \midrule
+        \textbf{AI}           & Trí tuệ nhân tạo (Artificial Intelligence) \\
+        \textbf{SIC}          & Samsung Innovation Campus \\
+        \textbf{MOT}          & Theo dõi đa đối tượng (Multi-Object Tracking) \\
+        \textbf{ID}           & Định danh đối tượng (Object Identifier) \\
+        \textbf{GRU}          & Mạng hồi quy có cổng (Gated Recurrent Unit) \\
+        \textbf{NLL}          & Hàm mất mát Log-Likelihood âm (Negative Log-Likelihood) \\
+        \textbf{IRR}          & Tỷ lệ hồi phục định danh (Identity Recovery Rate) \\
+        \textbf{WLR}          & Tỷ lệ ghép nhầm định danh (Wrong-Link Rate) \\
+        \textbf{IDF1}         & Chỉ số F1 cho định danh quỹ đạo (ID F1-Score) \\
+        \textbf{MOTA}         & Độ chính xác theo dõi đa đối tượng (Multi-Object Tracking Accuracy) \\
+        \textbf{IDSW}         & Số lần chuyển đổi/đứt gãy định danh (ID Switches) \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+\clearpage
+
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\input{chapter01_vi}
+\input{chapter02_vi}
+\input{chapter03_vi}
+\input{chapter04_vi}
+\input{chapter05_vi}
+\input{chapter06_vi}
+
+\clearpage
+\printbibliography[heading=bibintoc,title={Tài liệu tham khảo}]
+
+\clearpage
+\input{appendices_vi}
+
+\end{document}

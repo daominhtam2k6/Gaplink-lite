@@ -202,6 +202,21 @@ class OnlineTracker:
                         gap_val = frame_id - trk.last_frame
                         gt_before = trk.initial_gt_tid
                         gt_now = int(det_gt_tids[det_c])
+                        b_prev = trk.boxes[-1]
+                        b_now = det_boxes[det_c]
+                        h_prev = trk.color_ema
+                        h_now = det_hists[det_c]
+                        n_prev = float(np.linalg.norm(h_prev))
+                        n_now = float(np.linalg.norm(h_now))
+                        cos_sim = float(np.dot(h_prev, h_now) / (n_prev * n_now + 1e-8)) if (n_prev > 1e-6 and n_now > 1e-6) else 1.0
+                        sz_diff = float(
+                            abs(np.log(max(4.0, float(b_now[2])) / max(4.0, float(b_prev[2]))))
+                            + abs(np.log(max(4.0, float(b_now[3])) / max(4.0, float(b_prev[3]))))
+                        )
+                        pos_jump = float(
+                            np.hypot(float(b_now[0] - b_prev[0]), float(b_now[1] - b_prev[1]))
+                            / max(12.0, float(b_prev[3]))
+                        )
                         self.reassoc_log.append({
                             "frame": int(frame_id),
                             "track_id": int(trk.track_id),
@@ -209,6 +224,9 @@ class OnlineTracker:
                             "gt_tid_before": int(gt_before),
                             "gt_tid_after": int(gt_now),
                             "correct": bool(gt_before != -1 and gt_before == gt_now),
+                            "color_cos_sim": round(cos_sim, 4),
+                            "size_log_diff": round(sz_diff, 4),
+                            "pos_jump_norm": round(pos_jump, 4),
                         })
                         trk.update(frame_id, det_boxes[det_c], det_hists[det_c], gt_now)
                         new_active.append(trk)
@@ -242,6 +260,7 @@ class OnlineTracker:
             {
                 "track_id": t.track_id,
                 "box": t.boxes[-1].copy(),
+                "hist": t.color_ema.copy(),
                 "gt_tid": t.last_gt_tid,
                 "initial_gt_tid": t.initial_gt_tid,
                 "hits": t.hits,

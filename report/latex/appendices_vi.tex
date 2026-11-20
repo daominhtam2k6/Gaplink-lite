@@ -1,0 +1,67 @@
+\appendix
+\chapter{Mã nguồn và Chi tiết Cài đặt}
+\label{app:code}
+
+Phụ lục này cung cấp tầng vận chuyển tối ưu Sinkhorn miền log (\texttt{src/model/sinkhorn.py}) cùng toàn bộ hàm lan truyền thuận của \texttt{GapLinkLite} (\texttt{src/model/gaplink.py}).
+
+\begin{lstlisting}[language=Python, caption={Vận chuyển tối ưu Sinkhorn miền Log (src/model/sinkhorn.py)}, label={lst:sinkhorn_vi}]
+def log_sinkhorn(S, z_t, z_c, trk_mask, cand_mask, iters=20):
+    B, N, M = S.shape
+    neg_inf = -1e9
+    N_act = trk_mask.float().sum(dim=1).clamp(min=1.0)
+    M_act = cand_mask.float().sum(dim=1).clamp(min=1.0)
+    valid_pair = trk_mask[:, :, None] & cand_mask[:, None, :]
+    S_m = torch.where(valid_pair, S, S.new_full(S.shape, neg_inf))
+    zt_m = torch.where(trk_mask, z_t, z_t.new_full(z_t.shape, neg_inf))
+    zc_m = torch.where(cand_mask, z_c, z_c.new_full(z_c.shape, neg_inf))
+    top = torch.cat([S_m, zt_m.unsqueeze(-1)], dim=2)
+    bot = torch.cat([zc_m, S.new_zeros((B, 1))], dim=1).unsqueeze(1)
+    log_alpha = torch.cat([top, bot], dim=1)
+    log_r = S.new_zeros((B, N + 1))
+    log_r[:, :N] = torch.where(trk_mask, 0.0, neg_inf)
+    log_r[:, N] = torch.log(M_act)
+    log_c = S.new_zeros((B, M + 1))
+    log_c[:, :M] = torch.where(cand_mask, 0.0, neg_inf)
+    log_c[:, M] = torch.log(N_act)
+    for _ in range(iters):
+        log_alpha = log_alpha - torch.logsumexp(log_alpha, dim=2, keepdim=True) + log_r.unsqueeze(2)
+        log_alpha = log_alpha - torch.logsumexp(log_alpha, dim=1, keepdim=True) + log_c.unsqueeze(1)
+    return log_alpha
+\end{lstlisting}
+
+\begin{lstlisting}[language=Python, caption={Hàm Forward của GapLinkLite (src/model/gaplink.py)}, label={lst:gaplink_vi}]
+class GapLinkLite(nn.Module):
+    def forward(self, batch):
+        h_i, g_emb, last_box = self.motion_enc(batch["hist"], batch["hist_len"], batch["gap"], batch["W"], batch["H"], gap_aware=self.gap_aware)
+        ctx_i = self.ctx_enc(batch["ctx_lost"], batch["ctx_conf"], batch["ctx_mask_lost"], batch["ctx_mask_conf"], use_ctx=self.use_ctx)
+        mu, logvar = self.predictor(h_i, ctx_i, batch["hist"], batch["hist_len"], batch["gap"], gap_aware=self.gap_aware)
+        S, z_t, z_c = self.scorer(h_i=h_i, ctx_i=ctx_i, g_emb=g_emb, last_box=last_box, mu=mu, logvar=logvar,
+                                  track_color=batch["track_color"], cand=batch["cand"], cand_hist=batch["cand_hist"],
+                                  side=batch.get("side", torch.zeros_like(batch["gap"])), W=batch["W"], H=batch["H"],
+                                  use_color=self.use_color, training=self.training)
+        logP = log_sinkhorn(S, z_t, z_c, batch["trk_mask"], batch["cand_mask"], iters=self.sinkhorn_iters)
+        pred_box, sigma_px = decode_predicted_boxes(last_box, mu, logvar)
+        return {"logP": logP, "P": torch.exp(logP), "mu": mu, "logvar": logvar, "pred_box": pred_box, "sigma_px": sigma_px}
+\end{lstlisting}
+
+\chapter{Siêu tham số và Cấu hình Đóng băng}
+\label{app:hyperparameters}
+
+\begin{table}[htbp]
+    \centering
+    \caption{Các siêu tham số và cấu hình đóng băng}
+    \label{tab:hyperparameters}
+    \begin{tabularx}{\textwidth}{l l X}
+        \toprule
+        \textbf{Tham số} & \textbf{Giá trị đóng băng} & \textbf{Mô tả} \\
+        \midrule
+        Seed ngẫu nhiên & \texttt{20260417..20260421} & 5 khởi tạo ngẫu nhiên độc lập cho mô hình chính \& ablation \\
+        Số tham số huấn luyện & $327.979$ & Nghiêm ngặt dưới ngưỡng $1.000.000$; 100\% khởi tạo ngẫu nhiên \\
+        Tối ưu hóa \& Lịch trình & AdamW, $\text{lr}=7\times 10^{-4}$ & Cosine decay, 200 bước warmup, 2.400 bước, batch size 64 \\
+        Chân trời theo dõi $a_{\max}$ & $95$ khung hình & Bao phủ toàn bộ khoảng che khuất tới 90 khung hình \\
+        Ngưỡng chấp nhận $\tau$ & $0.25$ & Chọn trên validation theo quy tắc WLR $\le 5.0\%$ \\
+        Hiệu chuẩn phụ $(a, b, c)$ & $(0.413, -0.341, 0.074)$ & Khớp trên val half-A; test Cov90 $= 90.22\%$ (bin dài $95.86\%$) \\
+        SHA256 mô hình đóng băng & \texttt{844fc391deafe951b429e3e4...} & Lưu tại \texttt{release/final.sha256} \\
+        \bottomrule
+    \end{tabularx}
+\end{table}

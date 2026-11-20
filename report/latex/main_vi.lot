@@ -1,0 +1,22 @@
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {1.1}{\ignorespaces Phân công trách nhiệm và sản phẩm bàn giao}}{2}{table.caption.6}%
+\contentsline {table}{\numberline {1.2}{\ignorespaces Phân tách rõ thành phần tự phát triển và tài nguyên bên ngoài}}{3}{table.caption.7}%
+\contentsline {table}{\numberline {1.3}{\ignorespaces Các giai đoạn thực hiện và cổng kiểm chứng (G1--G6)}}{3}{table.caption.8}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {2.1}{\ignorespaces Thống kê bộ dữ liệu UA-DETRAC sau làm sạch và phân chia theo cụm camera (\texttt {data/stats.json})}}{4}{table.caption.9}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {3.1}{\ignorespaces Kết quả tái liên kết cấp sự kiện trên tập test khóa cứng ($12.000$ sự kiện, $27.120$ quỹ đạo mất dấu)}}{8}{table.caption.13}%
+\contentsline {table}{\numberline {3.2}{\ignorespaces Độ bao phủ thực nghiệm elip Gaussian 2D 90\% và 2D NLL theo pixel trên tập test khóa cứng}}{10}{table.caption.16}%
+\contentsline {table}{\numberline {3.3}{\ignorespaces Kết quả Tracker trực tuyến trên $40$ chuỗi test ($1.922$ khoảng che khuất, $a_{\max }=95$)}}{11}{table.caption.18}%
+\contentsline {table}{\numberline {3.4}{\ignorespaces Nghiên cứu ablation có kiểm soát qua 5 seed trên tập test khóa cứng ($12.000$ sự kiện, Mean $\pm $ SD)}}{13}{table.caption.21}%
+\contentsline {table}{\numberline {3.5}{\ignorespaces Phân tích độ nhạy mở rộng trên tập test khóa cứng ($12.000$ sự kiện, Seed 1 so với C-3)}}{14}{table.caption.23}%
+\contentsline {table}{\numberline {3.6}{\ignorespaces Đánh giá an ninh đầu-cuối với Live YOLOv8n trên $40$ video thô tập test UA-DETRAC ($3.103$ khoảng mất dấu tự nhiên, $162$ lộ trình $Z_A\!\to \!Z_B$ bị che, $160$ lượt đỗ $\ge 5\text { s}$ bị ngắt quãng; \%)}}{15}{table.caption.25}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {5.1}{\ignorespaces Nhận xét và Tự đánh giá của Thành viên thực hiện}}{18}{table.caption.28}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {6.1}{\ignorespaces Phiếu đánh giá Đồ án Capstone và Nhận xét của Giảng viên}}{19}{table.caption.29}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {B.1}{\ignorespaces Các siêu tham số và cấu hình đóng băng}}{23}{table.caption.31}%
+\contentsfinish 
