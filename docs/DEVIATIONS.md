@@ -103,3 +103,9 @@ chính thức dùng đúng câu chữ PREREG. Bằng chứng: `git log`, tag `v1
   `runs/main/train_log.json` (đánh giá mỗi 600 bước) cũng là 2.400 bước. Learning rate không được lưu trong checkpoint.
 - Báo cáo ghi 2.400 bước theo checkpoint và không nêu giá trị lr không kiểm chứng được. Script huấn luyện sinh ra log này
   (có `loss_assign_ema`) không còn trong repo → hạn chế về khả năng tái lập huấn luyện (không ảnh hưởng tới đánh giá).
+
+## D17. Ca lỗi báo cáo trước đây không theo quy tắc PREREG §4
+- `report/failure_cases/` (tạo bởi `scripts/run_test.py`) là 10 lỗi **đầu tiên theo thứ tự sự kiện**, không phải 10 sự kiện có
+  P(đáp án đúng) thấp nhất chia 3-3-4 theo nhóm gap như PREREG §4.
+- `scripts/failure_analysis.py` (21/11) chọn lại đúng quy tắc từ dự đoán đóng băng (kiểm tra trùng khít số đóng băng trước khi chọn);
+  báo cáo dùng `report/figures/fig_failure_cases.png` mới. Không đổi ngưỡng, checkpoint hay tập test.

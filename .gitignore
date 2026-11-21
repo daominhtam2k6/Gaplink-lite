@@ -8,3 +8,15 @@ __pycache__/
 *.pkl
 *.mp4
 *.log
+
+# scratch clips from demo experiments
+demo/sample_videos/zz_test_*
+demo/sample_videos/relink_test*
+report/latex/*.aux
+report/latex/*.bcf
+report/latex/*.blg
+report/latex/*.run.xml
+report/latex/*.toc
+report/latex/*.lof
+report/latex/*.lot
+report/latex/*.out

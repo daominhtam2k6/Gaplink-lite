@@ -28,6 +28,8 @@ from src.live_detector import LiveVehicleDetector
 from src.model.gaplink import GapLinkAssociator
 from src.security_analytics import PolygonZone, SecurityVMSEngine
 from src.tracker import OnlineTracker
+from demo.clip_meta import load_clip_meta, slow_windows, zones_from_meta
+from demo.relink_viz import MIN_GAP as RELINK_MIN_GAP, attach_relink, draw_relink_layer, relink_summary
 
 
 ZONE_DEFAULT_COLORS = {
@@ -187,6 +189,76 @@ def match_frame_dets_to_gt(det_boxes: np.ndarray, gt_meta: dict | None, frame_id
     return out_gt
 
 
+
+ID_STABLE = 3    # consecutive frames before a GT identity is trusted
+ID_NEW_TTL = 75  # frames a "(was #x)" tag stays visible after a vehicle gets a new tracker ID
+
+
+def _id_states(vms, step_out: dict, cur_f: int) -> dict:
+    """Per-track identity status, judged against ground truth when the clip has it.
+
+    Returns tid -> (kind, text): kind in {"ok", "switch", "newid"}.
+      switch : this tracker ID now sits on a different real vehicle than the one it started on
+      newid  : this real vehicle was shown under another tracker ID before (identity lost)
+    State lives on the engine and resets if the frame index goes backwards (replay / seek).
+    """
+    st = getattr(vms, "_idviz", None)
+    if st is None or cur_f < st["last_f"]:
+        st = {"first_gt": {}, "gt_tid": {}, "newid": {}, "cand": {}, "stable": {}, "last_f": cur_f}
+        vms._idviz = st
+    st["last_f"] = cur_f
+    out = {}
+    active = {int(o["track_id"]) for o in step_out.get("tracks", [])}
+    for o in step_out.get("tracks", []):
+        tid = int(o["track_id"])
+        g_raw = int(o.get("gt_tid", -1))
+        # debounce: a GT identity counts only after ID_STABLE consecutive frames (IoU matching can flicker)
+        cg, cn = st["cand"].get(tid, (-1, 0))
+        cn = cn + 1 if g_raw == cg else 1
+        st["cand"][tid] = (g_raw, cn)
+        if g_raw >= 0 and cn >= ID_STABLE:
+            st["stable"][tid] = g_raw
+        g = st["stable"].get(tid, -1)
+        if g >= 0 and cn >= ID_STABLE and g_raw == g:
+            st["first_gt"].setdefault(tid, g)
+            prev = st["gt_tid"].get(g)
+            if prev is not None and prev != tid and prev not in active:
+                st["newid"][tid] = (prev, cur_f)
+            st["gt_tid"][g] = tid
+        g0 = st["first_gt"].get(tid, -1)
+        if g >= 0 and g0 >= 0 and g != g0:
+            out[tid] = ("switch", f"#{tid} SWITCH")
+        elif tid in st["newid"] and cur_f - st["newid"][tid][1] <= ID_NEW_TTL:
+            out[tid] = ("newid", f"#{tid} (was #{st['newid'][tid][0]})")
+        else:
+            out[tid] = ("ok", f"#{tid}")
+    return out
+
+
+def _draw_id_tags(canvas: np.ndarray, step_out: dict, states: dict) -> None:
+    """Small tracker-ID tag under every box, so every identity change on screen is visible."""
+    H, W = canvas.shape[:2]
+    style = {"ok": ((28, 30, 36), (235, 235, 235)),
+             "switch": ((0, 185, 245), (15, 15, 20)),
+             "newid": ((150, 40, 200), (255, 255, 255))}
+    for o in step_out.get("tracks", []):
+        tid = int(o["track_id"])
+        kind, txt = states.get(tid, ("ok", f"#{tid}"))
+        cx, cy, bw, bh = [float(v) for v in o["box"]]
+        x1, y2 = int(round(cx - 0.5 * bw)), int(round(cy + 0.5 * bh))
+        fs = 0.46 if kind == "ok" else 0.52
+        th_ = 1
+        (tw, th), _ = cv2.getTextSize(txt, cv2.FONT_HERSHEY_SIMPLEX, fs, th_)
+        lx = int(np.clip(x1, 2, W - tw - 6))
+        ty = int(np.clip(y2 + th + 4, th + 4, H - 4))
+        bg, fg = style[kind]
+        cv2.rectangle(canvas, (lx, ty - th - 3), (lx + tw + 5, ty + 2), bg, -1)
+        cv2.putText(canvas, txt, (lx + 2, ty - 1), cv2.FONT_HERSHEY_SIMPLEX, fs, fg, th_, cv2.LINE_AA)
+        if kind == "switch":
+            x2, y1 = int(round(cx + 0.5 * bw)), int(round(cy - 0.5 * bh))
+            cv2.rectangle(canvas, (x1, y1), (x2, y2), (0, 185, 245), 2, cv2.LINE_AA)
+
+
 def draw_vms_overlay(
     frame_bgr: np.ndarray,
     vms: SecurityVMSEngine,
@@ -194,6 +266,8 @@ def draw_vms_overlay(
     title: str,
     scenario_mode: str = "all",
     show_zones: bool = True,
+    show_ids: bool = True,
+    show_cands: bool = False,
 ) -> np.ndarray:
     """Render clean, scenario-focused security camera annotations onto a copy of frame_bgr.
 
@@ -209,7 +283,7 @@ def draw_vms_overlay(
     overlay = canvas.copy()
 
     # 1. Draw Polygon Security Zones filtered by scenario_mode
-    if show_zones and mode != "lock":
+    if show_zones and mode not in ("lock", "relink"):
         drew_any_zone = False
         for z in vms.zones:
             if mode == "route" and z.role == "dwell":
@@ -260,6 +334,10 @@ def draw_vms_overlay(
         x2, y2 = int(round(cx + 0.5 * bw)), int(round(cy + 0.5 * bh))
 
         is_locked = (locked_tid is not None and tid == int(locked_tid)) and (mode in ("lock", "all"))
+
+        if mode == "relink":
+            cv2.rectangle(canvas, (x1, y1), (x2, y2), (175, 175, 175), 1, cv2.LINE_AA)
+            continue
 
         if mode == "lock":
             if not is_locked:
@@ -403,6 +481,20 @@ def draw_vms_overlay(
         cv2.rectangle(canvas, (x1, ty - th - 4), (x1 + tw + 6, ty + 2), bg_c, -1)
         cv2.putText(canvas, lbl, (x1 + 3, ty - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.42, tx_c, 1, cv2.LINE_AA)
 
+    # 2b. Tracker-ID tag on every vehicle (identity changes judged against GT when available)
+    _id_st = _id_states(vms, step_out, cur_f)  # always updated so toggling on mid-video stays consistent
+    if show_ids:
+        # in identity-recovery mode the verdicts are drawn by the relink layer: plain ID tags only
+        _draw_id_tags(canvas, step_out, {} if mode == "relink" else _id_st)
+
+    # 2c. Identity recovery layer: ghosts, predicted position / uncertainty, re-link verdicts
+    _rec = getattr(vms, "relink", None)
+    if _rec is not None:
+        _rec.update(vms.tracker, step_out, cur_f)
+        if mode == "relink":
+            draw_relink_layer(canvas, _rec, step_out, cur_f,
+                              is_gaplink=(getattr(_rec.assoc, "kind", "") == "gaplink"), show_cands=show_cands)
+
     # 3. Draw Target Lock Trajectory Trail, 2-Sigma Search Zone & PiP Reference Card
     if mode in ("lock", "all") and locked_tid is not None:
         trail = lock.get("trail") or []
@@ -473,6 +565,14 @@ def draw_vms_overlay(
         b1_bg, b1_bd = (22, 22, 165), (50, 50, 255)
         b2_bg = (10, 120, 195) if n_fp > 0 else (22, 85, 45)
         b2_bd = (0, 210, 255) if n_fp > 0 else (55, 210, 105)
+    elif mode == "relink":
+        c = relink_summary(_rec)
+        b1_txt = f"GHEP LAI DUNG (Re-linked OK): {c['ok']}"
+        b2_txt = f"GHEP NHAM: {c['wrong']}   |   BO LO, CAP ID MOI: {c['missed']}"
+        b1_bg, b1_bd = (24, 92, 48), (60, 215, 110)
+        bad = c["wrong"] > 0
+        b2_bg = (22, 24, 165) if bad else ((10, 120, 195) if c["missed"] > 0 else (22, 85, 45))
+        b2_bd = (50, 65, 255) if bad else ((0, 210, 255) if c["missed"] > 0 else (55, 210, 105))
     elif mode == "lock":
         n_ok = vms.target_lock.reacquire_count
         n_bad = vms.target_lock.hijack_count
@@ -521,6 +621,85 @@ def default_lock_schedule(preset_key: str) -> list[tuple[int, float, float]]:
     return [(15, 480.0, 270.0)]
 
 
+OUT_W, OUT_H = 1920, 1080
+PANE_W, PANE_H = 960, 540
+SLOW_FACTOR = 4          # 0.25x playback inside key-moment windows
+ZOOM_MAX = 1.9           # crop zoom reached in the middle of a key-moment window
+EASE = 10                # frames to ease the zoom in / out
+
+
+def _zoom_at(img: np.ndarray, cx: float, cy: float, z: float) -> np.ndarray:
+    """Crop around normalised centre (cx, cy) by factor z and resize back to the original size."""
+    if z <= 1.001:
+        return img
+    H, W = img.shape[:2]
+    cw, ch = int(round(W / z)), int(round(H / z))
+    x0 = int(np.clip(round(cx * W - cw / 2), 0, W - cw))
+    y0 = int(np.clip(round(cy * H - ch / 2), 0, H - ch))
+    # crop + linear resize: same picture as the former affine warp, ~4x cheaper
+    return cv2.resize(img[y0:y0 + ch, x0:x0 + cw], (W, H), interpolation=cv2.INTER_LINEAR)
+
+
+def _window_state(f: int, wins: list) -> tuple[bool, float, float, float]:
+    """(in_slow_window, zoom, cx, cy) for frame f."""
+    for a, b, cx, cy in wins:
+        if a <= f <= b:
+            ramp = min(f - a, b - f) / float(EASE)
+            ease = 0.5 - 0.5 * np.cos(np.pi * float(np.clip(ramp, 0.0, 1.0)))
+            return True, 1.0 + (ZOOM_MAX - 1.0) * ease, cx, cy
+    return False, 1.0, 0.5, 0.5
+
+
+def _compose(vis_l: np.ndarray, vis_r: np.ndarray, slow: bool, scenario_title: str,
+             left_label: str = "Baseline", right_label: str = "GapLink-Lite", mode: str = "") -> np.ndarray:
+    """1920x1080 frame: two 960x540 panes centred vertically, minimal header, slow-motion badge."""
+    canvas = np.full((OUT_H, OUT_W, 3), (18, 14, 10), dtype=np.uint8)
+    y0 = (OUT_H - PANE_H) // 2
+    canvas[y0:y0 + PANE_H, 0:PANE_W] = cv2.resize(vis_l, (PANE_W, PANE_H), interpolation=cv2.INTER_AREA)
+    canvas[y0:y0 + PANE_H, PANE_W:OUT_W] = cv2.resize(vis_r, (PANE_W, PANE_H), interpolation=cv2.INTER_AREA)
+    cv2.line(canvas, (PANE_W, y0), (PANE_W, y0 + PANE_H), (60, 60, 60), 2)
+    cv2.putText(canvas, "GapLink-VMS", (40, 120), cv2.FONT_HERSHEY_DUPLEX, 1.6, (255, 255, 255), 2, cv2.LINE_AA)
+    cv2.putText(canvas, scenario_title, (40, 175), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (190, 190, 190), 2, cv2.LINE_AA)
+    if slow:
+        txt = "SLOW MOTION  x0.25"
+        (tw, th), _ = cv2.getTextSize(txt, cv2.FONT_HERSHEY_DUPLEX, 1.2, 2)
+        x, y = OUT_W - tw - 60, 140
+        cv2.rectangle(canvas, (x - 20, y - th - 18), (x + tw + 20, y + 16), (40, 170, 255), -1)
+        cv2.putText(canvas, txt, (x, y), cv2.FONT_HERSHEY_DUPLEX, 1.2, (15, 15, 15), 2, cv2.LINE_AA)
+    # pane names stay visible even when the panes are zoomed
+    yl = y0 + PANE_H + 52
+    def _short(t: str) -> str:  # cv2 fonts are ASCII-only: keep the name before the first " ("
+        return t.split(" (")[0].encode("ascii", "ignore").decode().strip()
+    for x0, lab, col in ((0, _short(left_label), (90, 90, 235)), (PANE_W, _short(right_label), (90, 210, 90))):
+        (tw, _), _ = cv2.getTextSize(lab, cv2.FONT_HERSHEY_DUPLEX, 1.0, 2)
+        cv2.putText(canvas, lab, (x0 + (PANE_W - tw) // 2, yl), cv2.FONT_HERSHEY_DUPLEX, 1.0, col, 2, cv2.LINE_AA)
+    # ID legend
+    yg = yl + 70
+    if mode == "relink":
+        items = [("#12 lost", (45, 45, 45), (230, 230, 230), "hidden (dashed) + predicted position"),
+                 ("RE-LINKED", (70, 200, 70), (255, 255, 255), "same vehicle, same ID"),
+                 ("WRONG LINK", (40, 40, 235), (255, 255, 255), "ID given to another vehicle"),
+                 ("MISSED", (200, 60, 200), (255, 255, 255), "vehicle got a new ID")]
+    else:
+        items = [("#12", (28, 30, 36), (235, 235, 235), "tracker ID"),
+                 ("#12 SWITCH", (0, 185, 245), (15, 15, 20), "ID moved onto another vehicle"),
+                 ("#31 (was #12)", (150, 40, 200), (255, 255, 255), "same vehicle, new ID")]
+    x = 40
+    for tag, bg, fg, desc in items:
+        (tw, th), _ = cv2.getTextSize(tag, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
+        cv2.rectangle(canvas, (x, yg - th - 8), (x + tw + 12, yg + 8), bg, -1)
+        cv2.putText(canvas, tag, (x + 6, yg), cv2.FONT_HERSHEY_SIMPLEX, 0.7, fg, 2, cv2.LINE_AA)
+        x += tw + 24
+        cv2.putText(canvas, desc, (x, yg), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (200, 200, 200), 1, cv2.LINE_AA)
+        (dw, _), _ = cv2.getTextSize(desc, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 1)
+        x += dw + (40 if mode == "relink" else 60)
+    note = (f"re-links after gaps >= {RELINK_MIN_GAP} frames, judged against UA-DETRAC ground truth" if mode == "relink"
+            else "identities checked against UA-DETRAC ground truth")
+    cv2.putText(canvas, note, (40 if mode == "relink" else x, yg + (50 if mode == "relink" else 0)),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (140, 140, 140), 1, cv2.LINE_AA)
+    return canvas
+
+
 def render_security_comparison_mp4(
     video_path: Path,
     preset_key: str,
@@ -534,6 +713,7 @@ def render_security_comparison_mp4(
     max_frames: int = 385,
     snapshot_frame: int = 220,
     snapshot_path: Path | None = None,
+    extra_writer=None,
 ) -> dict:
     cap = cv2.VideoCapture(str(video_path))
     fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
@@ -557,8 +737,14 @@ def render_security_comparison_mp4(
         dets_list = detector.detect_batch(frames_bgr, ignore_xywh=ig)
         seq_dets = {i + 1: dets_list[i] for i in range(len(dets_list))}
 
-    zones_l, forb_l, max_dw = default_preset_zones(preset_key, W, H)
-    zones_r, forb_r, _ = default_preset_zones(preset_key, W, H)
+    meta = load_clip_meta(video_path)
+    if meta and meta.get("zones"):
+        zones_l, forb_l, max_dw = zones_from_meta(meta)
+        zones_r, forb_r, _ = zones_from_meta(meta)
+    else:
+        zones_l, forb_l, max_dw = default_preset_zones(preset_key, W, H)
+        zones_r, forb_r, _ = default_preset_zones(preset_key, W, H)
+    wins = slow_windows(meta)
 
     vms_l = SecurityVMSEngine(
         OnlineTracker(associator=bl_assoc, W=W, H=H, min_hits=3),
@@ -575,11 +761,18 @@ def render_security_comparison_mp4(
         fps=fps,
     )
 
-    lock_sched = default_lock_schedule(preset_key) if scenario_mode == "lock" else []
+    attach_relink(vms_l)
+    attach_relink(vms_r)
+
+    if scenario_mode == "lock":
+        lock_sched = [tuple(x) for x in meta["lock"]] if meta and meta.get("lock") else default_lock_schedule(preset_key)
+    else:
+        lock_sched = []
     sched_idx = 0
 
     out_mp4.parent.mkdir(parents=True, exist_ok=True)
-    writer = imageio.get_writer(str(out_mp4), fps=min(25, int(round(fps))), codec="libx264", quality=8, macro_block_size=None)
+    writer = imageio.get_writer(str(out_mp4), fps=min(25, int(round(fps))), codec="libx264", quality=None, macro_block_size=None,
+                                pixelformat="yuv420p", ffmpeg_params=["-crf", "18", "-preset", "veryfast"])
     pane_w, pane_h = 640, 360
     snap_saved = False
 
@@ -599,11 +792,18 @@ def render_security_comparison_mp4(
         vis_l = draw_vms_overlay(frm, vms_l, res_l, f"LIVE YOLOv8n + {bl_label}", scenario_mode=scenario_mode)
         vis_r = draw_vms_overlay(frm, vms_r, res_r, f"LIVE YOLOv8n + {gl_label}", scenario_mode=scenario_mode)
 
-        comb = np.concatenate([cv2.resize(vis_l, (pane_w, pane_h)), cv2.resize(vis_r, (pane_w, pane_h))], axis=1)
-        writer.append_data(cv2.cvtColor(comb, cv2.COLOR_BGR2RGB))
+        slow, z, zcx, zcy = _window_state(f, wins)
+        comb = _compose(_zoom_at(vis_l, zcx, zcy, z), _zoom_at(vis_r, zcx, zcy, z), slow,
+                        (meta or {}).get("title", scenario_mode), left_label=bl_label, right_label=gl_label,
+                        mode=scenario_mode)
+        rgb = cv2.cvtColor(comb, cv2.COLOR_BGR2RGB)
+        for _ in range(SLOW_FACTOR if slow else 1):
+            writer.append_data(rgb)
+            if extra_writer is not None:
+                extra_writer.append_data(rgb)
 
         if snapshot_path is not None and not snap_saved and f == min(snapshot_frame, len(frames_bgr)):
-            cv2.imwrite(str(snapshot_path), comb)
+            cv2.imwrite(str(snapshot_path), np.concatenate([cv2.resize(vis_l, (pane_w, pane_h)), cv2.resize(vis_r, (pane_w, pane_h))], axis=1))
             snap_saved = True
 
     writer.close()
@@ -625,6 +825,8 @@ def render_security_comparison_mp4(
         "gl_hijacked": vms_r.target_lock.hijack_count,
         "c3_reacquired": vms_l.target_lock.reacquire_count,
         "c3_hijacked": vms_l.target_lock.hijack_count,
+        "gl_relink": relink_summary(getattr(vms_r, "relink", None)),
+        "c3_relink": relink_summary(getattr(vms_l, "relink", None)),
     }
 
 
@@ -636,6 +838,7 @@ def main():
     ap.add_argument("--baseline", choices=sorted(BASELINE_INFO), default=DEFAULT_BASELINE)
     ap.add_argument("--profile", choices=["v1.3", "v1.1"], default="v1.3")
     ap.add_argument("--update-report-figs", action="store_true", help="also overwrite report/latex figure snapshots")
+    ap.add_argument("--showcase", action="store_true", help="render the mined showcase clips (demo/sample_videos/showcase_*)")
     a = ap.parse_args()
     root = resolve_root()
     prof = load_profile(root, version=a.profile)
@@ -651,6 +854,10 @@ def main():
     latex_fig = root / "report" / "latex" / "figures"
     paths_cfg = yaml.safe_load((root / "configs" / "paths.yaml").read_text(encoding="utf-8"))
     cap_fig = Path(paths_cfg.get("latex_template_dir", "")) / "figures"
+
+    if a.showcase:
+        render_showcase(root, prof, a.baseline, gl_assoc, detector)
+        return
 
     # Same three clips as before (chosen 18-20/11/2026, before v1.3 existed); results reported as they come out.
     jobs = [
@@ -678,6 +885,31 @@ def main():
                     shutil.copy2(snap_p, d / snap_fn)
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"wrote {out_dir / 'manifest.json'}")
+
+
+def render_showcase(root: Path, prof, baseline: str, gl_assoc, detector):
+    """Render every demo/sample_videos/showcase_*.mp4 (with _meta.json) and one combined reel."""
+    from demo.vms_profile import make_baseline
+    clips = sorted((root / "demo" / "sample_videos").glob("showcase_*.mp4"))
+    clips = [c for c in clips if load_clip_meta(c)]
+    out_dir = root / "demo" / "out" / f"showcase_{prof.version}_vs_{baseline}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    reel = imageio.get_writer(str(out_dir / "showcase_reel.mp4"), fps=25, codec="libx264", quality=None, macro_block_size=None,
+                              pixelformat="yuv420p", ffmpeg_params=["-crf", "18", "-preset", "veryfast"])
+    manifest = {"profile": prof.version, "gaplink": prof.gaplink_label, "baseline": prof.baseline_label(baseline), "clips": []}
+    for c in clips:
+        meta = load_clip_meta(c)
+        info = render_security_comparison_mp4(
+            c, "showcase", meta["scenario"], out_dir / f"{c.stem}.mp4", detector, gl_assoc,
+            bl_assoc=make_baseline(baseline, prof), bl_label=prof.baseline_label(baseline), gl_label=prof.gaplink_label,
+            max_frames=10_000, snapshot_frame=(meta.get("key_moments") or [{"frame": 1}])[0]["frame"],
+            snapshot_path=out_dir / f"{c.stem}_key.png", extra_writer=reel)
+        info["expected"] = meta.get("expected")
+        manifest["clips"].append(info)
+        print("Rendered showcase:", info, flush=True)
+    reel.close()
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"wrote {out_dir}")
 
 
 if __name__ == "__main__":

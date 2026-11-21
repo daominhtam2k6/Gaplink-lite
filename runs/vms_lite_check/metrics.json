@@ -1,0 +1,56 @@
+{
+ "demo1_relink.mp4": {
+  "scenario": "relink",
+  "baseline": "C-3 Kalman + Mahalanobis",
+  "gaplink": "GapLink-Lite v1.3",
+  "bl": {
+   "ok": 21,
+   "total": 51,
+   "wrong": 12,
+   "missed": 18
+  },
+  "gl": {
+   "ok": 48,
+   "total": 48,
+   "wrong": 0,
+   "missed": 0
+  },
+  "history_items": 30
+ },
+ "demo2_route.mp4": {
+  "scenario": "route",
+  "baseline": "C-3 Kalman + Mahalanobis",
+  "gaplink": "GapLink-Lite v1.3",
+  "bl": {
+   "ok": 3,
+   "wrong_id": 1,
+   "false": 2,
+   "unk": 0
+  },
+  "gl": {
+   "ok": 2,
+   "wrong_id": 0,
+   "false": 0,
+   "unk": 0
+  },
+  "history_items": 8
+ },
+ "demo3_lock.mp4": {
+  "scenario": "lock",
+  "baseline": "C-3 Kalman + Mahalanobis",
+  "gaplink": "GapLink-Lite v1.3",
+  "bl": {
+   "state": "HIJACKED_WRONG",
+   "gap": 0,
+   "reacquired": 1,
+   "wrong": 1
+  },
+  "gl": {
+   "state": "OCCLUDED_SEARCHING",
+   "gap": 1,
+   "reacquired": 4,
+   "wrong": 0
+  },
+  "history_items": 1
+ }
+}

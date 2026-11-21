@@ -1,0 +1,131 @@
+{
+ "scenario": "lock",
+ "title": "Locked moving vehicle re-acquired after occlusion",
+ "zones": [
+  {
+   "zone_id": "Z_A",
+   "name": "Restricted Origin A",
+   "role": "entry",
+   "points": [
+    [
+     0.6262,
+     0.1635
+    ],
+    [
+     0.6645,
+     0.2429
+    ],
+    [
+     0.5704,
+     0.3862
+    ],
+    [
+     0.5321,
+     0.3068
+    ]
+   ]
+  },
+  {
+   "zone_id": "Z_C",
+   "name": "Permitted Origin C",
+   "role": "entry",
+   "points": [
+    [
+     0.5321,
+     0.3068
+    ],
+    [
+     0.5704,
+     0.3862
+    ],
+    [
+     0.4605,
+     0.5534
+    ],
+    [
+     0.4223,
+     0.474
+    ]
+   ]
+  },
+  {
+   "zone_id": "Z_B",
+   "name": "Checkpoint Zone B",
+   "role": "restricted",
+   "points": [
+    [
+     0.7013,
+     0.3193
+    ],
+    [
+     0.8854,
+     0.7014
+    ],
+    [
+     0.6815,
+     1.0
+    ],
+    [
+     0.4974,
+     0.6299
+    ]
+   ]
+  },
+  {
+   "zone_id": "Z_DWELL",
+   "name": "No-Stopping Security Zone",
+   "role": "dwell",
+   "points": [
+    [
+     0.1,
+     0.2
+    ],
+    [
+     0.9,
+     0.2
+    ],
+    [
+     0.9,
+     0.88
+    ],
+    [
+     0.1,
+     0.88
+    ]
+   ]
+  }
+ ],
+ "forbidden_routes": [
+  [
+   "Z_A",
+   "Z_B"
+  ]
+ ],
+ "max_dwell_sec": 5.0,
+ "key_moments": [
+  {
+   "frame": 102,
+   "cx": 0.5576,
+   "cy": 0.3905,
+   "label": "target re-appears"
+  }
+ ],
+ "lock": [
+  [
+   53,
+   522.6,
+   189.1
+  ]
+ ],
+ "source": {
+  "seq": "MVI_39501",
+  "f0": 318,
+  "f1": 479,
+  "candidates": "runs/demo_mining/candidates_C-3.json",
+  "rank": 4
+ },
+ "expected": {
+  "gaplink": "reacquired",
+  "baseline": "hijacked"
+ }
+}

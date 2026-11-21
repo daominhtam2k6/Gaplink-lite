@@ -76,6 +76,9 @@ class OnlineTracker:
         self.active_tracks: list[TrackState] = []
         self.lost_tracks: list[TrackState] = []
         self.reassoc_log: list[dict] = []
+        # optional callback(frame_id, sub_lost, sub_cand_idx, ev, dec) after each Stage-2 decision;
+        # used only by the demo visualiser, never changes tracking results
+        self.event_hook = None
         self.frame_outputs: dict[int, list[dict]] = {}
 
     def build_event_from_subpools(
@@ -193,6 +196,8 @@ class OnlineTracker:
                     frame_id, sub_lost, sub_cand_boxes, sub_cand_hists, vis_boxes_now
                 )
                 dec = self.associator.decide(ev)
+                if self.event_hook is not None:
+                    self.event_hook(frame_id, sub_lost, sub_cand_idx, ev, dec)
                 for i_local, j_local in enumerate(dec):
                     if j_local >= 0 and j_local < len(sub_cand_idx):
                         det_c = sub_cand_idx[int(j_local)]
