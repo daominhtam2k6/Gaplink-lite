@@ -1,7 +1,7 @@
 \chapter{Giới thiệu}
 \label{chap:introduction}
 
-\section{Bối cảnh bài toán}
+\section{Thông tin Bối cảnh}
 \label{sec:background}
 
 Bài toán theo dõi đa đối tượng (Multi-Object Tracking -- MOT) trong giao thông đô thị ước lượng quỹ đạo của các phương tiện qua từng khung hình video đồng thời duy trì tính nhất quán của định danh (ID). Trong các hệ thống tracking-by-detection như SORT \cite{bewley2016sort}, DeepSORT \cite{wojke2017deepsort}, ByteTrack \cite{zhang2022bytetrack} và OC-SORT \cite{cao2023ocsort}, bộ phát hiện cung cấp các hộp giới hạn (bounding box) theo từng khung hình và mô-đun liên kết dữ liệu ghép nối chúng với các quỹ đạo đang hoạt động. Khi một phương tiện bị che khuất bởi xe khác hoặc công trình ven đường trong $g \in [3, 90]$ khung hình liên tiếp, phép ghép IoU theo từng khung hình thất bại và quỹ đạo bị chuyển vào tập mất dấu (lost pool). Khi xuất hiện trở lại tại khung hình xác nhận $t_{\text{conf}}$, bộ theo dõi phải giải bài toán tái liên kết nhiều--nhiều giữa $N$ quỹ đạo mất dấu và $M$ ứng viên chưa ghép, đồng thời loại bỏ các quỹ đạo đã rời khỏi khung hình và các ứng viên là xe mới đi vào.
@@ -13,21 +13,23 @@ Bộ lọc Kalman tuyến tính kết hợp ngưỡng Mahalanobis gặp khó kh�
 
 \textbf{Mục tiêu tổng quát.} Đồ án thiết kế, triển khai và đánh giá nghiêm ngặt \textbf{GapLink-Lite}, một mạng nơ-ron gọn nhẹ tự phát triển ($327.979$ tham số huấn luyện, dưới ngưỡng $1\text{M}$) cho bài toán tái liên kết định danh phương tiện qua khoảng che khuất trên bộ dữ liệu thực tế \textbf{UA-DETRAC} \cite{wen2020uadetrac} ($100$ chuỗi video giao thông, $138.045$ khung hình có nhãn, $8.251$ quỹ đạo xe, $1.201.341$ hộp giới hạn phương tiện và $0$ nhãn người đi bộ).
 
-\textbf{Các ràng buộc thiết kế bắt buộc được đáp ứng:}
+\textbf{Đánh giá hai giai đoạn.} Đồ án được đánh giá qua hai giai đoạn. \emph{Giai đoạn~1} huấn luyện và kiểm thử mô hình trên box phương tiện ground-truth với che khuất có kiểm soát, theo giao thức tiền đăng ký, rồi đóng băng kết quả. \emph{Giai đoạn~2} đưa mô hình đã đóng băng vào sau detector YOLOv8n chạy trực tiếp trong bảng điều khiển camera an ninh (GapLink-VMS) và đo, trên che khuất tự nhiên, mô hình so với các hướng tái liên kết cổ điển ra sao.
+
+\textbf{Ràng buộc thiết kế:}
 \begin{enumerate}
     \item \textbf{Miền bài toán phi con người:} Toàn bộ pipeline chỉ xử lý phương tiện giao thông đường bộ trên UA-DETRAC ($0$ hộp giới hạn người/người đi bộ trên cả $100$ chuỗi video, đã kiểm chứng trong \texttt{data/stats.json}).
     \item \textbf{Mô hình lõi tự phát triển từ khởi tạo ngẫu nhiên:} Mọi thành phần của GapLink-Lite---bộ mã hóa chuyển động GRU 2 tầng kèm vector nhúng độ dài gap, bộ mã hóa ngữ cảnh lân cận DeepSets bất biến hoán vị \cite{zaheer2017deepsets}, bộ dự đoán quỹ đạo Gaussian phần dư quanh mốc vận tốc không đổi, bộ chấm điểm cặp đôi và dustbin kiểu SuperGlue \cite{sarlin2020superglue}, cùng tầng vận chuyển tối ưu Sinkhorn miền log $20$ vòng lặp \cite{sinkhorn1967,cuturi2013sinkhorn}---đều được huấn luyện từ khởi tạo ngẫu nhiên (\texttt{seeds 20260417--20260421}) không dùng trọng số tiền huấn luyện hay mã nguồn tracker bên thứ ba.
 \end{enumerate}
 
-\textbf{Các giả thuyết tiền đăng ký (khóa tại \texttt{docs/PREREG.md} ngày 15/11/2026; câu chữ và kết luận dưới đây theo đúng PREREG v1; các sai lệch quy trình liệt kê ở Mục~\ref{sec:limitations}):}
+\textbf{Các giả thuyết tiền đăng ký} (khóa tại \texttt{docs/PREREG.md} ngày 15/11/2026, trước mọi lần đánh giá test; kết luận theo đúng câu chữ đã đăng ký):
 \begin{itemize}
     \item \textbf{H1 (Top-1 cấp sự kiện trên tập khó):} Top-1 của GapLink-Lite trên các sự kiện khó (\texttt{is\_hard}) cao hơn $\max(\text{C-2},\text{C-3},\text{C-4})$ ít nhất $3.0$ điểm phần trăm. \textbf{Kết quả: Đạt.} Top-1 tập khó $93.18\%$ so với $85.85\%$ của baseline mạnh nhất (C-4): $\Delta=+\mathbf{7.33}$~pp, khoảng tin cậy 95\% bootstrap ghép cặp theo $15$ địa điểm camera của tập test $[6.13, 8.77]$~pp, cận dưới cũng vượt ngưỡng $3.0$~pp (seed~1 = checkpoint đóng băng \texttt{release/final.pt}).
-    \item \textbf{H2 (Độ bao phủ bất định sau hiệu chuẩn):} Sau hiệu chuẩn theo gap, độ bao phủ thực nghiệm của elip 90\% nằm trong $[85\%, 95\%]$ ở cả ba nhóm gap ($3$--$15$, $16$--$45$, $46$--$90$), đo trên nửa B của tập validation. \textbf{Kết quả: Không đạt (trượt sát biên ở nhóm gap dài).} Validation: $87.71\%$ / $87.64\%$ / $\mathbf{95.14\%}$; test: $87.87\%$ / $90.26\%$ / $\mathbf{95.86\%}$. Chỉ như một quan sát hậu kiểm (không phải kiểm định giả thuyết), đầu ra \emph{chưa hiệu chuẩn} nằm trong dải trên test ($86.42\%$ / $85.46\%$ / $88.02\%$); Mục~\ref{sec:limitations} giải thích vì sao điều này không cứu được H2.
+    \item \textbf{H2 (Độ bao phủ bất định sau hiệu chuẩn):} Sau hiệu chuẩn theo gap, độ bao phủ thực nghiệm của elip 90\% nằm trong $[85\%, 95\%]$ ở cả ba nhóm gap ($3$--$15$, $16$--$45$, $46$--$90$), đo trên nửa B của tập validation. \textbf{Kết quả: Không đạt (trượt sát biên ở nhóm gap dài).} Validation: $87.71\%$ / $87.64\%$ / $\mathbf{95.14\%}$; test: $87.87\%$ / $90.26\%$ / $\mathbf{95.86\%}$. Đầu ra chưa hiệu chuẩn nằm trong dải trên test ($86.42\%$ / $85.46\%$ / $88.02\%$), nhưng đây là quan sát hậu kiểm và không thay đổi kết luận.
     \item \textbf{H3 (IRR và WLR cấp tracker):} Tỷ lệ hồi phục định danh (IRR) của GapLink-Lite cao hơn cả C-2 và C-3 ở ít nhất $2/3$ nhóm gap, đồng thời $\Delta\text{WLR} \le +0.5$~pp. \textbf{Kết quả: Đạt (3/3 nhóm, cả che khuất toàn phần và một phần).} Toàn phần: IRR $\mathbf{96.20\%}$ so với $85.17\%$ (C-2) và $84.96\%$ (C-3), WLR $0.21\%$ so với $4.32\%$ / $10.25\%$; CI bootstrap theo địa điểm của $\Delta$IRR so với C-3 là $[9.10, 14.35]$~pp. Một phần: IRR $\mathbf{95.99\%}$, WLR $0.36\%$, IDF1 $99.02\%$.
     \item \textbf{P1 (Kiểm tra giao thức):} Khi tắt tái liên kết (C-1), IRR phải $<5\%$. \textbf{Kết quả: Đạt} (IRR $0.00\%$ trên toàn bộ $1.922$ khoảng che khuất tiêm).
 \end{itemize}
 
-\section{Thành viên, Vai trò và Tiến độ thực hiện}
+\section{Thành viên và Phân công Vai trò}
 \label{sec:members_roles}
 
 Đây là đồ án cá nhân. Bảng~\ref{tab:team_roles} tóm tắt trách nhiệm thực hiện và Bảng~\ref{tab:contributions} phân tách rõ các thành phần tự phát triển với dữ liệu/thư viện ngoài.
@@ -40,7 +42,7 @@ Bộ lọc Kalman tuyến tính kết hợp ngưỡng Mahalanobis gặp khó kh�
         \toprule
         \textbf{STT} & \textbf{Sinh viên} & \textbf{Trách nhiệm và Sản phẩm bàn giao} \\
         \midrule
-        1 & \memberOne & Thiết kế kiến trúc GapLink-Lite và giả thuyết tiền đăng ký, làm sạch dữ liệu và phân cụm camera trên UA-DETRAC, huấn luyện 5 seed và ablation trên GPU, kiểm toán chỉ số hiệu chuẩn/tracker, phân tích lỗi và hoàn thiện báo cáo cùng video demo. \\
+        1 & \memberOne & Thiết kế kiến trúc GapLink-Lite và giả thuyết tiền đăng ký, làm sạch dữ liệu và phân cụm camera trên UA-DETRAC, huấn luyện 5 seed và ablation trên GPU, kiểm toán chỉ số hiệu chuẩn/tracker, xây dựng ứng dụng GapLink-VMS với YOLOv8n trực tiếp, hoàn thiện báo cáo và video demo. \\
         \bottomrule
     \end{tabularx}
 \end{table}
@@ -62,25 +64,27 @@ Bộ lọc Kalman tuyến tính kết hợp ngưỡng Mahalanobis gặp khó kh�
     \end{tabularx}
 \end{table}
 
-\section{Các giai đoạn thực hiện và Cổng kiểm chứng}
+\section{Tiến độ và Các mốc Thực hiện}
 \label{sec:schedule_milestones}
 
-Đồ án được triển khai tập trung qua 6 cổng kiểm chứng nghiêm ngặt (G1--G6) trong Bảng~\ref{tab:milestones}.
+Đồ án được thực hiện từ ngày 15 đến 21/11/2026 theo chuỗi cổng kiểm chứng (Bảng~\ref{tab:milestones}); mỗi cổng phải đạt trước khi sang cổng tiếp theo.
 
 \begin{table}[htbp]
     \centering
-    \caption{Các giai đoạn thực hiện và cổng kiểm chứng (G1--G6)}
+    \caption{Tiến độ và các mốc thực hiện (cổng kiểm chứng)}
     \label{tab:milestones}
-    \begin{tabularx}{\textwidth}{p{1.8cm} p{2.7cm} X}
+    \begin{tabularx}{\textwidth}{p{1.6cm} p{2.6cm} X}
         \toprule
-        \textbf{Giai đoạn} & \textbf{Cổng kiểm chứng} & \textbf{Sản phẩm đã kiểm chứng} \\
+        \textbf{Ngày} & \textbf{Cổng} & \textbf{Sản phẩm đã kiểm chứng} \\
         \midrule
-        Giai đoạn 1 & Cổng G1 (Dữ liệu) & Chuyển đổi $100$ chuỗi UA-DETRAC ($1.201.341$ hộp xe, $407$ vùng ignore, $0$ hộp người), gom $25$ cụm góc camera, trích xuất histogram HSV 5-view 128-bin. \\
-        Giai đoạn 2 & Cổng G2 (Sự kiện) & Xây dựng bộ lấy mẫu sự kiện thống nhất, khóa \texttt{val\_events.pkl} ($6.000$) và \texttt{test\_events.pkl} ($12.000$), sinh $120.038$ sự kiện huấn luyện. \\
-        Giai đoạn 3 & Cổng G3 (Overfit) & Cài đặt \texttt{GapLinkLite} ($327.979$ tham số), qua 16/16 unit test, đạt $\mathbf{100.00}\%$ Top-1 trên bài kiểm tra overfit 64 sự kiện. \\
-        Giai đoạn 4 & Cổng G4 (5-Seed) & Huấn luyện 5 seed GapLink-Lite ($93.07\% \pm 0.45\%$ val Top-1) và 5 seed cho mỗi biến thể ablation (tổng 20 lần chạy GPU); kiểm tra hiệu chuẩn hậu kiểm trên val half-A. \\
-        Giai đoạn 5 & Cổng G5 (Đóng băng) & Chọn $\tau = 0.25$ trên val theo quy tắc WLR $\le 5.0\%$ ($93.17\%$ Top-1, $3.31\%$ WLR); đóng băng \texttt{release/final.pt}. \\
-        Giai đoạn 6 & Cổng G6 (Test \& Báo cáo) & Đánh giá tập test khóa cứng (sự kiện + tracker 40 chuỗi với IDF1/MOTA/IDSW), phân tích độ nhạy mở rộng, render 4 clip MP4 đối chứng và biên dịch PDF LaTeX. \\
+        15/11 & G1 Dữ liệu & Chuyển đổi và làm sạch $100$ chuỗi UA-DETRAC ($1.201.341$ box phương tiện), $25$ cụm camera, chia tập theo địa điểm, histogram HSV 5 góc nhìn. \\
+        15/11 & G2 Sự kiện & Bộ lấy mẫu sự kiện dùng chung; cố định và băm tập val ($6.000$) và test ($12.000$); $120.038$ sự kiện huấn luyện. \\
+        15/11 & G3 Mô hình & Cài đặt GapLink-Lite ($327.979$ tham số); unit test và kiểm tra overfit 64 sự kiện ($100\%$ Top-1). \\
+        15--16/11 & G4 Huấn luyện & 5 seed cho mô hình đầy đủ và 3 ablation (20 lần chạy GPU); khớp hiệu chuẩn trên val. \\
+        16/11 & G5 Đóng băng & Chọn ngưỡng trên val, đóng băng checkpoint (\texttt{844fc391\ldots}). \\
+        16/11 & G6 Test giai đoạn 1 & Một lần chạy test khóa: cấp sự kiện, tracker trực tuyến, ablation, độ bền. \\
+        18--20/11 & G7 Ứng dụng & Bảng điều khiển GapLink-VMS với YOLOv8n trực tiếp; mô-đun tuyến cấm, dwell và khóa mục tiêu. \\
+        21/11 & G8 Test giai đoạn 2 & Checkpoint theo detector và điểm vận hành live chọn trên val; một lần chạy test live; đóng băng kết quả. \\
         \bottomrule
     \end{tabularx}
 \end{table}

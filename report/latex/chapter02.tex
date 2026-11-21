@@ -1,10 +1,10 @@
 \chapter{Project Execution}
 \label{chap:project_execution}
 
-\section{Data Acquisition and Cleaning}
+\section{Data Acquisition}
 \label{sec:data_acquisition}
 
-The project uses the full \textbf{UA-DETRAC} multi-vehicle tracking benchmark \cite{wen2020uadetrac}, consisting of $100$ real-world traffic video sequences recorded at $25\text{ fps}$ ($960 \times 540$ pixels). In the raw CSV mirror, static ignore zones (\texttt{class='ignored'}, \texttt{target\_id=-1}, $528,798$ rows) were stored alongside $1,274,055$ vehicle rows. Our converter (\texttt{scripts/convert\_detrac.py}) separates all $407$ ignore-zone polygons into \texttt{{seq}\_ignore.txt} and filters vehicle detections whose centers fall inside ignore zones. This removes $72,714$ vehicle boxes ($\approx 5.7\%$), leaving $1,201,341$ valid vehicle boxes across $8,251$ trajectories (within $\sim 0.7\%$ of the $1.21\text{M}$ boxes and $8,250$ vehicles reported in \cite{wen2020uadetrac}); because ignore-zone filtering can also split trajectories near masked boundaries, $242$ trajectories exhibit natural frame gaps. Note that the CSV mirror collapses fine-grained vehicle subtypes into a single \texttt{vehicle} label; therefore, Figure~\ref{fig:eda_results} reports trajectory-length and traffic-density distributions rather than synthetic subtype counts.
+The project uses the full \textbf{UA-DETRAC} multi-vehicle tracking benchmark \cite{wen2020uadetrac}, consisting of $100$ real-world traffic video sequences recorded at $25\text{ fps}$ ($960 \times 540$ pixels). In the raw CSV mirror, static ignore zones (\texttt{class='ignored'}, \texttt{target\_id=-1}, $528{,}798$ rows) were stored alongside $1{,}274{,}055$ vehicle rows. Our converter (\texttt{scripts/convert\_detrac.py}) separates all $407$ ignore-zone polygons into \texttt{{seq}\_ignore.txt} and filters vehicle detections whose centers fall inside ignore zones. This removes $72{,}714$ vehicle boxes ($\approx 5.7\%$), leaving $1{,}201{,}341$ valid vehicle boxes across $8{,}251$ trajectories (within $\sim 0.7\%$ of the $1.21\text{M}$ boxes and $8{,}250$ vehicles reported in \cite{wen2020uadetrac}); because ignore-zone filtering can also split trajectories near masked boundaries, $242$ trajectories exhibit natural frame gaps. Note that the CSV mirror collapses fine-grained vehicle subtypes into a single \texttt{vehicle} label; therefore, Figure~\ref{fig:eda_results} reports trajectory-length and traffic-density distributions rather than synthetic subtype counts.
 
 \begin{table}[htbp]
     \centering
@@ -15,17 +15,17 @@ The project uses the full \textbf{UA-DETRAC} multi-vehicle tracking benchmark \c
         \textbf{Property} & \textbf{Value} & \textbf{Verification / Notes} \\
         \midrule
         Total Video Sequences & $100$ & $60$ source-train + $40$ official source-test sequences ($960\times 540$) \\
-        Annotated Frames & $138,045$ & $45,603$ dense frames with $\ge 10$ simultaneous vehicles (mean $8.70$ veh/frame) \\
-        Total Vehicle Trajectories & $8,251$ & Track length percentiles: $P_{10} = 31$, $P_{50} = 86$, $P_{90} = 245$ frames \\
-        Total Vehicle Bounding Boxes & $1,201,341$ & Filtered $72,714$ boxes ($5.7\%$) inside $407$ ignore regions; $0$ pedestrian boxes \\
-        Train Split (Camera-Separated) & $47$ seqs & $13$ camera viewpoint clusters ($120,038$ sampled training events) \\
-        Validation Split (Camera-Separated) & $13$ seqs & $4$ camera viewpoint clusters ($6,000$ fixed validation events) \\
-        Test Split (Official Held-Out) & $40$ seqs & $15$ clusters ($7$ overlapping with train/val, $8$ strictly unseen; $12,000$ events) \\
+        Annotated Frames & $138{,}045$ & $45{,}603$ dense frames with $\ge 10$ simultaneous vehicles (mean $8.70$ veh/frame) \\
+        Total Vehicle Trajectories & $8{,}251$ & Track length percentiles: $P_{10} = 31$, $P_{50} = 86$, $P_{90} = 245$ frames \\
+        Total Vehicle Bounding Boxes & $1{,}201{,}341$ & Filtered $72{,}714$ boxes ($5.7\%$) inside $407$ ignore regions; $0$ pedestrian boxes \\
+        Train Split (Camera-Separated) & $47$ seqs & $13$ camera viewpoint clusters ($120{,}038$ sampled training events) \\
+        Validation Split (Camera-Separated) & $13$ seqs & $4$ camera viewpoint clusters ($6{,}000$ fixed validation events) \\
+        Test Split (Official Held-Out) & $40$ seqs & $15$ clusters ($7$ overlapping with train/val, $8$ strictly unseen; $12{,}000$ events) \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
-To prevent viewpoint leakage between training and validation, \texttt{scripts/group\_locations.py} computes a $64 \times 36$ grayscale median background image per sequence and applies Agglomerative Clustering ($1 - r \le 0.65$), yielding $25$ raw camera viewpoint clusters matching UA-DETRAC's $\sim 24$ physical camera locations. The $60$ source-train sequences are partitioned strictly by cluster into $13$ training and $4$ validation clusters ($17$ total). Because the official $40$-sequence UA-DETRAC test split is preserved intact, its $15$ raw clusters include $7$ viewpoint clusters ($21$ sequences, $6,300$ events) that also appear in train/val and $8$ strictly unseen camera clusters ($19$ sequences, $5,700$ events); both subsets are evaluated separately in Chapter~\ref{chap:results}. Furthermore, to ensure zero appearance leakage during partial occlusion, \texttt{scripts/extract\_hist.py} precomputes a 5-view 128-bin HSV histogram tensor \texttt{(R, 5, 128)} per sequence: view $0$ uses the full inner $60\%$ box, while views $1$--$4$ extract histograms strictly from the visible cropped sub-box (keep-top, keep-bottom, keep-left, keep-right).
+To prevent viewpoint leakage between training and validation, \texttt{scripts/group\_locations.py} computes a $64 \times 36$ grayscale median background image per sequence and applies Agglomerative Clustering ($1 - r \le 0.65$), yielding $25$ raw camera viewpoint clusters matching UA-DETRAC's $\sim 24$ physical camera locations. The $60$ source-train sequences are partitioned strictly by cluster into $13$ training and $4$ validation clusters ($17$ total). Because the official $40$-sequence UA-DETRAC test split is preserved intact, its $15$ raw clusters include $7$ viewpoint clusters ($21$ sequences, $6{,}300$ events) that also appear in train/val and $8$ strictly unseen camera clusters ($19$ sequences, $5{,}700$ events); both subsets are evaluated separately in Chapter~\ref{chap:results}. Furthermore, to ensure zero appearance leakage during partial occlusion, \texttt{scripts/extract\_hist.py} precomputes a 5-view 128-bin HSV histogram tensor \texttt{(R, 5, 128)} per sequence: view $0$ uses the full inner $60\%$ box, while views $1$--$4$ extract histograms strictly from the visible cropped sub-box (keep-top, keep-bottom, keep-left, keep-right).
 
 \section{Training Methodology}
 \label{sec:training_methodology}
@@ -42,10 +42,14 @@ To prevent viewpoint leakage between training and validation, \texttt{scripts/gr
     \item \textbf{Log-Domain Sinkhorn Optimal Transport:} Forming the $(N+1)\times(M+1)$ score matrix $\tilde{S}$ with last column $z^t$, last row $(z^c)^\top$, and corner $0$, we run $T = 20$ alternating log-sum-exp row and column normalizations with target marginals $\mathbf{r} = [1, \dots, 1, M]^\top$ and $\mathbf{c} = [1, \dots, 1, N]^\top$ \cite{sinkhorn1967,cuturi2013sinkhorn,sarlin2020superglue} to obtain $\log P$.
 \end{enumerate}
 
-\textbf{Joint Loss \& Multi-Seed Training.} Models are trained with AdamW ($\text{lr} = 7\times 10^{-4}$, cosine annealing after 200 warmup steps, batch size $64$, $2,400$ steps, gradient clipping $1.0$) on an NVIDIA GeForce RTX 3050 6GB Laptop GPU using $\mathcal{L} = \mathcal{L}_{\text{assign}} + 0.5\,\mathcal{L}_{\text{NLL}}$ with curriculum hard-event probability ramping from $0.40$ to $0.75$. All main and ablation configurations are trained across 5 random seeds (20 GPU runs total; $\sim 100\text{ s}$ per main run).
+\textbf{Joint Loss \& Multi-Seed Training.} Models are trained with AdamW (cosine learning-rate schedule with warm-up, batch size $64$, $2{,}400$ steps, gradient clipping $1.0$) on an NVIDIA GeForce RTX 3050 6GB Laptop GPU using $\mathcal{L} = \mathcal{L}_{\text{assign}} + 0.5\,\mathcal{L}_{\text{NLL}}$ with curriculum hard-event probability ramping from $0.40$ to $0.75$. All main and ablation configurations are trained across 5 random seeds (20 GPU runs total; $\sim 100\text{ s}$ per main run).
+
+\textbf{Detector-aware fine-tuning for Phase~2.} A model trained on ground-truth boxes never sees detector jitter, 2--5-frame detector flicker or false-positive candidates. For the live setting we therefore log the exact events built by the online tracker on YOLOv8n detections of the \emph{training} sequences ($7{,}746$ events), label identities by post-hoc IoU matching ($\ge 0.45$) to ground truth, and fine-tune the frozen model for $3{,}000$ steps on a $70/30$ mixture of these events and the original training pool. The checkpoint (\texttt{release/live\_v1.3.pt}, same architecture) is selected on detector-aware validation events; the test videos are never used.
 
 \section{Workflow}
 \label{sec:workflow}
+
+The workflow follows the two evaluation phases. In Phase~1, UA-DETRAC annotations are converted and split by camera location, fixed event sets are generated, the model is trained and frozen, and a single locked test run evaluates both the event level and the online tracker under injected occlusions. In Phase~2, raw videos go through YOLOv8n, online HSV extraction, the two-stage tracker with a pluggable re-association module (GapLink-Lite or C-1\ldots C-4), and the GapLink-VMS security rules; ground truth is used only afterwards to score the results.
 
 To guarantee zero train--test skew between event training and online tracking, both the training sampler and Stage-2 of the online tracker call the exact same pure function \texttt{assemble\_event} (verified by \texttt{tests/test\_parity.py}). During online tracking: Stage 1 matches active tracks to detections via Hungarian IoU ($\ge 0.30$); Stage 2 matches lost tracks ($2 \le \text{age} \le a_{\max}$, $a_{\max}=95$) to unmatched detections using the selected associator. For GapLink-Lite, Hungarian matching on $-P_{1:N,1:M}$ accepts $(i,j)$ iff $P_{ij} \ge \tau$ ($\tau = 0.25$) and $P_{ij} > P_{i,M+1}$.
 
@@ -87,6 +91,6 @@ Figure~\ref{fig:system_design} presents the vector architecture diagram of GapLi
         \draw[arr] (scor.east) -- (sink.west |- scor.east);
     \end{tikzpicture}%
     }
-    \caption{Vector Architecture Diagram of GapLink-Lite ($327,979$ Parameters) and Stage-2 Optimal Transport Re-Association}
+    \caption{Vector Architecture Diagram of GapLink-Lite ($327{,}979$ Parameters) and Stage-2 Optimal Transport Re-Association}
     \label{fig:system_design}
 \end{figure}

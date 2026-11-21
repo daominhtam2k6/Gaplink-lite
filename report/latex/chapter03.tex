@@ -1,17 +1,17 @@
 \chapter{Results}
 \label{chap:results}
 
-\section{Data Preprocessing and Split Diagnostics}
+The evaluation has two phases. \textbf{Phase~1} measures the model itself on ground-truth vehicle boxes with controlled occlusions, under the pre-registered protocol (thresholds on validation, a single locked test run). \textbf{Phase~2} measures how much of that advantage survives in a realistic deployment, where boxes come from a live YOLOv8n detector and occlusions are natural. All numbers below are read from frozen result files (\texttt{release/FROZEN\_RESULTS.md}); 95\% confidence intervals are paired bootstrap intervals with the camera \emph{location} as resampling unit ($15$ test locations, $10{,}000$ draws).
+
+\section{Data Preprocessing}
 \label{sec:data_preprocessing}
 
-After separating $528,798$ static \texttt{ignored} rows and filtering $72,714$ vehicle detections ($5.7\%$) inside $407$ ignore regions, we generated fixed validation ($6,000$ events, $11,389$ tracks) and test ($12,000$ events, $27,120$ tracks) event sets using natural sampling (\texttt{want\_hard=None}). Notably, C-3 (Kalman + Mahalanobis, $\theta=25.0$) scores $67.39\%$ Top-1 on validation vs.\ $80.29\%$ on test ($+12.90\text{ pp}$) despite test having more $1.15h$-flagged events ($71.5\%$ vs.\ $60.4\%$), longer gaps (mean $27.6$ vs.\ $22.6$ frames), more candidates ($8.5$ vs.\ $7.1$), and closer nearest distractors (median $d^2_{\min}=5.69$ vs.\ $21.25$). Diagnostic breakdown shows this gap stems from small-sample cluster variance on the $4$-cluster validation split: $9.2\%$ of true validation matches exceed C-3's $\theta=25.0$ gate (e.g., \texttt{LOC\_22} drops to $57.57\%$), whereas only $0.2\%$ of true test matches exceed $\theta=25.0$ across its $15$ clusters (range $74.72\%$--$86.84\%$).
+Static \texttt{ignored} regions ($528{,}798$ rows, $407$ polygons) were separated from vehicle annotations, and $72{,}714$ vehicle boxes ($5.7\%$) whose centres fall inside them were removed, leaving $1{,}201{,}341$ boxes in $8{,}251$ trajectories. Fixed event sets were generated once and hashed: $6{,}000$ validation events ($11{,}389$ lost tracks) and $12{,}000$ test events ($27{,}120$ lost tracks). Because the official test split shares $7$ of its $15$ camera locations with train/validation, the test set was also scored separately on shared and unseen locations: GapLink-Lite reaches $93.39\%$ and $93.44\%$ Top-1 respectively (C-3: $80.59\%$ and $79.96\%$), so performance does not depend on having seen the camera.
 
-To audit the $7$ overlapping camera viewpoint clusters between train/val and the official test split (Section~\ref{sec:data_acquisition}), we evaluate the locked test set separately on overlapping ($21$ sequences, $6,300$ events) and strictly unseen ($19$ sequences, $5,700$ events) camera clusters: GapLink-Lite (Seed~1) achieves $\mathbf{93.39\%}$ Top-1 ($2.93\%$ WLR) on overlapping clusters vs.\ $\mathbf{93.44\%}$ Top-1 ($3.10\%$ WLR) on strictly unseen clusters (C-3: $80.59\%$ vs.\ $79.96\%$), confirming zero location-memorization bias.
-
-\section{Exploratory Data Analysis (EDA) and Training Convergence}
+\section{Exploratory Data Analysis (EDA)}
 \label{sec:eda}
 
-Figure~\ref{fig:eda_results} displays the cleaned UA-DETRAC trajectory length and traffic density distributions alongside $40$ representative sequence median backgrounds from the $25$ raw camera viewpoint clusters ($17$ in train/val and $15$ in test, with $7$ overlapping as audited in Section~\ref{sec:data_preprocessing}). Figure~\ref{fig:training_curves} shows the smoothed EMA Sinkhorn assignment loss and validation Top-1 accuracy across training steps.
+Figure~\ref{fig:eda_results} shows the trajectory-length and traffic-density distributions together with median backgrounds of the $25$ camera clusters used for the location-disjoint split. Traffic is dense (mean $8.7$ vehicles per frame; $45{,}603$ frames with $\ge 10$ vehicles), which makes nearby look-alike candidates the main source of wrong links. Training converges within $2{,}400$ steps (about $100$~s per run on an RTX~3050; Figure~\ref{fig:training_curves}).
 
 \begin{figure}[htbp]
     \centering
@@ -28,14 +28,17 @@ Figure~\ref{fig:eda_results} displays the cleaned UA-DETRAC trajectory length an
     \label{fig:training_curves}
 \end{figure}
 
-\section{Modeling and Quantitative Benchmarks}
+\section{Modeling}
 \label{sec:modeling}
 
-\textbf{Event-Level Evaluation on Locked Test Split ($12,000$ Events, $40$ Test Sequences, $15$ Camera Locations).} Table~\ref{tab:event_results} compares the frozen GapLink-Lite checkpoint (seed~1, \texttt{release/final.pt}; 5-seed mean $\pm$ SD reported for stability only) against C-2, C-3 and C-4 at (i) the validation-optimal Top-1 threshold and (ii) the validation-selected $\text{WLR} \le 5.0\%$ threshold (which drifts to $6.46\%$--$9.13\%$ WLR on test because validation covers only $4$ locations). Rows (iii) are a \emph{post-hoc sensitivity analysis}: baseline thresholds were read off the \emph{test} operating curve to match GapLink-Lite's $\sim 3\%$ WLR, so they are not a valid primary comparison. All 95\% confidence intervals in this chapter are paired bootstrap intervals with the camera \emph{location} as resampling unit ($15$ clusters, $10{,}000$ draws). Figure~\ref{fig:event_gap_bins} breaks down Top-1 by gap bin and Figure~\ref{fig:wlr_curve} plots the full Top-1 vs.\ WLR curve.
+\subsection{Phase 1: Controlled Evaluation on Ground-Truth Boxes}
+\label{sec:phase1}
+
+\textbf{Event-level re-association.} Table~\ref{tab:event_results} compares the frozen checkpoint with the three classical baselines at their validation-selected thresholds. GapLink-Lite reaches $\mathbf{93.41\%}$ Top-1 with $\mathbf{3.01\%}$ wrong links (5-seed mean $93.64\% \pm 0.14\%$), against $80.29\%$ / $19.24\%$ for the Kalman baseline C-3 and $83.69\%$ / $15.88\%$ for the strongest baseline C-4. The gain is $+13.12$~pp over C-3 (95\% CI $[12.29, 14.19]$) and $+9.72$~pp over C-4 ($[8.68, 10.94]$), and it is largest where classical motion models break down: on long gaps ($46$--$90$ frames) Top-1 rises from $64.24\%$ (C-4) to $79.58\%$. Figure~\ref{fig:wlr_curve} shows that this is not an artefact of threshold choice: over the full threshold range, GapLink-Lite's curve lies above every baseline curve.
 
 \begin{table}[htbp]
     \centering
-    \caption{Event-level re-association benchmark on locked test split ($12,000$ events, $27,120$ lost tracks)}
+    \caption{Phase 1 --- event-level re-association on the locked test split ($12{,}000$ events, $27{,}120$ lost tracks). All thresholds selected on validation.}
     \label{tab:event_results}
     \scriptsize\setlength{\tabcolsep}{2.8pt}
     \begin{tabularx}{\textwidth}{X c c c c c c c}
@@ -50,10 +53,6 @@ Figure~\ref{fig:eda_results} displays the cleaned UA-DETRAC trajectory length an
         C-3 (Val WLR$\le$5\%, $\theta=0.5$) & 57.22 & 46.68 & 68.79 & 56.54 & 55.76 & 39.40 & 9.13 \\
         C-4 (Val WLR$\le$5\%) & 76.03 & 74.02 & 82.25 & 66.79 & 75.89 & 54.01 & 6.70 \\
         \midrule
-        C-2 (iii, post-hoc: test-curve WLR $\approx 3\%$, $\theta=0.65$) & 58.61 & 87.01 & 44.89 & 20.72 & 56.84 & 39.67 & 2.49 \\
-        C-3 (iii, post-hoc: test-curve WLR $\approx 3\%$, $\theta=0.05$) & 24.82 & 17.74 & 27.95 & 34.90 & 21.26 & 26.35 & 3.01 \\
-        C-4 (iii, post-hoc: test-curve WLR $\approx 3\%$, $\theta=1.0$) & 60.70 & 54.07 & 68.45 & 59.20 & 59.68 & 40.69 & 2.82 \\
-        \midrule
         \textbf{GapLink-Lite (Seed 1)} & \textbf{93.41} & \textbf{98.64} & \textbf{93.89} & \textbf{79.58} & \textbf{93.18} & \textbf{83.97} & \textbf{3.01} \\
         \textbf{GapLink-Lite (5-Seed Mean)} & \textbf{93.64} & \textbf{98.46} & \textbf{94.17} & \textbf{80.67} & \textbf{93.47} & \textbf{84.61} & \textbf{2.98} \\
         \bottomrule
@@ -62,21 +61,19 @@ Figure~\ref{fig:eda_results} displays the cleaned UA-DETRAC trajectory length an
 
 \begin{figure}[htbp]
     \centering
+    \includegraphics[width=0.86\textwidth]{figures/fig_top1_vs_wlr_curve.png}
+    \caption{Event Top-1 accuracy vs.\ wrong-link rate over the full threshold range (test). Markers: validation-selected operating points.}
+    \label{fig:wlr_curve}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
     \includegraphics[width=0.95\textwidth]{figures/fig_event_gap_bins.png}
     \caption{Test Event-Level Top-1 Accuracy Across Occlusion Gap Bins and Strict Proximity ($<0.5h$)}
     \label{fig:event_gap_bins}
 \end{figure}
 
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.86\textwidth]{figures/fig_top1_vs_wlr_curve.png}
-    \caption{Operating-Point Trade-Off Curve on Locked Test Split: Event Top-1 Accuracy vs.\ Wrong-Link Rate (WLR)}
-    \label{fig:wlr_curve}
-\end{figure}
-
-The frozen checkpoint reaches $\mathbf{93.41\%}$ Top-1 at $\mathbf{3.01\%}$ WLR (5-seed mean $93.64\% \pm 0.14\%$, WLR $2.98\%$), versus $80.29\%$ / $19.24\%$ for C-3 at its validation-optimal threshold: $\Delta = +\mathbf{13.12}$~pp, location-bootstrap 95\% CI $[12.29, 14.19]$~pp; versus C-4: $+9.72$~pp, CI $[8.68, 10.94]$~pp. Against the validation-selected $\text{WLR}\le5\%$ baselines, which on test still run at a \emph{higher} WLR than GapLink-Lite, the margin is $+17.38$~pp over C-4 (CI $[14.42, 21.07]$~pp). The post-hoc rows (iii) show the same ordering when baselines are forced down to $\sim 3\%$ WLR (C-4: $60.70\%$), but because those thresholds were chosen on test we do not use them for any claim. Notably, C-3 (Val WLR$\le$5\%, $\theta=0.5$) scores lower on short gaps ($46.68\%$) than on long gaps ($56.54\%$) because Kalman process-noise covariance grows with gap duration: at short gaps tight variance yields large normalized $d^2$ (median $0.74$; $60.5\%$ of true matches exceed $\theta=0.5$), whereas at long gaps variance inflation shrinks $d^2$ (median $0.11$; $19.7\%$ exceed $\theta$). The pre-registered $1.15h$ hard flag covers $71.5\%$ of test events and therefore barely separates a harder subset (C-3: $81.70\%$ hard vs.\ $80.29\%$ overall); under a stricter $<0.50h$ threshold ($20.0\%$ of events, post-hoc), GapLink-Lite still reaches $90.66\%$ vs.\ $76.11\%$ (C-3) and $81.02\%$ (C-4).
-
-\textbf{Uncertainty Calibration Across Gap Bins (Hypothesis H2).} Table~\ref{tab:calib_results} and Figure~\ref{fig:calib_plot} report empirical 90\% ellipse coverage and pixel-space 2D NLL. PREREG H2 concerns the \emph{calibrated} output on held-out validation data: the gap-dependent quadratic + per-bin scaling ($a = 0.413, b = -0.341, c = 0.074$, bin scales $1.02/1.11/1.33$) yields $87.71\%$ / $87.64\%$ / $\mathbf{95.14\%}$ on validation and $87.87\%$ / $90.26\%$ / $\mathbf{95.86\%}$ on test, so the long-gap bin over-covers and \textbf{H2 is not supported}. The long-bin scale ($1.33$) is fitted on only $4$ validation locations and over-inflates $\sigma$ on test. Post hoc, the \emph{uncalibrated} head lies inside $[85\%, 95\%]$ on test in all three bins ($86.42\%$ / $85.46\%$ / $88.02\%$; 5-seed mean $86.83\% \pm 0.50\%$) with lower NLL ($7.99$ vs.\ $8.00$ px; $9.15$ for C-3). We report this as an observation that the raw Gaussian NLL head is already close to calibrated, not as a passed hypothesis, because the choice of uncalibrated output was made after inspecting test coverage. The tracker and VMS use the uncalibrated $\sigma$ for gating, as fixed in \texttt{release/tracker.yaml}.
+\textbf{Uncertainty calibration (H2).} The pre-registered criterion requires calibrated 90\% coverage within $[85, 95]\%$ in all three gap bins. Short and medium gaps meet it, but the long-gap bin over-covers slightly ($95.14\%$ on validation, $95.86\%$ on test), so \textbf{H2 is not supported}. The cause is the long-gap scale factor fitted on only four validation locations. The raw Gaussian head is already close to calibrated (test: $86.42\% / 85.46\% / 88.02\%$) and is far sharper than the Kalman baseline, whose ellipses over-cover at $\approx 98\%$ with higher NLL ($9.15$ vs.\ $7.99$ px); we report this as a post-hoc observation, not as a passed hypothesis.
 
 \begin{table}[htbp]
     \centering
@@ -100,17 +97,15 @@ The frozen checkpoint reaches $\mathbf{93.41\%}$ Top-1 at $\mathbf{3.01\%}$ WLR 
 \begin{figure}[htbp]
     \centering
     \includegraphics[width=0.86\textwidth]{figures/fig_calibration_coverage.png}
-    \caption{Empirical 90\% Ellipse Coverage Across Occlusion Gap Bins on Locked Test Split}
+    \caption{Empirical 90\% ellipse coverage per gap bin; shaded band = H2 target $[85, 95]\%$.}
     \label{fig:calib_plot}
 \end{figure}
 
-\textbf{Online Multi-Object Tracker Evaluation (Hypothesis H3).} Using $a_{\max} = 95$ frames (covering all $1,922$ injected intervals up to $\text{max\_gap} = 90$, including $144$ intervals $> 60$ frames), Table~\ref{tab:tracker_results} and Figure~\ref{fig:tracker_plot} report both interval recovery (IRR, WLR) and standard MOT metrics (IDF1, MOTA, IDSW) across all $40$ test sequences. Ground truth for IDF1/MOTA is evaluated strictly over visible detections (hidden/occluded frames are excluded from \texttt{dets\_by\_frame}), which explains why MOTA remains near $99.9\%$ across all methods while IDF1/IDSW isolate identity errors. Under partial occlusion with strict visible-crop histograms, C-3 drops to $81.17\%$ IRR ($49.43\%$ when WLR-constrained), whereas GapLink-Lite maintains $\mathbf{95.99}\%$ IRR, $\mathbf{0.36}\%$ WLR, $\mathbf{99.02}\%$ IDF1, and $\mathbf{99.98}\%$ MOTA ($103$ IDSW vs.\ $416$ for C-3). Against the PREREG H3 criterion, GapLink-Lite beats both C-2 and C-3 in all three gap bins (full: $99.29/95.80/84.14\%$ vs.\ C-2 $95.21/80.11/57.71\%$ and C-3 $97.76/82.35/37.89\%$) while lowering WLR, so H3 is supported. With camera locations as the bootstrap unit, the IRR gain is $+11.24$~pp over C-3 (95\% CI $[9.10, 14.35]$) and $+11.03$~pp over C-2 ($[7.84, 15.91]$) under full occlusion, and $+14.83$~pp over C-3 ($[13.00, 17.17]$) under partial occlusion.
-
-Notably, C-2, C-3, and C-4 all plateau near $\sim 85\%$ Full IRR ($85.17\%, 84.96\%, 85.12\%$) through two opposite failure modes: C-2 fails predominantly by clean fragmentation ($\text{FragRate}=10.51\%$, $\text{WLR}=4.32\%$), whereas C-3 and C-4 fail predominantly by wrong links ($\text{WLR}=10.25\%$ and $10.15\%$, $\text{FragRate}=4.79\%$ and $4.73\%$). This also explains why C-2 and C-3 have nearly identical IDSW ($331$ vs.\ $342$) yet differ by $17.06\text{ pp}$ in IDF1 ($94.66\%$ vs.\ $77.60\%$): in 1-to-1 global Hungarian matching (\texttt{linear\_sum\_assignment}), C-3's wrong-link merges bind two distinct ground-truth trajectories onto one predicted ID (incurring only $0$--$1$ IDSW while losing up to half of IDTP), whereas C-2's fragmentations preserve clean 1-to-1 trajectory segments (verified by hand-crafted unit test \texttt{test\_idf1\_toy.py}).
+\textbf{Online tracking (H3, P1).} Inside the two-stage online tracker (Table~\ref{tab:tracker_results}), GapLink-Lite recovers $\mathbf{96.20\%}$ of injected occlusions with only $\mathbf{0.21\%}$ wrong links, versus $85.17\%$ / $4.32\%$ for C-2 and $84.96\%$ / $10.25\%$ for C-3; IDF1 rises from $77.60\%$ (C-3) to $\mathbf{99.11\%}$ and identity switches fall from $342$ to $98$. The IRR gain over C-3 is $+11.24$~pp (CI $[9.10, 14.35]$), and GapLink-Lite beats both C-2 and C-3 in all three gap bins, so \textbf{H3 is supported}. Under partial occlusion with visible-crop appearance only, the result holds ($95.99\%$ IRR, $0.36\%$ WLR). The protocol check \textbf{P1 passes}: without re-association (C-1) IRR is $0.00\%$. All pre-registered outcomes are summarised in Section~\ref{sec:motivation_objective}.
 
 \begin{table}[htbp]
     \centering
-    \caption{Online tracker benchmark across $40$ test sequences ($1,922$ injected occlusion intervals, $a_{\max}=95$)}
+    \caption{Phase 1 --- online tracker on $40$ test sequences ($1{,}922$ injected occlusion intervals, $a_{\max}=95$)}
     \label{tab:tracker_results}
     \resizebox{\textwidth}{!}{%
     \begin{tabular}{@{}l rrrrrrrrr@{}}
@@ -135,27 +130,84 @@ Notably, C-2, C-3, and C-4 all plateau near $\sim 85\%$ Full IRR ($85.17\%, 84.9
     \label{fig:tracker_plot}
 \end{figure}
 
-\section{User Interface and Visual Video Demo}
-\label{sec:user_interface}
+\subsection{Phase 2: Application with a Live YOLOv8n Detector}
+\label{sec:phase2}
 
-To demonstrate real-world tracking divergence, \texttt{demo/render.py} renders $1280 \times 360$ side-by-side MP4 comparison videos (\texttt{demo/out/demo\_full.mp4}) pairing \textbf{C-3 (Kalman + Mahalanobis)} on the left with \textbf{GapLink-Lite} on the right. Clips are selected automatically by largest per-sequence IRR/WLR improvement on the test set (Figure~\ref{fig:ui_dashboard}), visibly showing C-3 incurring ID switches or new-ID fragmentations while GapLink-Lite recovers the original vehicle ID with 90\% Gaussian uncertainty ellipses.
+\textbf{Setup.} All methods receive the same YOLOv8n detections (\texttt{imgsz}$=640$, confidence $0.28$) and share the same Stage-1 IoU tracker, lost-track window ($a_{\max}=95$) and security rules; only the re-association module differs. Ground truth is used solely afterwards for scoring: \emph{Nat-IRR} is the fraction of natural detector gaps ($3$--$95$ frames) after which a vehicle keeps its identity, and \emph{Nat-WLR} the fraction of re-associations that join two different vehicles. For every method the acceptance threshold was selected on the $13$ validation videos with the same rule (highest Nat-IRR subject to Nat-WLR $\le 5\%$) and evaluated once on the $40$ test videos. For this phase GapLink-Lite uses a detector-aware checkpoint (\texttt{release/live\_v1.3.pt}) fine-tuned from the frozen model on YOLOv8n events of the training sequences (Section~\ref{sec:training_methodology}).
 
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.96\textwidth]{figures/fig_demo_clip_01.png}\\[0.25cm]
-    \includegraphics[width=0.96\textwidth]{figures/fig_demo_clip_04.png}
-    \caption{Side-by-Side Visual Demo Comparing C-3 (Left) vs.\ GapLink-Lite (Right) on Test Sequences Where C-3 Fails}
-    \label{fig:ui_dashboard}
-\end{figure}
-
-\section{Testing, Ablations, and Sensitivity Analysis}
-\label{sec:testing_improvements}
-
-\textbf{5-Seed Ablation Study.} Table~\ref{tab:ablation_results} and Figure~\ref{fig:ablation_plot} report 5-seed Mean $\pm$ SD and matched 5-seed paired differences ($\Delta = \text{Ablation} - \text{Full}$) on the $12,000$ test events: removing gap conditioning (\textbf{Gap-Blind}) causes the largest drop ($-3.66\pm0.12\text{ pp}$ overall, $-8.91\pm0.76\text{ pp}$ on long gaps); removing color histograms (\textbf{No-Color}) drops $-2.20\pm0.26\text{ pp}$ overall ($-7.95\pm1.08\text{ pp}$ on long gaps); and removing DeepSets context (\textbf{No-Context}) shifts overall Top-1 by $-0.50\pm0.74\text{ pp}$ ($-2.06\pm2.04\text{ pp}$ on long gaps). Because the No-Context difference ($0.50\text{ pp}$) is smaller than its 5-seed standard deviation ($0.61\text{ pp}$), there is no statistically reliable evidence that the DeepSets neighbor context module improves overall accuracy on this benchmark.
+\textbf{Choice of baselines.} Third-party trackers cannot be used under the project constraints, so each classical paradigm is represented by a self-implemented associator (Table~\ref{tab:baseline_families}).
 
 \begin{table}[htbp]
     \centering
-    \caption{5-Seed controlled ablation study on locked test split ($12,000$ events, Mean $\pm$ SD across 5 seeds)}
+    \caption{Classical re-association paradigms used as baselines}
+    \label{tab:baseline_families}
+    \small
+    \begin{tabularx}{\textwidth}{l X X}
+        \toprule
+        \textbf{Baseline} & \textbf{Paradigm} & \textbf{Counterpart in practice} \\
+        \midrule
+        C-1 & IoU matching only, no re-association & Lower bound; SORT once a track is deleted \cite{bewley2016sort} \\
+        C-2 & Constant-velocity extrapolation + Hungarian & Heuristic motion trackers \\
+        C-3 & Kalman filter + Mahalanobis gating & Motion model of SORT, DeepSORT, ByteTrack, OC-SORT \cite{bewley2016sort,wojke2017deepsort,zhang2022bytetrack,cao2023ocsort} \\
+        C-4 & C-3 + box size + colour histogram & DeepSORT-style motion + appearance (without a ReID network) \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\textbf{Results.} Table~\ref{tab:live_v13} and Figure~\ref{fig:live_scatter} show the outcome. Against the Kalman family that underlies industrial trackers, GapLink-Lite is better on both axes: Nat-IRR $\mathbf{84.41\%}$ vs.\ $57.63\%$ (C-3) and $61.85\%$ (C-4), Nat-WLR $\mathbf{6.09\%}$ vs.\ $24.70\%$ and $9.94\%$. Against the strongest baseline, constant velocity (C-2), recovery is equal ($84.41\%$ vs.\ $84.58\%$; $\Delta = -0.17$~pp, CI $[-1.33, 1.08]$) while \textbf{wrong links are halved} ($6.09\%$ vs.\ $12.92\%$; $\Delta = -6.82$~pp, CI $[-11.04, -3.18]$). In a security console a wrong link is a false alarm, and GapLink-Lite also has the lowest forbidden-route false-alarm rate ($9.27\%$). The detector-aware checkpoint is what makes this possible: with the original checkpoint the live wrong-link rate is $10.20\%$, and fine-tuning reduces it by $4.11$~pp (CI $[1.57, 5.98]$) at a cost of $2.89$~pp recovery.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Phase 2 --- live YOLOv8n evaluation with validation-selected operating points. Validation: $13$ videos; test: $40$ videos. Route metrics on occluded $Z_A\!\to\!Z_B$ crossings. $^\dagger$no threshold reached Nat-WLR $\le 5\%$ on validation (lowest-WLR rule).}
+    \label{tab:live_v13}
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{@{}l rr rr rr@{}}
+        \toprule
+        & \multicolumn{2}{c}{\textbf{Validation}} & \multicolumn{4}{c}{\textbf{Test}} \\
+        \cmidrule(lr){2-3}\cmidrule(lr){4-7}
+        \textbf{Method (operating point)} & \textbf{Nat-IRR} & \textbf{Nat-WLR} & \textbf{Nat-IRR} & \textbf{Nat-WLR} & \textbf{Route rec.} & \textbf{Route FAR} \\
+        \midrule
+        C-1 (IoU only) & 6.05 & 0.00 & 8.93 & 0.00 & 33.33 & 3.45 \\
+        C-2 ($\theta=1.2$) & \textbf{81.56} & 4.87 & \textbf{84.58} & 12.92 & 41.98 & 11.32 \\
+        C-3 ($\theta=1.0$)$^\dagger$ & 32.23 & 16.37 & 57.63 & 24.70 & 47.53 & 32.56 \\
+        C-4 ($\theta=1.2$) & 32.08 & \textbf{3.81} & 61.85 & 9.94 & \textbf{49.38} & 14.04 \\
+        GapLink-Lite v1.1 ($\tau=0.25$, reference) & 81.69 & 13.33 & 87.30 & 10.20 & 45.68 & 12.88 \\
+        \textbf{GapLink-Lite v1.3} ($\tau=0.65$) & 77.55 & 4.21 & 84.41 & \textbf{6.09} & 42.59 & \textbf{9.27} \\
+        \bottomrule
+    \end{tabular}%
+    }
+\end{table}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.78\textwidth]{figures/fig_live_v13_scatter.png}
+    \caption{Phase 2 --- recovery vs.\ wrong links on $40$ live test videos (validation-selected operating points).}
+    \label{fig:live_scatter}
+\end{figure}
+
+\section{User Interface}
+\label{sec:user_interface}
+
+\textbf{GapLink-VMS} (\texttt{demo/security\_vms\_app.py}) is a local web console (FastAPI) that runs YOLOv8n, the online tracker and GapLink-Lite on a video file or RTSP stream and shows a baseline and GapLink-Lite side by side (Figure~\ref{fig:vms_live_demo}). It supports three surveillance tasks: (1) forbidden routes between user-drawn zones $Z_A \to Z_B$, with entry and violation snapshots as evidence; (2) dwell-time alerts that are not reset when a passing bus hides a stopped vehicle; and (3) click-to-lock target following, which displays the predicted $2\sigma$ search region during occlusion and holds the lock (dustbin) instead of jumping to another vehicle. The baseline shown on the left can be switched between C-2, C-3 and C-4; all operating points are read from the frozen release files, and the displayed frame rate is the measured wall-clock rate. On an RTX~3050 laptop GPU the full pipeline runs at $28.95$~ms per frame ($34.5$~FPS) on a dense intersection ($12.53$~ms YOLOv8n, $3.26$~ms HSV/NMS, $13.16$~ms GapLink-Lite + VMS).
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.96\textwidth]{figures/fig_vms_demo_intersection.png}\\[0.22cm]
+    \includegraphics[width=0.96\textwidth]{figures/fig_vms_demo_facility.png}
+    \caption{GapLink-VMS console on raw test videos: baseline (left) vs.\ GapLink-Lite (right) with zones, forbidden-route alerts, dwell timers and target lock.}
+    \label{fig:vms_live_demo}
+\end{figure}
+
+\section{Testing and Improvements}
+\label{sec:testing_improvements}
+
+\textbf{Automated tests and reproducibility.} The code base has $45$ \texttt{pytest} unit tests covering Sinkhorn normalisation, event assembly parity between training and tracking, occlusion injection, metrics (including a hand-checked IDF1 case), calibration, location-bootstrap re-grouping, detector-aware event labelling and the frozen-artefact manifests. Every reported number is tied to SHA-256-hashed checkpoints, event sets and result files (\texttt{release/FREEZE\_MANIFEST*.json}), verified by \texttt{scripts/freeze\_results.py}.
+
+\textbf{Ablation study.} Table~\ref{tab:ablation_results} removes one component at a time (5 seeds each). Gap conditioning matters most ($-3.66 \pm 0.12$~pp overall, $-8.91$~pp on long gaps), followed by colour histograms ($-2.20 \pm 0.26$~pp); the DeepSets neighbour context gives no statistically reliable gain on this benchmark ($-0.50 \pm 0.74$~pp).
+
+\begin{table}[htbp]
+    \centering
+    \caption{5-Seed controlled ablation study on locked test split ($12{,}000$ events, Mean $\pm$ SD across 5 seeds)}
     \label{tab:ablation_results}
     \small\setlength{\tabcolsep}{3.0pt}
     \begin{tabularx}{\textwidth}{X c c c c c}
@@ -177,11 +229,11 @@ To demonstrate real-world tracking divergence, \texttt{demo/render.py} renders $
     \label{fig:ablation_plot}
 \end{figure}
 
-\textbf{Extended Sensitivity Analysis.} Table~\ref{tab:sensitivity} stress-tests Seed~1 under $2\times$, $4\times$, and $8\times$ detector spatial jitter, reduced candidate cap ($M\le 5$), and $15\%$--$30\%$ true-candidate dropout (simulating missed detections). While $2\times$ jitter barely alters either model ($93.41\% \to 93.23\%$ for GapLink-Lite; $80.29\% \to 79.97\%$ for C-3), extreme $4\times$ and $8\times$ spatial jitter degrade both methods ($89.39\%$ and $69.82\%$ for GapLink-Lite vs.\ $77.48\%$ and $64.66\%$ for C-3), though GapLink-Lite preserves a $5\times$ lower WLR ($5.63\%$ vs.\ $27.86\%$ at $8\times$). Under $30\%$ true-candidate dropout, GapLink-Lite's dustbin abstention holds Top-1 at $92.29\%$ ($\text{Dustbin F1}=91.88\%$, $\text{WLR}=5.25\%$), whereas C-3 drops by $16.08\text{ pp}$ to $64.21\%$ ($\text{WLR}=34.96\%$).
+\textbf{Robustness.} Table~\ref{tab:sensitivity} perturbs the test events. GapLink-Lite keeps a wrong-link rate below $6\%$ under up to $8\times$ positional jitter and $30\%$ missing true candidates, conditions under which C-3's wrong-link rate rises to $28$--$35\%$.
 
 \begin{table}[htbp]
     \centering
-    \caption{Extended sensitivity analysis on locked test split ($12,000$ events, Seed 1 vs.\ C-3)}
+    \caption{Extended sensitivity analysis on locked test split ($12{,}000$ events, Seed 1 vs.\ C-3)}
     \label{tab:sensitivity}
     \small
     \begin{tabularx}{\textwidth}{X c c c c}
@@ -199,80 +251,4 @@ To demonstrate real-world tracking divergence, \texttt{demo/render.py} renders $
     \end{tabularx}
 \end{table}
 
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.95\textwidth]{figures/fig_sensitivity_extended.png}
-    \caption{Extended Sensitivity Analysis: Top-1 Accuracy and Wrong-Link Rate Under $2\times$--$8\times$ Spatial Jitter and $15\%$--$30\%$ Candidate Dropout}
-    \label{fig:sensitivity_extended}
-\end{figure}
-
-\section{End-to-End Surveillance Deployment with Live YOLOv8 Detection (GapLink-VMS)}
-\label{sec:live_security_vms}
-
-To bridge controlled trajectory benchmarking and real-world CCTV deployment without relying on ground-truth detections, synthetic occlusion masks, or license-plate OCR (infeasible at $960\times 540$ wide-angle resolution), we package frozen GapLink-Lite ($\tau=0.25$) directly downstream of a live \textbf{YOLOv8n} detector (\texttt{imgsz=640}, \texttt{conf=0.28}, class-agnostic NMS $0.52$, track confirmation \texttt{min\_hits=3}) and online $128$-bin HSV extraction into \textbf{GapLink-VMS} (\texttt{demo/security\_vms\_app.py}). The system operates on raw `.mp4`/RTSP camera feeds to solve three concrete security tasks: (1) \textbf{Forbidden Zone-to-Zone Route \& Origin--Destination (OD) Enforcement} ($Z_A \to Z_B$ alerts vs.\ permitted $Z_C \to Z_B$ flows, auto-cropping entry and violation snapshots), (2) \textbf{Restricted-Zone Anti-Loitering / Dwell-Time Alerts} ($\text{dwell} \ge T_{\max}=5.0\text{ s}$ without timer resets when passing buses occlude stopped vehicles), and (3) \textbf{Click-to-Lock Suspect Pursuit} ($2\sigma$ Gaussian search zone during occlusion and dustbin safe-hold against jumping onto innocent vehicles). On a laptop RTX 3050 6GB GPU, single-frame streaming runs at $\mathbf{28.95\text{ ms/frame}}$ ($\mathbf{34.5\text{ FPS}}$) on dense 4-way intersections ($12.53\text{ ms}$ YOLOv8n, $3.26\text{ ms}$ HSV/NMS, $13.16\text{ ms}$ GapLink-Lite + VMS) (single-frame benchmark over $250$ consecutive frames of the first test video, logged in \texttt{live\_security\_results.json}).
-
-Table~\ref{tab:live_security} and Figure~\ref{fig:live_security_eval} evaluate all methods across all $40$ unmodified UA-DETRAC test videos under $100\%$ natural YOLOv8n occlusions and detector noise ($3,103$ natural gaps of $3$--$95$ frames; ground truth used strictly post-hoc for scoring). Without retraining on YOLO boxes, GapLink-Lite achieves $\mathbf{87.30\%}$ Natural Identity Recovery Rate (\textbf{Nat-IRR}, $+9.95\text{ pp}$ over C-3's $77.35\%$) while cutting Natural Wrong-Link Rate (\textbf{Nat-WLR}) by $3.7\times$ ($37.78\% \to \mathbf{10.20\%}$). On downstream security rules, C-3's high wrong-link rate causes nearly half of its forbidden-route alerts to be false alarms ($\mathbf{49.22\%}$ FAR, swapping lost $Z_A$ IDs onto legal vehicles) and degrades dwell-alert precision to $54.28\%$; conversely, C-1 (no relinking) suffers timer resets on $95.6\%$ of occlusion-interrupted dwellers ($4.37\%$ recall). GapLink-Lite achieves the highest occluded route recall ($\mathbf{45.68\%}$) while slashing route false-alarm rate by $3.8\times$ ($\mathbf{12.88\%}$) and boosting occlusion-interrupted dwell-alert F1 by $+17.87\text{ pp}$ over C-3 ($35.39\% \to \mathbf{53.26\%}$, $85.12\%$ precision). Figure~\ref{fig:vms_live_demo} illustrates live side-by-side VMS execution on raw intersection and ramp-island feeds. The dwell columns were produced with the dwell scorer of 18/11/2026, which was modified afterwards; they cannot be reproduced with the final code and are reported for completeness only (Section~\ref{sec:limitations}). Section~\ref{sec:live_v13} re-evaluates all methods with validation-selected live operating points.
-
-\begin{table}[htbp]
-    \centering
-    \caption{End-to-end live YOLOv8n security analytics across $40$ raw UA-DETRAC test videos ($3,103$ natural gaps, $162$ occluded $Z_A\!\to\!Z_B$ routes, $160$ occlusion-interrupted dwellers $\ge 5\text{ s}$; \%)}
-    \label{tab:live_security}
-    \resizebox{\textwidth}{!}{%
-    \begin{tabular}{@{}l rrrrrrr@{}}
-        \toprule
-        \textbf{Live YOLOv8n + Tracker} & \shortstack{\textbf{Nat-IRR}\\\textbf{(\%) $\uparrow$}} & \shortstack{\textbf{Nat-WLR}\\\textbf{(\%) $\downarrow$}} & \shortstack{\textbf{Occl.\ Route}\\\textbf{Recall (\%) $\uparrow$}} & \shortstack{\textbf{Route False}\\\textbf{Alarm (\%) $\downarrow$}} & \shortstack{\textbf{Occl.\ Dwell}\\\textbf{Recall (\%) $\uparrow$}} & \shortstack{\textbf{Dwell}\\\textbf{Prec.\ (\%) $\uparrow$}} & \shortstack{\textbf{Occl.\ Dwell}\\\textbf{F1 (\%) $\uparrow$}} \\
-        \midrule
-        C-1 (IoU Only) & 8.93 & \textbf{0.00} & 33.33 & \textbf{3.45} & 4.37 & \textbf{97.80} & 8.38 \\
-        C-2 (Const-Vel) & 82.23 & 31.53 & 37.04 & 33.33 & 30.00 & 68.01 & 41.63 \\
-        C-3 (Kalman) & 77.35 & 37.78 & 42.59 & 49.22 & 26.25 & 54.28 & 35.39 \\
-        C-4 (C-3+S+C) & 78.42 & 36.38 & 40.12 & 50.00 & 28.12 & 54.90 & 37.19 \\
-        C-3 (Strict $\theta=0.5$) & 48.57 & 23.55 & 45.06 & 32.08 & 31.25 & 66.46 & 42.51 \\
-        \textbf{GapLink-Lite (Ours)} & \textbf{87.30} & 10.20 & \textbf{45.68} & 12.88 & \textbf{38.75} & 85.12 & \textbf{53.26} \\
-        \bottomrule
-    \end{tabular}%
-    }
-\end{table}
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.98\textwidth]{figures/fig_live_security_eval.png}
-    \caption{End-to-End Live YOLOv8n Security Evaluation Across 40 Raw Test Videos: (a) Natural Occlusion Recovery, (b) Forbidden Route Enforcement ($Z_A \to Z_B$), and (c) Anti-Loitering Dwell Alert F1}
-    \label{fig:live_security_eval}
-\end{figure}
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.96\textwidth]{figures/fig_vms_demo_intersection.png}\\[0.22cm]
-    \includegraphics[width=0.96\textwidth]{figures/fig_vms_demo_facility.png}
-    \caption{Live YOLOv8n + GapLink-VMS Console (Right) vs.\ C-3 Kalman (Left) on Raw Test Videos (\texttt{MVI\_40855} Intersection and \texttt{MVI\_39311} Restricted Gore Island), Showing Forbidden-Route Alerts, Dwell Timers, and Target Re-Acquisition}
-    \label{fig:vms_live_demo}
-\end{figure}
-
-\subsection{Detector-Aware Live Operating Point (v1.3)}
-\label{sec:live_v13}
-
-The live results above reuse the v1.1 threshold $\tau=0.25$, selected on ground-truth-box events; with YOLOv8n input it yields Nat-WLR $10.20\%$, i.e.\ every tenth re-association is a wrong identity. We therefore re-applied the pre-registered selection rule (highest Nat-IRR subject to Nat-WLR $\le 5\%$) to the live setting on the $13$ \emph{validation} videos, for every method (\texttt{docs/PREREG\_live\_v1.3.md}, tag \texttt{v1.3-prereg}). Two intermediate attempts were abandoned on validation before touching test: re-tuning $\tau$ alone, and gating candidates with GapLink's own $\chi^2$ ellipse (the $\sigma$ learned on ground-truth boxes is too narrow for detector jitter and vetoed correct links). Version~1.3 instead fine-tunes a separate live checkpoint (\texttt{release/live\_v1.3.pt}, same $327{,}979$-parameter architecture) from our own \texttt{final.pt} for $3{,}000$ steps on a $70/30$ mixture of detector-aware events and the original synthetic pool. Detector-aware events are logged from the live tracker running on YOLOv8n boxes of the \emph{training} sequences, with identity labels obtained by post-hoc IoU matching to ground truth and an oracle associator keeping tracks clean; test sequences are never used. The checkpoint (step $1{,}500$) was chosen on validation events, and the operating points ($\tau=0.65$; C-2 $\theta=1.2$, C-3 $\theta=1.0$, C-4 $\theta=1.2$) were committed (tag \texttt{v1.3-live-selected}) before a single test run.
-
-\begin{table}[htbp]
-    \centering
-    \caption{Live YOLOv8n evaluation with validation-selected operating points (v1.3). Validation: $13$ videos; test: $40$ videos. Route metrics on occluded $Z_A\!\to\!Z_B$ crossings. $^\dagger$no threshold reached Nat-WLR $\le 5\%$ on validation (lowest-WLR rule).}
-    \label{tab:live_v13}
-    \resizebox{\textwidth}{!}{%
-    \begin{tabular}{@{}l rr rr rr@{}}
-        \toprule
-        & \multicolumn{2}{c}{\textbf{Validation}} & \multicolumn{4}{c}{\textbf{Test}} \\
-        \cmidrule(lr){2-3}\cmidrule(lr){4-7}
-        \textbf{Method (operating point)} & \textbf{Nat-IRR} & \textbf{Nat-WLR} & \textbf{Nat-IRR} & \textbf{Nat-WLR} & \textbf{Route rec.} & \textbf{Route FAR} \\
-        \midrule
-        C-1 (IoU only) & 6.05 & 0.00 & 8.93 & 0.00 & 33.33 & 3.45 \\
-        C-2 ($\theta=1.2$) & \textbf{81.56} & 4.87 & \textbf{84.58} & 12.92 & 41.98 & 11.32 \\
-        C-3 ($\theta=1.0$)$^\dagger$ & 32.23 & 16.37 & 57.63 & 24.70 & 47.53 & 32.56 \\
-        C-4 ($\theta=1.2$) & 32.08 & \textbf{3.81} & 61.85 & 9.94 & \textbf{49.38} & 14.04 \\
-        GapLink-Lite v1.1 ($\tau=0.25$, reference) & 81.69 & 13.33 & 87.30 & 10.20 & 45.68 & 12.88 \\
-        \textbf{GapLink-Lite v1.3} ($\tau=0.65$) & 77.55 & 4.21 & 84.41 & \textbf{6.09} & 42.59 & \textbf{9.27} \\
-        \bottomrule
-    \end{tabular}%
-    }
-\end{table}
-
-Table~\ref{tab:live_v13} reports the result. On test, GapLink-Lite v1.3 recovers as many natural gaps as the strongest validation-selected baseline (C-2: $\Delta$Nat-IRR $=-0.17$~pp, location-bootstrap 95\% CI $[-1.33, 1.08]$) while making about half as many wrong links ($\Delta$Nat-WLR $=-6.82$~pp, CI $[-11.04, -3.18]$). Relative to the v1.1 live point it trades $2.89$~pp of Nat-IRR (CI $[1.77, 3.47]$) for $4.11$~pp less Nat-WLR (CI $[1.57, 5.98]$) and $3.61$~pp fewer false forbidden-route alarms (CI $[0.74, 7.24]$). Two caveats apply. First, on validation C-2 was ahead in Nat-IRR ($81.56\%$ vs.\ $77.55\%$); the ranking on test differs, which reflects how little $4$ validation locations constrain live operating points. Second, no method keeps Nat-WLR below $5\%$ on test (GapLink v1.3: $6.09\%$), so the WLR target transfers only approximately. Dwell-alert metrics are omitted here: the dwell scorer changed after the v1.1 live run (a stationary-vehicle filter added on 20/11/2026), so dwell numbers from different code versions are not comparable (Section~\ref{sec:limitations}).
+\textbf{Iterative improvements.} Two changes shaped the final system. (i) An audit of the first locked test run revealed a data-conversion error (ignore regions merged into a fake track) and a lost-track window shorter than the longest gap; both were fixed and the model was re-trained and re-frozen (\texttt{844fc391\ldots}). (ii) Phase~2 showed that a model trained only on ground-truth boxes links too eagerly on detector boxes; detector-aware fine-tuning (v1.3) halved the live wrong-link rate relative to the strongest baseline. The complete change log, including variants abandoned on validation, is kept in \texttt{docs/DEVIATIONS.md}.

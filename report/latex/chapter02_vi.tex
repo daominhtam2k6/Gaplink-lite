@@ -1,7 +1,7 @@
 \chapter{Thực hiện Dự án}
 \label{chap:project_execution}
 
-\section{Thu thập và Làm sạch Dữ liệu}
+\section{Thu thập Dữ liệu}
 \label{sec:data_acquisition}
 
 Đồ án sử dụng toàn bộ bộ dữ liệu chuẩn theo dõi đa phương tiện \textbf{UA-DETRAC} \cite{wen2020uadetrac}, gồm $100$ chuỗi video giao thông thực tế quay ở tốc độ $25\text{ fps}$ ($960 \times 540$ pixel). Trong bản CSV thô, các vùng bỏ qua tĩnh (\texttt{class='ignored'}, \texttt{target\_id=-1}, $528.798$ dòng) nằm lẫn với $1.274.055$ dòng phương tiện. Bộ chuyển đổi (\texttt{scripts/convert\_detrac.py}) tách toàn bộ $407$ đa giác vùng bỏ qua sang tệp \texttt{{seq}\_ignore.txt} và loại bỏ các hộp giới hạn phương tiện có tâm rơi vào vùng bỏ qua. Thao tác này loại bỏ $72.714$ hộp xe ($\approx 5.7\%$), giữ lại $1.201.341$ hộp xe hợp lệ trên $8.251$ quỹ đạo (khớp gần đúng trong khoảng $\sim 0.7\%$ so với $1.21\text{M}$ hộp và $8.250$ xe công bố trong \cite{wen2020uadetrac}); do việc lọc theo vùng bỏ qua có thể cắt ngang quỹ đạo gần biên vùng che, $242$ quỹ đạo xuất hiện khoảng trống khung hình tự nhiên. Lưu ý rằng bản CSV gộp các loại xe chi tiết thành một nhãn \texttt{vehicle} duy nhất, nên Hình~\ref{fig:eda_results} báo cáo phân bố độ dài quỹ đạo và mật độ phương tiện thay cho số lượng loại xe giả tạo.
@@ -42,10 +42,14 @@
     \item \textbf{Vận chuyển tối ưu Sinkhorn miền Log:} Tạo ma trận điểm mở rộng $\tilde{S}$ kích thước $(N+1)\times(M+1)$ với cột cuối $z^t$, hàng cuối $(z^c)^\top$ và góc $0$, chạy $T = 20$ vòng lặp chuẩn hóa log-sum-exp luân phiên theo hàng và cột với biên mục tiêu $\mathbf{r} = [1, \dots, 1, M]^\top$ và $\mathbf{c} = [1, \dots, 1, N]^\top$ \cite{sinkhorn1967,cuturi2013sinkhorn,sarlin2020superglue} để thu về $\log P$.
 \end{enumerate}
 
-\textbf{Hàm mất mát kết hợp \& Huấn luyện đa Seed.} Mô hình được huấn luyện bằng AdamW ($\text{lr} = 7\times 10^{-4}$, suy giảm cosine sau 200 bước warmup, batch size $64$, $2.400$ bước, gradient clipping $1.0$) trên GPU NVIDIA GeForce RTX 3050 6GB với $\mathcal{L} = \mathcal{L}_{\text{assign}} + 0.5\,\mathcal{L}_{\text{NLL}}$ và xác suất sự kiện khó tăng dần từ $0.40$ lên $0.75$. Toàn bộ cấu hình chính và ablation được huấn luyện qua 5 seed ngẫu nhiên (tổng 20 lần chạy GPU; $\sim 100\text{ s}$ mỗi lần chạy chính).
+\textbf{Hàm mất mát kết hợp \& Huấn luyện đa Seed.} Mô hình được huấn luyện bằng AdamW (lịch learning rate cosine có warm-up, batch size $64$, $2.400$ bước, gradient clipping $1.0$) trên GPU NVIDIA GeForce RTX 3050 6GB với $\mathcal{L} = \mathcal{L}_{\text{assign}} + 0.5\,\mathcal{L}_{\text{NLL}}$ và xác suất sự kiện khó tăng dần từ $0.40$ lên $0.75$. Toàn bộ cấu hình chính và ablation được huấn luyện qua 5 seed ngẫu nhiên (tổng 20 lần chạy GPU; $\sim 100\text{ s}$ mỗi lần chạy chính).
 
-\section{Quy trình vận hành}
+\textbf{Fine-tune theo detector cho giai đoạn~2.} Mô hình học trên box ground-truth chưa từng thấy nhiễu vị trí của detector, hiện tượng mất box 2--5 khung hay ứng viên dương tính giả. Vì vậy với chế độ live, chúng tôi ghi lại đúng các sự kiện mà tracker trực tuyến tạo ra trên detection YOLOv8n của các chuỗi \emph{train} ($7.746$ sự kiện), gán nhãn danh tính bằng khớp IoU hậu kiểm ($\ge 0.45$) với ground-truth, và fine-tune mô hình đã đóng băng trong $3.000$ bước trên hỗn hợp $70/30$ giữa các sự kiện này và pool huấn luyện ban đầu. Checkpoint (\texttt{release/live\_v1.3.pt}, cùng kiến trúc) được chọn trên sự kiện detector của tập val; video test không bao giờ được dùng.
+
+\section{Quy trình Thực hiện}
 \label{sec:workflow}
+
+Quy trình đi theo hai giai đoạn đánh giá. Ở giai đoạn~1, nhãn UA-DETRAC được chuyển đổi và chia theo địa điểm camera, tập sự kiện cố định được sinh ra, mô hình được huấn luyện và đóng băng, và một lần chạy test khóa đánh giá cả cấp sự kiện lẫn tracker trực tuyến dưới che khuất tiêm. Ở giai đoạn~2, video thô đi qua YOLOv8n, trích xuất HSV trực tuyến, tracker hai tầng với mô-đun tái liên kết thay được (GapLink-Lite hoặc C-1\ldots C-4), rồi các luật an ninh của GapLink-VMS; ground-truth chỉ dùng sau cùng để chấm điểm.
 
 Để đảm bảo không có lệch phân phối giữa lúc huấn luyện sự kiện và chạy tracker trực tuyến, cả bộ lấy mẫu huấn luyện lẫn Tầng 2 của tracker đều gọi cùng một hàm thuần túy \texttt{assemble\_event} (được kiểm chứng bởi \texttt{tests/test\_parity.py}). Khi chạy trực tuyến: Tầng 1 ghép các quỹ đạo đang hoạt động với phát hiện mới qua Hungarian IoU ($\ge 0.30$); Tầng 2 ghép các quỹ đạo mất dấu ($2 \le \text{age} \le a_{\max}$, $a_{\max}=95$) với các phát hiện chưa ghép bằng bộ liên kết được chọn. Với GapLink-Lite, phép ghép Hungarian trên $-P_{1:N,1:M}$ chấp nhận $(i,j)$ khi và chỉ khi $P_{ij} \ge \tau$ ($\tau = 0.25$) và $P_{ij} > P_{i,M+1}$.
 

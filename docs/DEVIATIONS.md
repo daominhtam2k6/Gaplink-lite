@@ -97,3 +97,9 @@ chính thức dùng đúng câu chữ PREREG. Bằng chứng: `git log`, tag `v1
 - Chọn trên val: GapLink-v13 τ=0,65 (77,55% / 4,21%), C-2 θ=1,2 (81,56% / 4,87%), C-3 θ=1,0 (không đạt ≤5%), C-4 θ=1,2.
 - Test: GapLink-v13 84,41% Nat-IRR / 6,09% Nat-WLR; C-2 84,58% / 12,92%. ΔWLR −6,82 pp, CI theo địa điểm [−11,04; −3,18].
 - Thứ hạng Nat-IRR giữa val và test khác nhau (val C-2 dẫn 4 pp) → val 4 địa điểm yếu; không phương pháp nào giữ WLR ≤ 5% trên test.
+
+## D16. `release/main.yaml` không khớp checkpoint đóng băng
+- `release/main.yaml` ghi 6.000 bước, lr 5e-4; checkpoint `final.pt` lưu `cfg.steps = 2400`, `step = 2400` và log
+  `runs/main/train_log.json` (đánh giá mỗi 600 bước) cũng là 2.400 bước. Learning rate không được lưu trong checkpoint.
+- Báo cáo ghi 2.400 bước theo checkpoint và không nêu giá trị lr không kiểm chứng được. Script huấn luyện sinh ra log này
+  (có `loss_assign_ema`) không còn trong repo → hạn chế về khả năng tái lập huấn luyện (không ảnh hưởng tới đánh giá).

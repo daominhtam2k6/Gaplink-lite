@@ -19,14 +19,13 @@ from scipy.optimize import linear_sum_assignment
 import torch
 import yaml
 
-ROOT = Path(r"D:\gaplink")
+ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.baselines import KalmanMahalanobisBaseline
 from src.events import box_iou_cxcywh
 from src.live_detector import LiveVehicleDetector
-from src.model.gaplink import GapLinkAssociator, GapLinkLite
+from src.model.gaplink import GapLinkAssociator
 from src.security_analytics import PolygonZone, SecurityVMSEngine
 from src.tracker import OnlineTracker
 
@@ -428,7 +427,7 @@ def draw_vms_overlay(
             tag = (
                 f"HOLD #{locked_tid} (Dustbin Safe, Occluded {lock['gap_frames']}f)"
                 if has_dustbin
-                else f"SEARCHING #{locked_tid} (Kalman Extrap, {lock['gap_frames']}f)"
+                else f"SEARCHING #{locked_tid} ({getattr(vms.tracker.associator, 'name', 'baseline')} extrap, {lock['gap_frames']}f)"
             )
             (tw, th), _ = cv2.getTextSize(tag, cv2.FONT_HERSHEY_SIMPLEX, 0.46, 2)
             tx = int(np.clip(pcx - tw // 2, 8, W - 180 - tw))
@@ -510,7 +509,7 @@ def default_lock_schedule(preset_key: str) -> list[tuple[int, float, float]]:
     if "40701" in key:
         # Scenario 3: Fast-moving minivan (GT=22) traveling across intersection, occluded 55 frames behind
         # an articulated bus while moving 240 pixels from (689, 152) to (940, 235)!
-        # GapLink-Lite tracks the moving trajectory and re-acquires 100%; C-3 gets hijacked by the bus!
+        # Lock point fixed when the clip was chosen (before v1.3); outcome is whatever the trackers do.
         return [
             (55, 688.9, 152.0),
         ]
@@ -529,7 +528,9 @@ def render_security_comparison_mp4(
     out_mp4: Path,
     detector: LiveVehicleDetector,
     gl_assoc: GapLinkAssociator,
-    c3_theta: float = 25.0,
+    bl_assoc=None,
+    bl_label: str = "Baseline",
+    gl_label: str = "GapLink-Lite",
     max_frames: int = 385,
     snapshot_frame: int = 220,
     snapshot_path: Path | None = None,
@@ -559,9 +560,8 @@ def render_security_comparison_mp4(
     zones_l, forb_l, max_dw = default_preset_zones(preset_key, W, H)
     zones_r, forb_r, _ = default_preset_zones(preset_key, W, H)
 
-    c3_assoc = KalmanMahalanobisBaseline(theta=c3_theta, name="C-3")
     vms_l = SecurityVMSEngine(
-        OnlineTracker(associator=c3_assoc, W=W, H=H, min_hits=3),
+        OnlineTracker(associator=bl_assoc, W=W, H=H, min_hits=3),
         zones=zones_l,
         forbidden_routes=forb_l,
         max_dwell_sec=max_dw,
@@ -596,8 +596,8 @@ def render_security_comparison_mp4(
             vms_r.target_lock.lock_by_click(lx, ly, res_r["tracks"], frame_id=f, frame_bgr=frm, clear_totals=False)
             sched_idx += 1
 
-        vis_l = draw_vms_overlay(frm, vms_l, res_l, "LIVE YOLOv8n + C-3 (Kalman Baseline)", scenario_mode=scenario_mode)
-        vis_r = draw_vms_overlay(frm, vms_r, res_r, "LIVE YOLOv8n + GapLink-Lite (Ours)", scenario_mode=scenario_mode)
+        vis_l = draw_vms_overlay(frm, vms_l, res_l, f"LIVE YOLOv8n + {bl_label}", scenario_mode=scenario_mode)
+        vis_r = draw_vms_overlay(frm, vms_r, res_r, f"LIVE YOLOv8n + {gl_label}", scenario_mode=scenario_mode)
 
         comb = np.concatenate([cv2.resize(vis_l, (pane_w, pane_h)), cv2.resize(vis_r, (pane_w, pane_h))], axis=1)
         writer.append_data(cv2.cvtColor(comb, cv2.COLOR_BGR2RGB))
@@ -613,6 +613,8 @@ def render_security_comparison_mp4(
         "frames": len(frames_bgr),
         "gl_route_true": len(vms_r.route_mon.true_alerts),
         "gl_route_fp": len(vms_r.route_mon.false_alarms),
+        "baseline": bl_label,
+        "gaplink": gl_label,
         "c3_route_true": len(vms_l.route_mon.true_alerts),
         "c3_route_fp": len(vms_l.route_mon.false_alarms),
         "gl_dwell_true": len(vms_r.dwell_mon.true_alerts),
@@ -627,63 +629,55 @@ def render_security_comparison_mp4(
 
 
 def main():
-    rel_dir = ROOT / "release"
-    tcfg = yaml.safe_load((rel_dir / "tracker.yaml").read_text(encoding="utf-8"))
+    import argparse
+    from demo.vms_profile import BASELINE_INFO, DEFAULT_BASELINE, load_profile, make_baseline, make_gaplink, resolve_root
+
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--baseline", choices=sorted(BASELINE_INFO), default=DEFAULT_BASELINE)
+    ap.add_argument("--profile", choices=["v1.3", "v1.1"], default="v1.3")
+    ap.add_argument("--update-report-figs", action="store_true", help="also overwrite report/latex figure snapshots")
+    a = ap.parse_args()
+    root = resolve_root()
+    prof = load_profile(root, version=a.profile)
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    ckpt = torch.load(rel_dir / "final.pt", map_location=device, weights_only=False)
-    model = GapLinkLite(use_ctx=True, use_color=True, gap_aware=True).to(device)
-    model.load_state_dict(ckpt["model"])
-    model.eval()
-    gl_assoc = GapLinkAssociator(model, device=device, tau=float(tcfg["gaplink_tau"]), calib=None)
+    gl_assoc = make_gaplink(prof, device)
     detector = LiveVehicleDetector(imgsz=640)
 
-    sample_dir = ROOT / "demo" / "sample_videos"
-    out_dir = ROOT / "demo" / "out"
-    fig_dir = ROOT / "report" / "figures"
-    latex_fig = ROOT / "report" / "latex" / "figures"
-    cap_fig = Path(r"D:\Capstone-Project_latex\Capstone-Project_latex\figures")
+    sample_dir = root / "demo" / "sample_videos"
+    out_dir = root / "demo" / "out" / f"{prof.version}_vs_{a.baseline}"
+    snap_dir = out_dir / "snapshots"
+    snap_dir.mkdir(parents=True, exist_ok=True)
+    fig_dir = root / "report" / "figures"
+    latex_fig = root / "report" / "latex" / "figures"
+    paths_cfg = yaml.safe_load((root / "configs" / "paths.yaml").read_text(encoding="utf-8"))
+    cap_fig = Path(paths_cfg.get("latex_template_dir", "")) / "figures"
 
-    # 3 Semantically-Verified Scenarios on 3 Distinct Real Traffic Videos:
-    # 1. Scenario 1 (Wrong-Lane / V-Chevron Gore Crossing Z_A -> Z_B): MVI_39361 (Clear road arrows & V-chevron markings)
-    # 2. Scenario 2 (Illegal Parking / Stationary Stopping under Bus Occlusion Z_DWELL): MVI_40864 (Stationary v=0 cars occluded by passing buses)
-    # 3. Scenario 3 (Moving Target Trajectory Pursuit across Bus Occlusion): MVI_40701 (Fast-moving vehicle occluded 55f while traveling 240px behind bus)
+    # Same three clips as before (chosen 18-20/11/2026, before v1.3 existed); results reported as they come out.
     jobs = [
-        ("detrac_MVI_39361_wrong_lane.mp4", "39361", "route", "security_demo_01_intersection.mp4", 240, "fig_vms_demo_intersection.png"),
-        ("detrac_MVI_40864_rain_buses.mp4", "40864", "dwell", "security_demo_02_rain_dwell.mp4", 120, "fig_vms_demo_rain.png"),
-        ("detrac_MVI_40701_moving_pursuit.mp4", "40701", "lock", "security_demo_03_gore_zone.mp4", 118, "fig_vms_demo_facility.png"),
+        ("detrac_MVI_39361_wrong_lane.mp4", "39361", "route", "scenario_01_wrong_lane_MVI_39361.mp4", 240, "fig_vms_demo_intersection.png"),
+        ("detrac_MVI_40864_rain_buses.mp4", "40864", "dwell", "scenario_02_illegal_parking_dwell_MVI_40864.mp4", 120, "fig_vms_demo_rain.png"),
+        ("detrac_MVI_40701_moving_pursuit.mp4", "40701", "lock", "scenario_03_moving_target_pursuit_MVI_40701.mp4", 118, "fig_vms_demo_facility.png"),
     ]
-    manifest = []
+    manifest = {"profile": prof.version, "gaplink": prof.gaplink_label, "gaplink_ckpt": str(prof.ckpt.name),
+                "baseline": prof.baseline_label(a.baseline), "clips": []}
     for src_fn, pkey, smode, out_fn, snap_f, snap_fn in jobs:
         src_p = sample_dir / src_fn
         if not src_p.exists():
             continue
-        snap_p = fig_dir / snap_fn
+        snap_p = snap_dir / snap_fn
         info = render_security_comparison_mp4(
-            src_p,
-            pkey,
-            smode,
-            out_dir / out_fn,
-            detector,
-            gl_assoc,
-            c3_theta=float(tcfg["c3_theta"]),
-            max_frames=385,
-            snapshot_frame=snap_f,
-            snapshot_path=snap_p,
+            src_p, pkey, smode, out_dir / out_fn, detector, gl_assoc,
+            bl_assoc=make_baseline(a.baseline, prof), bl_label=prof.baseline_label(a.baseline), gl_label=prof.gaplink_label,
+            max_frames=385, snapshot_frame=snap_f, snapshot_path=snap_p,
         )
-        manifest.append(info)
-        print("Rendered Separated Scenario Demo:", info, flush=True)
-        if snap_p.exists():
-            if latex_fig.exists():
-                shutil.copy2(snap_p, latex_fig / snap_fn)
-            if cap_fig.exists():
-                shutil.copy2(snap_p, cap_fig / snap_fn)
-
-    # Also copy to descriptive scenario filenames so user can open them directly by scenario name
-    shutil.copy2(out_dir / "security_demo_01_intersection.mp4", out_dir / "scenario_01_wrong_lane_MVI_39361.mp4")
-    shutil.copy2(out_dir / "security_demo_02_rain_dwell.mp4", out_dir / "scenario_02_illegal_parking_dwell_MVI_40864.mp4")
-    shutil.copy2(out_dir / "security_demo_03_gore_zone.mp4", out_dir / "scenario_03_moving_target_pursuit_MVI_40701.mp4")
-
-    (out_dir / "security_demo_manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        manifest["clips"].append(info)
+        print("Rendered:", info, flush=True)
+        if a.update_report_figs and snap_p.exists():
+            for d in (fig_dir, latex_fig, cap_fig):
+                if d.exists():
+                    shutil.copy2(snap_p, d / snap_fn)
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"wrote {out_dir / 'manifest.json'}")
 
 
 if __name__ == "__main__":

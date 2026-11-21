@@ -57,11 +57,14 @@ class GapLinkLite(nn.Module):
         \midrule
         Seed ngẫu nhiên & \texttt{20260417..20260421} & 5 khởi tạo ngẫu nhiên độc lập cho mô hình chính \& ablation \\
         Số tham số huấn luyện & $327.979$ & Nghiêm ngặt dưới ngưỡng $1.000.000$; 100\% khởi tạo ngẫu nhiên \\
-        Tối ưu hóa \& Lịch trình & AdamW, $\text{lr}=7\times 10^{-4}$ & Cosine decay, 200 bước warmup, 2.400 bước, batch size 64 \\
+        Tối ưu hóa \& Lịch trình & AdamW, cosine & Warm-up rồi giảm cosine; $2.400$ bước (lưu trong checkpoint), batch size 64 \\
         Chân trời theo dõi $a_{\max}$ & $95$ khung hình & Bao phủ toàn bộ khoảng che khuất tới 90 khung hình \\
         Ngưỡng chấp nhận $\tau$ & $0.25$ & Chọn trên validation theo quy tắc WLR $\le 5.0\%$ \\
         Hiệu chuẩn phụ $(a, b, c)$ & $(0.413, -0.341, 0.074)$ & Khớp trên val half-A; test Cov90 $= 90.22\%$ (bin dài $95.86\%$) \\
         SHA256 mô hình đóng băng & \texttt{844fc391deafe951b429e3e4...} & Lưu tại \texttt{release/final.sha256} \\
+        \midrule
+        Checkpoint live (Giai đoạn 2) & \texttt{da2a3b14bcc14f4dce23...} & \texttt{release/live\_v1.3.pt}: fine-tune từ mô hình đóng băng, $3.000$ bước (tốt nhất ở $1.500$), sự kiện detector/pool $70/30$ \\
+        Điểm vận hành live & $\tau=0.65$ & Chọn trên $13$ video validation (C-2 $\theta=1.2$, C-3 $\theta=1.0$, C-4 $\theta=1.2$); \texttt{release/live\_v1.3.yaml} \\
         \bottomrule
     \end{tabularx}
 \end{table}

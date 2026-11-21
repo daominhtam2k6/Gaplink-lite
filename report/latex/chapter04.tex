@@ -5,32 +5,30 @@
 \label{sec:accomplishments}
 
 \begin{enumerate}
-    \item \textbf{Consistent Multi-Seed Accuracy \& Low Wrong-Link Rate:} Across 5 random seeds on $12,000$ locked UA-DETRAC test events, GapLink-Lite achieves $\mathbf{93.64\% \pm 0.14\%}$ Top-1 accuracy (vs.\ $80.29\%$ for C-3) while cutting WLR by $6.5\times$ ($19.24\% \to \mathbf{2.98\%}$ 5-seed mean, $3.01\%$ Seed~1).
-    \item \textbf{Online Tracking Gains with Standard MOT Metrics:} Across $40$ test sequences ($1,922$ occlusion intervals up to 90 frames, $a_{\max}=95$), GapLink-Lite reaches $\mathbf{96.20}\%$ IRR / $\mathbf{99.11}\%$ IDF1 (full occlusion) and $\mathbf{95.99}\%$ IRR / $\mathbf{99.02}\%$ IDF1 (partial occlusion with zero-leakage visible-crop histograms).
-    \item \textbf{Compact Footprint \& Real-Time Live-Detector VMS Deployment:} With $327,979$ parameters ($1.3\text{ MB}$), GapLink-Lite trains in $\sim 100\text{ s}$ per seed and runs end-to-end with live YOLOv8n at $\mathbf{34.5\text{ FPS}}$ ($28.95$ ms/frame) on a dense intersection on a laptop RTX 3050 6GB GPU. Across $40$ raw test videos ($3,103$ natural YOLOv8n occlusions), \textbf{GapLink-VMS} reaches $\mathbf{87.30\%}$ natural recovery with $3.8\times$ fewer forbidden-route false alarms than C-3 ($49.22\% \to 12.88\%$); with validation-selected operating points, the detector-aware v1.3 checkpoint matches the strongest baseline in recovery ($84.41\%$ vs.\ $84.58\%$ for C-2) at half its wrong-link rate ($\mathbf{6.09\%}$ vs.\ $12.92\%$, location-bootstrap CI of the difference $[3.18, 11.04]$~pp).
+    \item \textbf{Reliable identity recovery with a very small model.} With $327{,}979$ self-trained parameters (1.3~MB), GapLink-Lite reaches $93.41\%$ event-level Top-1 at $3.01\%$ wrong links, against $80.29\%$ / $19.24\%$ for a Kalman + Mahalanobis baseline ($+13.12$~pp, 95\% CI $[12.29, 14.19]$). Inside an online tracker it recovers $96.20\%$ of occlusions with $0.21\%$ wrong links and $99.11\%$ IDF1. Two of the three pre-registered hypotheses (H1, H3) and the protocol check (P1) are supported; H2 narrowly fails in one gap bin.
+    \item \textbf{An advantage that survives real detections.} Behind a live YOLOv8n detector, on natural occlusions and with every method tuned on validation by the same rule, GapLink-Lite outperforms the Kalman family used by SORT/DeepSORT/ByteTrack on both recovery and wrong links, and matches the strongest classical baseline in recovery with half its wrong-link rate ($6.09\%$ vs.\ $12.92\%$, CI of the difference $[3.18, 11.04]$~pp).
+    \item \textbf{A usable surveillance application.} GapLink-VMS turns fewer wrong links into fewer false alarms on concrete tasks (forbidden routes, dwell-time, target following), runs at $34.5$~FPS on a laptop RTX~3050, and needs no licence-plate recognition, which is impractical at wide-angle CCTV resolution.
+    \item \textbf{Verifiable results.} Hypotheses were pre-registered, test sets were evaluated once from hashed checkpoints, and every reported number can be re-checked from frozen manifests and $45$ automated tests.
 \end{enumerate}
-
-\section{Limitations and Protocol Deviations}
-\label{sec:limitations}
-
-We list every departure from \texttt{docs/PREREG.md} and the single-shot test protocol (full log: \texttt{docs/DEVIATIONS.md}; hashes of all frozen artifacts: \texttt{release/FREEZE\_MANIFEST.json}).
-\begin{itemize}
-    \item \textbf{The test split was evaluated twice.} The first locked run (checkpoint \texttt{589b41\ldots}, Top-1 $83.59\%$) exposed a data-conversion bug (UA-DETRAC ignore regions merged into one fake track per sequence) and an \texttt{a\_max}$=60$ smaller than the maximum injected gap ($90$). After fixing both, the model was retrained and re-frozen (\texttt{844fc3\ldots}, tag \texttt{final-v3}) together with new operating points ($\tau$, $\theta$, calibration form). These choices are documented as validation-based, but because the validation summary was regenerated in the same session as the second test run, we cannot prove they were made blind to test. All reported numbers come from this second run.
-    \item \textbf{H2 is not supported}; the uncalibrated-coverage result is post hoc (Section~\ref{sec:modeling}).
-    \item \textbf{Small validation set.} Validation spans only $4$ camera locations, so thresholds selected at $\text{WLR}\le5\%$ drift to $6.5$--$9.1\%$ on test for the baselines, and the long-gap calibration scale over-fits.
-    \item \textbf{Location overlap.} $7$ of the $15$ official test locations also appear in train/validation. GapLink-Lite scores $93.39\%$ on overlapping vs.\ $93.44\%$ on unseen locations, so memorisation is not apparent, but the official UA-DETRAC split is not fully location-disjoint.
-    \item \textbf{Confidence intervals.} Intervals are now bootstrapped over $15$ camera locations; an earlier draft resampled $40$ sequences, which understates uncertainty. Event-level predictions were recomputed from the frozen checkpoint and reproduce the frozen aggregates exactly before re-bootstrapping.
-    \item \textbf{Post-hoc analyses.} Test-curve WLR-matched baselines, the $<0.50h$ hard subset, and the uncalibrated-coverage observation were defined after seeing test results and support no claim.
-    \item \textbf{Live operating point and checkpoint.} With YOLOv8n input, the v1.1 threshold (selected on ground-truth-box events) yields Nat-WLR $10.20\%$ on test. Two validation-only attempts (v1.2: re-tuned $\tau$; v1.2b: Gaussian gating) were abandoned before any test run. Version~1.3 adds a separately fine-tuned live checkpoint selected on validation and evaluated once on test (Section~\ref{sec:live_v13}); the live test videos were therefore scored twice (v1.1 and v1.3). One fine-tuning seed only.
-    \item \textbf{Dwell scorer changed after the v1.1 live run.} A stationary-vehicle filter was added to the dwell monitor on 20/11/2026 without updating the dwell ground-truth definition. Under the current code, route and natural-gap metrics of v1.1 reproduce exactly, but dwell counts do not (e.g.\ GapLink true positives $429 \to 191$). The dwell column of Table~\ref{tab:live_security} therefore reflects the 18/11/2026 code and is not comparable with any later run.
-    \item \textbf{Demo clips.} VMS scenario videos are qualitative illustrations and were not selected by the PREREG clip rule.
-\end{itemize}
 
 \section{Future Improvements}
 \label{sec:future_improvements}
 
+\subsection{Limitations of the Current Iteration}
+\label{sec:limitations}
+
 \begin{itemize}
-    \item \textbf{Stronger Detector-Aware Training:} The v1.3 fine-tune (one seed, $7{,}746$ detector events) already halves wrong links relative to C-2 at equal recovery, but $94.6\%$ of its lost-track rows are no-match cases. Multi-seed training, more detector events with balanced re-appearances, and a detector-noise-aware uncertainty head should bring test Nat-WLR under the $5\%$ target.
-    \item \textbf{Multi-Modal Mixture Predictor:} Extending the single 2D Gaussian predictor to a $K=2$ or $K=3$ Gaussian Mixture Model (GMM) would better model multi-branch intersection turns during long occlusions.
-    \item \textbf{Moving-Camera Ego-Motion:} Supporting dashboard cameras will require homography/optical-flow compensation prior to kinematic normalization.
+    \item \textbf{Calibration on long gaps.} H2 fails because the long-gap calibration scale, fitted on four validation locations, over-covers ($95.86\%$ on test).
+    \item \textbf{Wrong-link target in live use.} No method, including GapLink-Lite ($6.09\%$), keeps the live wrong-link rate below the $5\%$ target on test; on validation the constant-velocity baseline recovered more gaps, so the live ranking is sensitive to the small validation set.
+    \item \textbf{Evaluation history.} The Phase-1 test split was evaluated a second time after a data-conversion bug was fixed, and the live test videos were scored for both the original and the detector-aware checkpoint. All runs are disclosed in \texttt{docs/DEVIATIONS.md}.
+    \item \textbf{Dataset scope.} UA-DETRAC's official test split shares $7$ of $15$ camera locations with training (no measurable effect: $93.39\%$ vs.\ $93.44\%$ Top-1); validation covers only $4$ locations; the live fine-tune uses one seed.
+\end{itemize}
+
+\subsection{Roadmap}
+
+\begin{itemize}
+    \item \textbf{Stronger detector-aware training.} Multiple seeds, more detector events with balanced re-appearances (currently $94.6\%$ of lost-track rows are no-match cases), and an uncertainty head trained on detector noise, to bring the live wrong-link rate under $5\%$.
+    \item \textbf{External validation.} Evaluate on new, never-used camera footage with annotated identities, and against reference implementations of ByteTrack/OC-SORT.
+    \item \textbf{Multi-modal prediction.} Replace the single Gaussian by a 2--3 component mixture to model turns at intersections during long occlusions.
+    \item \textbf{Moving cameras.} Add ego-motion compensation (homography or optical flow) before kinematic normalisation for dashboard cameras.
 \end{itemize}

@@ -56,12 +56,15 @@ class GapLinkLite(nn.Module):
         \textbf{Parameter} & \textbf{Frozen Value} & \textbf{Description} \\
         \midrule
         Random Seeds & \texttt{20260417..20260421} & 5 independent random initializations for main \& ablations \\
-        Trainable Parameters & $327,979$ & Strictly $< 1,000,000$ budget; 100\% randomly initialized \\
-        Optimizer \& Schedule & AdamW, $\text{lr}=7\times 10^{-4}$ & Cosine decay, 200 warmup steps, 2,400 steps, batch size 64 \\
+        Trainable Parameters & $327{,}979$ & Strictly $< 1{,}000{,}000$ budget; 100\% randomly initialized \\
+        Optimizer \& Schedule & AdamW, cosine & Warm-up then cosine decay; $2{,}400$ steps (stored in the checkpoint), batch size 64 \\
         Tracker Horizon $a_{\max}$ & $95$ frames & Covers all injected occlusion gaps up to 90 frames \\
         Acceptance Gate $\tau$ & $0.25$ & Selected on validation under WLR $\le 5.0\%$ rule \\
         Calibration $(a, b, c)$ & $(0.413, -0.341, 0.074)$ & Fitted on val half-A; test Cov90 $= 90.22\%$ \\
         Frozen Model SHA256 & \texttt{844fc391deafe951b429e3e4...} & Stored in \texttt{release/final.sha256} \\
+        \midrule
+        Live checkpoint (Phase 2) & \texttt{da2a3b14bcc14f4dce23...} & \texttt{release/live\_v1.3.pt}: fine-tuned from the frozen model, $3{,}000$ steps (best at $1{,}500$), $70/30$ detector/pool events \\
+        Live operating points & $\tau=0.65$ & Selected on $13$ validation videos (C-2 $\theta=1.2$, C-3 $\theta=1.0$, C-4 $\theta=1.2$); \texttt{release/live\_v1.3.yaml} \\
         \bottomrule
     \end{tabularx}
 \end{table}

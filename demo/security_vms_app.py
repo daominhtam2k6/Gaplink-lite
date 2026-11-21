@@ -23,7 +23,7 @@ import torch
 import uvicorn
 import yaml
 
-ROOT = Path(r"D:\gaplink")
+ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -36,9 +36,8 @@ from demo.render_security_demo import (
     load_clip_gt_meta,
     match_frame_dets_to_gt,
 )
-from src.baselines import KalmanMahalanobisBaseline
+from demo.vms_profile import BASELINE_INFO, DEFAULT_BASELINE, load_profile, make_baseline, make_gaplink, resolve_root
 from src.live_detector import LiveVehicleDetector
-from src.model.gaplink import GapLinkAssociator, GapLinkLite
 from src.security_analytics import (
     PolygonZone,
     SecurityVMSEngine,
@@ -47,6 +46,7 @@ from src.security_analytics import (
 )
 from src.tracker import OnlineTracker
 
+ROOT = resolve_root()
 SAMPLE_DIR = ROOT / "demo" / "sample_videos"
 UPLOAD_DIR = ROOT / "demo" / "uploads"
 SAMPLE_DIR.mkdir(parents=True, exist_ok=True)
@@ -55,21 +55,21 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 PRESET_CATALOG = [
     {
         "id": "detrac_MVI_39361_wrong_lane.mp4",
-        "label": "[Tình huống 1: Đi sai làn / Cắt vạch chữ V] MVI_39361 — Làn rẽ phải cắt vạch đi thẳng qua điểm khuất (Ours: 10/10, 0 Báo giả)",
+        "label": "[Tình huống 1: Đi sai làn / Cắt vạch chữ V] MVI_39361 — Làn rẽ phải cắt vạch đi thẳng qua điểm khuất",
         "key": "39361",
         "scenario": "route",
         "climax_frame": 165,
     },
     {
         "id": "detrac_MVI_40864_rain_buses.mp4",
-        "label": "[Tình huống 2: Xe đỗ đứng yên bị xe buýt che] MVI_40864 — Chỉ bắt xe đỗ đứng yên v=0 qua bóng xe buýt (Ours: 2/2 vs C-3: 0/2)",
+        "label": "[Tình huống 2: Xe đỗ đứng yên bị xe buýt che] MVI_40864 — Chỉ bắt xe đỗ đứng yên v=0 qua bóng xe buýt",
         "key": "40864",
         "scenario": "dwell",
         "climax_frame": 55,
     },
     {
         "id": "detrac_MVI_40701_moving_pursuit.mp4",
-        "label": "[Tình huống 3: Truy vết xe ĐANG DI CHUYỂN] MVI_40701 — Xe chạy xuyên sau xe buýt dài 55f (240px) rồi phóng ra (Ours: Bắt đúng 100%)",
+        "label": "[Tình huống 3: Truy vết xe ĐANG DI CHUYỂN] MVI_40701 — Xe chạy xuyên sau xe buýt dài 55f (240px) rồi phóng ra",
         "key": "40701",
         "scenario": "lock",
         "climax_frame": 52,
@@ -148,7 +148,7 @@ def _crop_focus_roi(img_bgr: np.ndarray, preset_key: str, scenario_mode: str) ->
 
 
 class LiveVMSSession:
-    """Thread-safe state manager running Live YOLOv8n + (C-3 vs GapLink-Lite) on any raw .mp4 camera feed."""
+    """Thread-safe state manager running Live YOLOv8n + (baseline vs GapLink-Lite) on any raw .mp4 camera feed."""
 
     def __init__(self):
         self.lock = threading.Lock()
@@ -156,15 +156,11 @@ class LiveVMSSession:
         self.tcfg = yaml.safe_load((rel_dir / "tracker.yaml").read_text(encoding="utf-8"))
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        ckpt = torch.load(rel_dir / "final.pt", map_location=self.device, weights_only=False)
-        self.model = GapLinkLite(use_ctx=True, use_color=True, gap_aware=True).to(self.device)
-        self.model.load_state_dict(ckpt["model"])
-        self.model.eval()
-
-        self.gl_assoc = GapLinkAssociator(
-            self.model, device=self.device, tau=float(self.tcfg["gaplink_tau"]), calib=None
-        )
-        self.c3_theta = float(self.tcfg["c3_theta"])
+        # all operating points come from frozen release files (demo/vms_profile.py)
+        self.profile = load_profile(ROOT)
+        self.gl_assoc = make_gaplink(self.profile, self.device)
+        self.baseline_name = DEFAULT_BASELINE
+        self.det_from_cache = False
         self.detector_4w = LiveVehicleDetector(imgsz=640, include_motorcycles=False)
         self.detector_all = LiveVehicleDetector(imgsz=640, include_motorcycles=True)
 
@@ -185,7 +181,7 @@ class LiveVMSSession:
         self.auto_lock_schedule: list[tuple[int, float, float]] = []
         self.auto_lock_idx: int = 0
         self.climax_frame: int = 165
-        self.ema_fps: float = 34.5
+        self.ema_fps: float | None = None
         self.W = 960
         self.H = 540
         self.fps = 25.0
@@ -255,9 +251,9 @@ class LiveVMSSession:
     def _rebuild_engines(self):
         zones_l, forb_l = self._build_zones()
         zones_r, forb_r = self._build_zones()
-        c3_assoc = KalmanMahalanobisBaseline(theta=self.c3_theta, name="C-3")
-        self.vms_c3 = SecurityVMSEngine(
-            OnlineTracker(associator=c3_assoc, W=self.W, H=self.H, min_hits=3),
+        bl_assoc = make_baseline(self.baseline_name, self.profile)
+        self.vms_c3 = SecurityVMSEngine(  # left pane = selected baseline (attribute name kept for API compatibility)
+            OnlineTracker(associator=bl_assoc, W=self.W, H=self.H, min_hits=3),
             zones=zones_l,
             forbidden_routes=forb_l,
             max_dwell_sec=self.max_dwell_sec,
@@ -278,10 +274,22 @@ class LiveVMSSession:
             self.auto_lock_schedule = default_lock_schedule(self.preset_key)
         self.auto_lock_idx = 0
 
+    @property
+    def bl_label(self) -> str:
+        return self.profile.baseline_label(self.baseline_name)
+
+    def set_baseline(self, name: str):
+        if name not in BASELINE_INFO:
+            raise ValueError(name)
+        self.baseline_name = name
+        self.restart()
+
     def _get_or_detect_frame(self, f_idx: int, frm: np.ndarray) -> dict:
         cached = self.det_cache.get(f_idx)
         if cached is not None:
+            self.det_from_cache = True
             return cached
+        self.det_from_cache = False
         det_engine = self.detector_all if self.include_motorcycles else self.detector_4w
         ig = self.gt_meta["ignore"] if self.gt_meta is not None else None
         d = det_engine.detect_frame(frm, ignore_xywh=ig)
@@ -300,12 +308,22 @@ class LiveVMSSession:
                         "crop1": a["entry_crop"],
                         "crop2": a["alert_crop"],
                     })
+            for a in res_gl["route_alerts"]:
+                if a.get("is_false_alarm", False):
+                    self.alert_feed.insert(0, {
+                        "badge": "⚠️ GAPLINK BÁO ĐỘNG GIẢ (NHẢY ID)",
+                        "color": "#f59e0b",
+                        "title": f"GapLink ghép nhầm ID #{a['track_id']} tại {a['dest_zone']}",
+                        "detail": f"Thời điểm {a['time_sec']}s",
+                        "crop1": a["entry_crop"],
+                        "crop2": a["alert_crop"],
+                    })
             for a in res_c3["route_alerts"]:
                 if a.get("is_false_alarm", False):
                     self.alert_feed.insert(0, {
-                        "badge": "⚠️ C-3 BÁO ĐỘNG GIẢ (NHẢY ID!)",
+                        "badge": f"⚠️ {self.baseline_name} BÁO ĐỘNG GIẢ (NHẢY ID)",
                         "color": "#f59e0b",
-                        "title": f"C-3 ghép nhầm ID #{a['track_id']} tại {a['dest_zone']}",
+                        "title": f"{self.baseline_name} ghép nhầm ID #{a['track_id']} tại {a['dest_zone']}",
                         "detail": f"Thời điểm {a['time_sec']}s • Hai phương tiện khác nhau bị gộp làm 1!",
                         "crop1": a["entry_crop"],
                         "crop2": a["alert_crop"],
@@ -325,9 +343,9 @@ class LiveVMSSession:
             for a in res_c3["dwell_alerts"]:
                 if a.get("is_false_alarm", False):
                     self.alert_feed.insert(0, {
-                        "badge": "⚠️ C-3 BÁO GIẢ ĐỖ XE (NHẢY ID!)",
+                        "badge": f"⚠️ {self.baseline_name} BÁO GIẢ ĐỖ XE (NHẢY ID)",
                         "color": "#f59e0b",
-                        "title": f"C-3 gán nhầm bộ đếm giờ #{a['track_id']} sang xe đang chạy",
+                        "title": f"{self.baseline_name} chuyển nhầm bộ đếm giờ #{a['track_id']} sang xe khác",
                         "detail": f"Thời điểm {a['time_sec']}s • Ảnh lúc đầu và lúc báo động là 2 xe khác nhau!",
                         "crop1": a["entry_crop"],
                         "crop2": a["alert_crop"],
@@ -339,7 +357,9 @@ class LiveVMSSession:
                 "badge": "🎯 KHÔI PHỤC MỤC TIÊU ĐANG DI CHUYỂN",
                 "color": "#10b981",
                 "title": f"Mục tiêu #{ev['track_id']} nối lại sau {ev['gap_sec']}s khuất ({ev['gap_frames']}f)",
-                "detail": f"Khung hình #{ev['frame']} • C-3 bị cướp khóa, GapLink-Lite bắt đúng xe đang chạy!",
+                "detail": f"Khung hình #{ev['frame']} • {self.baseline_name}: "
+                          + (f"bị cướp khóa {self.vms_c3.target_lock.hijack_count} lần" if self.vms_c3.target_lock.hijack_count
+                             else f"bắt lại {self.vms_c3.target_lock.reacquire_count} lần"),
                 "crop1": self.vms_gl.target_lock.lock_crop_b64,
                 "crop2": ev["crop_b64"],
             })
@@ -625,31 +645,30 @@ class LiveVMSSession:
                 return None
 
             if self.view_mode == "side_by_side":
-                vis_l = draw_vms_overlay(frm, self.vms_c3, res_c3, "YOLOv8n + C-3 (Kalman Baseline)", scenario_mode=self.scenario_mode)
-                vis_r = draw_vms_overlay(frm, self.vms_gl, res_gl, "YOLOv8n + GapLink-Lite (Ours)", scenario_mode=self.scenario_mode)
+                vis_l = draw_vms_overlay(frm, self.vms_c3, res_c3, f"YOLOv8n + {self.bl_label}", scenario_mode=self.scenario_mode)
+                vis_r = draw_vms_overlay(frm, self.vms_gl, res_gl, f"YOLOv8n + {self.profile.gaplink_label}", scenario_mode=self.scenario_mode)
                 pw, ph = 720, 405
                 out_img = np.concatenate([cv2.resize(vis_l, (pw, ph)), cv2.resize(vis_r, (pw, ph))], axis=1)
             elif self.view_mode == "side_zoom":
-                vis_l = draw_vms_overlay(frm, self.vms_c3, res_c3, "C-3 (Kalman) [ZOOM ROI]", scenario_mode=self.scenario_mode)
-                vis_r = draw_vms_overlay(frm, self.vms_gl, res_gl, "GapLink-Lite (Ours) [ZOOM ROI]", scenario_mode=self.scenario_mode)
+                vis_l = draw_vms_overlay(frm, self.vms_c3, res_c3, f"{self.baseline_name} [ZOOM ROI]", scenario_mode=self.scenario_mode)
+                vis_r = draw_vms_overlay(frm, self.vms_gl, res_gl, f"GapLink-Lite {self.profile.version} [ZOOM ROI]", scenario_mode=self.scenario_mode)
                 zl = _crop_focus_roi(vis_l, self.preset_key, self.scenario_mode)
                 zr = _crop_focus_roi(vis_r, self.preset_key, self.scenario_mode)
                 pw, ph = 640, 450
                 out_img = np.concatenate([cv2.resize(zl, (pw, ph)), cv2.resize(zr, (pw, ph))], axis=1)
             elif self.view_mode == "single_c3":
-                vis_l = draw_vms_overlay(frm, self.vms_c3, res_c3, "YOLOv8n + C-3 (Kalman Baseline) — Full HD View", scenario_mode=self.scenario_mode)
+                vis_l = draw_vms_overlay(frm, self.vms_c3, res_c3, f"YOLOv8n + {self.bl_label}", scenario_mode=self.scenario_mode)
                 out_img = cv2.resize(vis_l, (960, 540))
             else:
-                vis_r = draw_vms_overlay(frm, self.vms_gl, res_gl, "YOLOv8n + GapLink-Lite (Ours) — Full HD View", scenario_mode=self.scenario_mode)
+                vis_r = draw_vms_overlay(frm, self.vms_gl, res_gl, f"YOLOv8n + {self.profile.gaplink_label}", scenario_mode=self.scenario_mode)
                 out_img = cv2.resize(vis_r, (960, 540))
 
             dt_ms = (time.perf_counter() - t0) * 1000.0
             if did_advance:
-                # Account for 12.5ms YOLOv8n GPU batch latency when reading pre-cached frame + live tracker/VMS time
-                eff_ms = max(24.0, dt_ms + 12.5) if (self.frame_idx in self.det_cache) else max(24.0, dt_ms)
-                inst_fps = 1000.0 / eff_ms
-                self.ema_fps = 0.85 * self.ema_fps + 0.15 * inst_fps
-            live_fps = round(float(np.clip(self.ema_fps, 24.0, 42.0)), 1)
+                # measured wall time of this step (both trackers + rendering); no clamping, no assumed offsets
+                inst_fps = 1000.0 / max(dt_ms, 1e-3)
+                self.ema_fps = inst_fps if self.ema_fps is None else 0.85 * self.ema_fps + 0.15 * inst_fps
+            live_fps = round(float(self.ema_fps or 0.0), 1)
 
             _, jpg = cv2.imencode(".jpg", out_img, [int(cv2.IMWRITE_JPEG_QUALITY), 86])
             b64_frame = base64.b64encode(jpg.tobytes()).decode("ascii")
@@ -663,6 +682,9 @@ class LiveVMSSession:
                 "total_frames": self.total_frames,
                 "fps": live_fps,
                 "proc_ms": round(dt_ms, 1),
+                "dets_cached": bool(self.det_from_cache),
+                "labels": {"baseline": self.bl_label, "baseline_short": self.baseline_name,
+                           "gaplink": self.profile.gaplink_label},
                 "paused": self.paused,
                 "view_mode": self.view_mode,
                 "scenario_mode": self.scenario_mode,
@@ -716,6 +738,7 @@ def get_session() -> LiveVMSSession:
 class ActionReq(BaseModel):
     action: str
     preset_id: str | None = None
+    baseline: str | None = None
     view_mode: str | None = None
     scenario_mode: str | None = None
     target_frame: int | None = None
@@ -739,10 +762,31 @@ def api_presets():
 
 @app.get("/api/benchmark")
 def api_benchmark():
-    jp = ROOT / "runs" / "test_final" / "live_security_results.json"
-    if jp.exists():
-        return JSONResponse(json.loads(jp.read_text(encoding="utf-8")))
-    return JSONResponse({"pending": True})
+    """Frozen numbers only (release/results_v1.3, release/results_v1.1); nothing is recomputed here."""
+    r13 = ROOT / "release" / "results_v1.3"
+    r11 = ROOT / "release" / "results_v1.1" / "live_security_results.json"
+    out = {"source": "release/results_v1.3 (FREEZE_MANIFEST_v1.3.json)"}
+    if (r13 / "live_v13_results.json").exists():
+        res = json.loads((r13 / "live_v13_results.json").read_text(encoding="utf-8"))
+        sel = json.loads((r13 / "select.json").read_text(encoding="utf-8"))
+        ci = json.loads((r13 / "location_bootstrap_live.json").read_text(encoding="utf-8"))
+        op = res["operating_points"]
+        val_lbl = {"C-1": "C-1", "C-2": f"C-2@{op['c2_theta_live']}", "C-3": f"C-3@{op['c3_theta_live']}",
+                   "C-4": f"C-4@{op['c4_theta_live']}", "GapLink-Lite": f"{op['gaplink_kind_live']}@{op['gaplink_tau_live']}"}
+        rows = []
+        for key, lbl, name in [("C-1", "C-1", "C-1 (chỉ IoU)"), ("v1.3/C-2", "C-2", f"C-2 (θ={op['c2_theta_live']})"),
+                               ("v1.3/C-3", "C-3", f"C-3 (θ={op['c3_theta_live']})"), ("v1.3/C-4", "C-4", f"C-4 (θ={op['c4_theta_live']})"),
+                               ("v1.3/GapLink-Lite", "GapLink-Lite", f"GapLink-Lite v1.3 (τ={op['gaplink_tau_live']})")]:
+            m = res["methods"][key]
+            v = sel["sweep"].get(val_lbl[lbl], {})
+            rows.append({"name": name, "ours": lbl == "GapLink-Lite",
+                         "val_irr": v.get("nat_irr"), "val_wlr": v.get("nat_wlr"),
+                         "nat_irr": m["natural_occlusion"]["nat_irr"], "nat_wlr": m["natural_occlusion"]["nat_wlr"],
+                         "route_rec": m["forbidden_route"]["recall_occl"], "route_far": m["forbidden_route"]["false_alarm_rate"]})
+        out.update({"rows": rows, "ci": ci["delta_pp_ci95"], "n_test_videos": res["n_seqs"]})
+    if r11.exists():
+        out["latency_rtx3050"] = json.loads(r11.read_text(encoding="utf-8")).get("latency_rtx3050")
+    return JSONResponse(out)
 
 
 @app.get("/api/benchmark_fig")
@@ -786,6 +830,9 @@ def api_action(req: ActionReq):
                     reset_zones=True,
                 )
                 return {"ok": True, "max_dwell_sec": sess.max_dwell_sec, "scenario_mode": sess.scenario_mode, "preset_id": p["id"]}
+    elif act == "set_baseline" and req.baseline in BASELINE_INFO:
+        sess.set_baseline(req.baseline)
+        return {"ok": True, "baseline": sess.baseline_name, "label": sess.bl_label}
     elif act == "set_scenario" and req.scenario_mode in ("route", "dwell", "lock", "all"):
         with sess.lock:
             sess.scenario_mode = req.scenario_mode
@@ -988,18 +1035,24 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     <div class="quick-cards">
       <button id="qc_1" class="qcard active" style="border-left-color:#ef4444;" onclick="launchQuickScenario('detrac_MVI_39361_wrong_lane.mp4', 'route', 'qc_1')">
         <span class="qcard-title">🚨 1. Đi sai làn / Cắt vạch chữ V</span>
-        <span class="qcard-sub">MVI_39361 • Làn rẽ phải cắt vạch chữ V sang làn đi thẳng qua điểm khuất (Ours: 10/10, 0 Báo giả)</span>
+        <span class="qcard-sub">MVI_39361 • Làn rẽ phải cắt vạch chữ V sang làn đi thẳng qua điểm khuất</span>
       </button>
       <button id="qc_2" class="qcard" style="border-left-color:#a855f7;" onclick="launchQuickScenario('detrac_MVI_40864_rain_buses.mp4', 'dwell', 'qc_2')">
         <span class="qcard-title">⏱️ 2. Đỗ xe quá giờ bị xe buýt che</span>
-        <span class="qcard-sub">MVI_40864 • Chỉ bắt xe đỗ đứng yên (v=0) bị xe buýt che rồi lộ diện lại (Ours: 2/2 vs C-3: 0/2)</span>
+        <span class="qcard-sub">MVI_40864 • Chỉ bắt xe đỗ đứng yên (v=0) bị xe buýt che rồi lộ diện lại</span>
       </button>
       <button id="qc_3" class="qcard" style="border-left-color:#10b981;" onclick="launchQuickScenario('detrac_MVI_40701_moving_pursuit.mp4', 'lock', 'qc_3')">
         <span class="qcard-title">🎯 3. Truy vết xe ĐANG DI CHUYỂN</span>
-        <span class="qcard-sub">MVI_40701 • Xe chạy xuyên sau xe buýt dài 55f (di chuyển 240px) rồi phóng ra (Ours: Bắt đúng 100%)</span>
+        <span class="qcard-sub">MVI_40701 • Xe chạy xuyên sau xe buýt dài 55f (di chuyển 240px) rồi phóng ra</span>
       </button>
     </div>
 
+    <label class="hint">Baseline đối chứng (màn hình trái) — ngưỡng chọn trên tập val:</label>
+    <select id="baselineSelect" onchange="setBaseline()">
+      <option value="C-3" selected>C-3 Kalman + Mahalanobis (kiểu SORT/DeepSORT, tự cài đặt)</option>
+      <option value="C-2">C-2 Vận tốc không đổi — baseline mạnh nhất trên tập test</option>
+      <option value="C-4">C-4 Kalman + kích thước + màu</option>
+    </select>
     <label class="hint">Chọn video khác hoặc tải lên <code>.mp4</code> bất kỳ:</label>
     <select id="presetSelect" onchange="onSelectPreset()"></select>
     <input type="file" id="videoUpload" accept="video/mp4,video/avi,video/quicktime" onchange="uploadVideo()"/>
@@ -1042,7 +1095,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
       <div class="legend-row">
         <div style="display:flex;gap:14px;flex-wrap:wrap;">
           <span><i class="lg-dot" style="background:#ef4444;"></i><b>Viền Đỏ:</b> Vi phạm thật (Cắt vạch sai làn / Xe đỗ đứng yên quá giờ)</span>
-          <span><i class="lg-dot" style="background:#f59e0b;"></i><b>Viền Vàng Cam:</b> Báo động giả do nhảy ID (C-3 lỗi)</span>
+          <span><i class="lg-dot" style="background:#f59e0b;"></i><b>Viền Vàng Cam:</b> Báo động giả do nhảy ID</span>
           <span><i class="lg-dot" style="background:#10b981;"></i><b>Tâm Xanh Lá:</b> Truy vết & Bắt lại đúng xe đang chạy</span>
         </div>
         <div style="color:#94a3b8;font-size:11px;">Mẹo: Dùng chế độ <b>🔍 Song song Phóng to (Zoom ROI)</b> hoặc <b>🖥️ Đơn HD</b> để xem chi tiết cực đại</div>
@@ -1052,7 +1105,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         <div class="timeline-row">
           <span>Khung hình: <b id="stFrame">0 / 0</b></span>
           <input type="range" id="timeSlider" min="1" max="380" value="1" oninput="onSliderInput(this.value)" onchange="onSliderSeek(this.value)"/>
-          <span>Tốc độ Pipeline: <b id="stFps" style="color:#34d399;">34.5 FPS</b></span>
+          <span title="Thời gian thực đo được mỗi bước (2 tracker + vẽ khung), không ép khoảng">Tốc độ đo thực: <b id="stFps" style="color:#34d399;">– FPS</b></span>
         </div>
         <div class="ctrl-row">
           <div class="ctrl-group">
@@ -1063,10 +1116,10 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             <button onclick="postAct({action:'jump_climax'})" class="amber-btn">⚡ Tới Đoạn Cao Trào</button>
           </div>
           <div class="ctrl-group">
-            <button id="btnViewSide" class="primary" onclick="setView('side_by_side')" title="Hiển thị song song 2 màn hình C-3 và GapLink-Lite">🔀 Song song Toàn cảnh</button>
+            <button id="btnViewSide" class="primary" onclick="setView('side_by_side')" title="Hiển thị song song baseline và GapLink-Lite">🔀 Song song Toàn cảnh</button>
             <button id="btnViewZoom" onclick="setView('side_zoom')" title="Phóng to vùng tâm điểm giao thông của cả 2 mô hình đặt cạnh nhau">🔍 Song song Phóng to (Zoom ROI)</button>
             <button id="btnViewGL" onclick="setView('single_gl')" title="Xem toàn màn hình lớn độ phân giải cao GapLink-Lite">🖥️ Toàn màn hình GapLink-Lite</button>
-            <button id="btnViewC3" onclick="setView('single_c3')" title="Xem toàn màn hình lớn độ phân giải cao C-3 Kalman để đối chiếu">🖥️ Toàn màn hình C-3</button>
+            <button id="btnViewC3" onclick="setView('single_c3')" title="Xem toàn màn hình baseline để đối chiếu">🖥️ Toàn màn hình Baseline</button>
           </div>
         </div>
       </div>
@@ -1075,10 +1128,10 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     <!-- Bottom Analytics & Evidence Dock -->
     <div class="bottom-dock">
       <div class="card">
-        <div class="card-title">Bảng Tỉ Số Đối Chiếu Trực Tiếp (C-3 vs GapLink-Lite)</div>
+        <div class="card-title" id="cmpTitle">Bảng Tỉ Số Đối Chiếu Trực Tiếp</div>
         <table class="cmp-table">
           <thead>
-            <tr><th>Chỉ số An ninh Thực tế</th><th>C-3 (Kalman)</th><th>GapLink-Lite (Ours)</th></tr>
+            <tr><th>Chỉ số trên video này</th><th id="thBaseline">Baseline</th><th id="thGapLink">GapLink-Lite</th></tr>
           </thead>
           <tbody>
             <tr><td>🚨 Vi phạm Sai làn / Lộ trình (Đỏ)</td><td id="m_c3_rt_tp" class="val-c3">0</td><td id="m_gl_rt_tp" class="val-red">0</td></tr>
@@ -1090,7 +1143,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
           </tbody>
         </table>
         <div class="hint" style="background:#0f172a;padding:5px 8px;border-radius:6px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;">
-          <span>Khóa C-3: <b id="stLockC3" class="val-c3">IDLE</b></span>
+          <span>Khóa <span id="lblLockBl">baseline</span>: <b id="stLockC3" class="val-c3">IDLE</b></span>
           <span>Khóa GapLink: <b id="stLockGL" class="val-gl">IDLE</b></span>
           <span id="odBox" style="color:#38bdf8;font-family:monospace;">OD: --</span>
         </div>
@@ -1099,7 +1152,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
       <div class="card">
         <div class="card-title">Nhật Ký Bằng Chứng Thực Tế (Tự Động Cắt Cặp Ảnh Trước & Sau Che Khuất)</div>
         <div id="alertList" class="alert-list">
-          <div class="hint">Đang giám sát luồng camera... Các vi phạm thật (Viền Đỏ), pha bắt lại mục tiêu đang di chuyển (Xanh Lá) và lỗi nhảy ID của C-3 (Vàng Cam) sẽ tự động trích xuất cặp ảnh bằng chứng tại đây.</div>
+          <div class="hint">Đang giám sát luồng camera... Các vi phạm thật (Viền Đỏ), pha bắt lại mục tiêu đang di chuyển (Xanh Lá) và lỗi nhảy ID của cả hai phía (Vàng Cam) sẽ tự động trích xuất cặp ảnh bằng chứng tại đây.</div>
         </div>
       </div>
     </div>
@@ -1165,6 +1218,11 @@ async function launchQuickScenario(presetId, scMode, qId) {
     document.getElementById('rngDwell').value = res.max_dwell_sec;
     document.getElementById('lblDwell').innerText = res.max_dwell_sec + 's';
   }
+}
+
+async function setBaseline() {
+  const b = document.getElementById('baselineSelect').value;
+  await postAct({action:'set_baseline', baseline: b});
 }
 
 async function setScenario(sc) {
@@ -1321,7 +1379,13 @@ es.onmessage = (ev) => {
   }
 
   document.getElementById('stFrame').innerText = `${d.frame} / ${d.total_frames}`;
-  document.getElementById('stFps').innerText = `${d.fps} FPS`;
+  document.getElementById('stFps').innerText = `${d.fps} FPS ${d.dets_cached ? '(YOLO đã cache)' : '(gồm YOLO)'}`;
+  if (d.labels) {
+    document.getElementById('thBaseline').innerText = d.labels.baseline;
+    document.getElementById('thGapLink').innerText = d.labels.gaplink;
+    document.getElementById('lblLockBl').innerText = d.labels.baseline_short;
+    document.getElementById('cmpTitle').innerText = `Đối chiếu trực tiếp: ${d.labels.baseline_short} vs GapLink-Lite`;
+  }
   const sl = document.getElementById('timeSlider');
   if (sl && !sliderDragging) {
     sl.max = Math.max(1, d.total_frames);
@@ -1379,39 +1443,34 @@ async function switchTab(name, btn) {
   if (name === 'bench') {
     const r = await fetch('/api/benchmark');
     const j = await r.json();
-    if (j.methods) {
+    if (j.rows) {
+      const pct = (x) => (x === null || x === undefined) ? '–' : (x*100).toFixed(2) + '%';
       let rows = '';
-      for (const [m, v] of Object.entries(j.methods)) {
-        const bold = (m === 'GapLink-Lite') ? 'style="color:#34d399;font-weight:700;"' : '';
-        rows += `<tr ${bold}>
-          <td>${m}</td>
-          <td>${(v.natural_occlusion.nat_irr*100).toFixed(2)}%</td>
-          <td>${(v.natural_occlusion.nat_wlr*100).toFixed(2)}%</td>
-          <td>${(v.forbidden_route.recall_occl*100).toFixed(2)}%</td>
-          <td>${(v.forbidden_route.false_alarm_rate*100).toFixed(2)}%</td>
-          <td>${(v.dwell_alert.f1_occl*100).toFixed(2)}%</td>
-        </tr>`;
+      for (const v of j.rows) {
+        const st = v.ours ? 'style="color:#34d399;font-weight:700;"' : '';
+        rows += `<tr ${st}><td>${v.name}</td><td>${pct(v.val_irr)}</td><td>${pct(v.val_wlr)}</td>
+                 <td>${pct(v.nat_irr)}</td><td>${pct(v.nat_wlr)}</td><td>${pct(v.route_rec)}</td><td>${pct(v.route_far)}</td></tr>`;
       }
+      const c = j.ci || {};
+      const fmt = (k) => c[k] ? `${c[k][0]} điểm [${c[k][1]}; ${c[k][2]}]` : '–';
       const lat = j.latency_rtx3050 || {};
       document.getElementById('benchContent').innerHTML = `
-        <div style="margin-bottom:12px;color:#e2e8f0;">
-          <b>Tốc độ thực thi đơn khung hình (RTX 3050 6GB):</b> YOLOv8n = ${lat.yolo_ms} ms | Trích xuất HSV = ${lat.hsv_post_ms} ms | GapLink-Lite + VMS = ${lat.gaplink_vms_ms} ms ➔ <b>Tổng = ${lat.total_ms} ms (${lat.fps} FPS)</b>
-        </div>
+        <div style="margin-bottom:10px;color:#e2e8f0;">Số liệu <b>đóng băng</b> (${j.source}). Ngưỡng của mọi phương pháp chọn trên
+          <b>13 video val</b> theo cùng một quy tắc (Nat-IRR cao nhất với Nat-WLR ≤ 5%), test chạy <b>một lần</b> trên ${j.n_test_videos} video.</div>
         <table class="cmp-table" style="font-size:13px;">
-          <thead>
-            <tr>
-              <th>Phương pháp (sau Live YOLOv8n)</th>
-              <th>Nat-IRR (%) ↑</th>
-              <th>Nat-WLR (%) ↓</th>
-              <th>Bắt Lộ Trình Cấm Khi Khuất (%) ↑</th>
-              <th>Tỷ Lệ Báo Giả Lộ Trình (%) ↓</th>
-              <th>Cảnh Báo Đỗ Quá Giờ F1 (%) ↑</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Phương pháp</th><th>Val Nat-IRR ↑</th><th>Val Nat-WLR ↓</th><th>Test Nat-IRR ↑</th>
+            <th>Test Nat-WLR ↓</th><th>Bắt tuyến cấm khi khuất ↑</th><th>Báo giả tuyến cấm ↓</th></tr></thead>
           <tbody>${rows}</tbody>
-        </table>`;
-      document.getElementById('benchImg').style.display = 'inline-block';
-      document.getElementById('benchImg').src = '/api/benchmark_fig?t=' + Date.now();
+        </table>
+        <div style="margin-top:10px;color:#cbd5e1;font-size:13px;">
+          GapLink v1.3 − C-2 (CI 95% bootstrap theo 15 địa điểm): Nat-IRR ${fmt('nat_irr:GapLink_v13_vs_v1.3/C-2')},
+          Nat-WLR ${fmt('nat_wlr:GapLink_v13_vs_v1.3/C-2')}.<br/>
+          Không phương pháp nào giữ Nat-WLR ≤ 5% trên test; trên val C-2 dẫn về Nat-IRR.
+          Chỉ số dwell không đưa vào vì bộ chấm dwell đã đổi sau lần chạy v1.1.
+        </div>
+        <div style="margin-top:8px;color:#94a3b8;font-size:12px;">Độ trễ đo trên RTX 3050 6GB (ngã tư đông, batch 1):
+          YOLOv8n ${lat.yolo_ms} ms + HSV/NMS ${lat.hsv_post_ms} ms + GapLink+VMS ${lat.gaplink_vms_ms} ms = ${lat.total_ms} ms (${lat.fps} FPS).</div>`;
+      document.getElementById('benchImg').style.display = 'none';
     }
   }
 }
