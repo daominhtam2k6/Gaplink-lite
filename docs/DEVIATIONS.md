@@ -1,0 +1,76 @@
+# Sai lệch so với PREREG v1 và quy trình đóng băng (ghi nhận 21/11/2026)
+
+Tài liệu này ghi lại mọi thay đổi xảy ra **sau** mốc đóng băng `v1.0-frozen` (ef23f27, 15/11/2026 22:37)
+và mọi chỗ báo cáo diễn đạt khác `docs/PREREG.md`. PREREG v1 **không bị sửa**; mọi đánh giá giả thuyết
+chính thức dùng đúng câu chữ PREREG. Bằng chứng: `git log`, tag `v1.0-frozen`, `final-v2`, `final-v3`.
+
+## D1. Test bị chạy lại sau khi đã xem kết quả (checkpoint v1.0 → v1.1)
+- `final-v2` (ce8acdf, 15/11 22:49): chạy test với checkpoint `589b4154…` (Top-1 83,59%).
+- Phát hiện lỗi chuyển đổi dữ liệu: box vùng *ignored* bị gộp thành track giả ID −1 mỗi chuỗi.
+  Sửa loader → tạo lại sự kiện → huấn luyện lại 5 seed → đóng băng lại `final-v3` (cd2d1b8, 16/11 12:12),
+  checkpoint `844fc391…`, test chạy lại (`runs/test_final/test_results.json`, 16/11 12:08 +07).
+- Cùng lúc thay đổi các tham số vận hành: `a_max 60→95`, `gaplink_tau 0,20→0,25`, `c2_theta 2,5→3,0`,
+  phương pháp hiệu chuẩn (thêm `bin_scales`), thêm ngưỡng `*_theta_wlr5` cho baseline.
+- **Hệ quả:** tập test 12.000 sự kiện đã được nhìn ít nhất 2 lần. Lý do sửa (lỗi dữ liệu, `a_max=60` < gap tối đa 90)
+  là lỗi kỹ thuật chính đáng, nhưng **không thể chứng minh** các lựa chọn mới chỉ dựa trên val:
+  `runs/d4_val/val_summary.json` bị ghi lại cùng phút với `test_results.json` (16/11 05:08 UTC).
+  Báo cáo phải nêu rõ đây là lần chạy test thứ hai.
+
+## D2. H1 trong báo cáo LaTeX khác câu chữ PREREG
+- PREREG: Top-1 tập khó > max(C-2, C-3, C-4) **≥ 3,0 điểm %**.
+- `chapter01*.tex` viết lại thành "≥ +4,0 pp so với C-3 và ≥ +2,0 pp so với C-4, CI không chứa 0".
+- Kết luận theo PREREG không đổi (ĐẠT: +7,33 pp vs C-4, CI95 [6,33; 8,38], bootstrap theo chuỗi — xem D5),
+  nhưng phải dùng lại đúng câu chữ PREREG.
+
+## D3. H2 — đổi tập đo và đổi "mô hình chính" sau khi xem test
+- PREREG: coverage **sau hiệu chuẩn**, đo trên **nửa B của validation**, cả 3 nhóm gap ∈ [85%, 95%].
+- Hiệu chuẩn v1.1 trên val (`val_summary.json:calib_val.after`): 87,71% / 87,64% / **95,14%** → nhóm dài vượt 95%.
+  Trên test (`calib_test.after`): 87,87% / 90,26% / **95,86%**.
+- **H2 theo PREREG: KHÔNG ĐẠT (sát biên, nhóm gap dài).**
+- Báo cáo chuyển sang "mô hình chưa hiệu chuẩn là mô hình chính" (commit c8a1a3c, 17/11) **sau khi thấy test**.
+  Đây là phân tích hậu kiểm (exploratory), không được dùng để tuyên bố H2 đạt.
+  Lưu ý thêm: `calib_val` (n=5466) không ghi rõ là nửa B hay toàn val → cần kiểm lại trong `scripts/calibrate_and_freeze.py`.
+
+## D4. So sánh baseline "cùng WLR trên đường cong test"
+- Các con số C-2 58,61% / C-3 24,82% / C-4 60,70% ở ~3% WLR được chọn **trên đường cong test** → chỉnh ngưỡng trên test.
+  Chỉ được trình bày như phân tích độ nhạy, không phải kết quả chính. Kết quả chính dùng ngưỡng chọn trên val
+  (`C-*_wlr5`) — lưu ý các ngưỡng này **không** giữ được WLR ≤ 5% trên test (C-3_wlr5: 9,13%; C-4_wlr5: 6,70%;
+  tracker partial C-3 (WLR≤5%): 7,70%) vì val chỉ có 4 cụm địa điểm.
+
+## D5. Bootstrap theo chuỗi, không theo cụm địa điểm
+- `scripts/run_test.py` bootstrap trên **40 chuỗi test**, trong khi tập test chỉ có **15 địa điểm** (`data/splits.csv`).
+  Các chuỗi cùng địa điểm tương quan → CI hiện tại hẹp hơn thực tế. Cần tính lại theo `location`
+  (chỉ hậu xử lý trên `by_seq`, không chạy lại mô hình, không đổi ngưỡng).
+
+## D6. Rò rỉ địa điểm train/val ↔ test chính thức
+- 7 cụm camera xuất hiện ở cả train/val và test chính thức. Đã kiểm toán: Top-1 cụm trùng 93,39% vs cụm mới 93,44%
+  (`chapter03_vi.tex`). Giữ nguyên, nhưng phải nêu là giới hạn của split UA-DETRAC.
+
+## D7. Số latency mâu thuẫn
+- README: 12,54 ms/frame (79,7 FPS; GapLink-VMS 1,10 ms).
+- `runs/test_final/live_security_results.json` và LaTeX: **28,95 ms/frame (34,5 FPS)** ở ngã tư đông
+  (YOLO 12,53 + HSV/NMS 3,26 + GapLink-VMS 13,16 ms). Số 79,7 FPS không có file nguồn trong `runs/` → không dùng làm số chính.
+
+## D8. Clip demo VMS không thuộc quy tắc chọn của PREREG §4
+- `demo/out/scenario_*` được render lại nhiều lần với chuỗi khác nhau (18–19/11). PREREG §4 chỉ khóa
+  ghost_replay / no_match / tracker_full / failure_gallery. Clip VMS là minh họa định tính, không dùng làm bằng chứng định lượng.
+
+## D9. Hai bản thống kê 5 seed lệch nhau rất nhỏ
+- `test_results.json:event_level.GapLink-Lite_5seed`: Top-1 93,6416%, WLR 2,9735%, gap dài 80,679%.
+- `audit_diagnostics.json:item6.Full` (bản LaTeX dùng): 93,6401%, 2,9823%, 80,666%.
+- Chênh ≤ 0,01 pp, không đổi kết luận. Chỉ seed 1 (`final.pt`) có đầy đủ per-seed trong `test_results.json`;
+  số 5 seed chỉ dùng mô tả độ ổn định, không dùng cho kiểm định giả thuyết.
+
+## D10. Điểm vận hành live v1.2 (bổ sung sau v1.1)
+- Với YOLOv8n, điểm v1.1 (`tau=0,25`, chọn trên sự kiện box GT) cho Nat-WLR 10,20% trên test — vi phạm tinh thần WLR ≤ 5%.
+- v1.2 áp lại đúng quy tắc PREREG §3 cho chế độ live: với mọi phương pháp, chọn ngưỡng có Nat-IRR cao nhất thỏa Nat-WLR ≤ 5%
+  trên **13 video val** (lưới cố định trong `scripts/eval_live_v12.py`). Ngưỡng được ghi vào `release/live_v1.2.yaml`
+  và commit/tag `v1.2-live-selected` **trước** khi chạy test; test live v1.2 chạy một lần.
+- Lưu ý: bộ YOLO test (`data/cache/yolo_test`) đã được dùng ở v1.1, nên v1.2 là lần đánh giá live thứ hai trên cùng video test
+  (khác ngưỡng, cùng checkpoint). Kết quả v1.1 giữ nguyên trong báo cáo bên cạnh v1.2.
+- Bước chạy kèm kiểm tra parity: điểm v1.1 chạy lại bằng scorer mới phải trùng khít `live_security_results.json`.
+
+## D11. Tiêu chí chọn τ trên val dùng Top-1 sự kiện thay vì IRR tracker
+- PREREG §3: "IRR cao nhất thỏa WLR ≤ 5%". `scripts/calibrate_and_freeze.py` chọn τ theo **Top-1 cấp sự kiện** thỏa WLR ≤ 5%.
+- Trên val, Top-1 gần như phẳng theo τ (93,16–93,17% với τ ∈ [0,05; 0,30]) nên ảnh hưởng thực tế nhỏ, nhưng vẫn là sai lệch tiêu chí.
+  Phiên bản live v1.2 dùng đúng IRR (Nat-IRR) theo PREREG.

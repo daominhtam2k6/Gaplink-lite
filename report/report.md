@@ -1,3 +1,5 @@
+> ⚠️ **OUTDATED (checkpoint 589b41…, first test run).** Do not cite. Current frozen numbers: `release/FROZEN_RESULTS.md`; deviations: `docs/DEVIATIONS.md`.
+
 # GapLink-Lite: Final Capstone Project Report
 
 **Title:** *GapLink-Lite: A Small Self-Developed Neural Network for Vehicle Identity Re-Association Across Occlusion Gaps with Calibrated Uncertainty*  

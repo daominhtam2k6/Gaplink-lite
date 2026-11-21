@@ -7,8 +7,23 @@
 \begin{enumerate}
     \item \textbf{Độ chính xác đa seed ổn định \& Tỷ lệ ghép nhầm rất thấp:} Qua 5 seed ngẫu nhiên trên $12.000$ sự kiện test UA-DETRAC khóa cứng, GapLink-Lite đạt $\mathbf{93.64\% \pm 0.14\%}$ Top-1 (so với $80.29\%$ của C-3) đồng thời giảm WLR đi $6.5\times$ ($19.24\% \to \mathbf{2.98\%}$ trung bình 5 seed, $3.01\%$ Seed~1).
     \item \textbf{Cải thiện Tracker trực tuyến trên các chỉ số MOT chuẩn:} Trên $40$ chuỗi test ($1.922$ khoảng che khuất tối đa 90 khung hình, $a_{\max}=95$), GapLink-Lite đạt $\mathbf{96.20}\%$ IRR / $\mathbf{99.11}\%$ IDF1 (che khuất toàn phần) và $\mathbf{95.99}\%$ IRR / $\mathbf{99.02}\%$ IDF1 (che khuất một phần với histogram vùng thấy không rò rỉ).
-    \item \textbf{Kiến trúc gọn nhẹ \& Triển khai VMS Thời gian thực với Live YOLOv8:} Chỉ với $327.979$ tham số ($1.3\text{ MB}$), GapLink-Lite huấn luyện trong $\sim 100\text{ s}$ mỗi seed và chạy đầu-cuối cùng YOLOv8n ở tốc độ $\mathbf{34.5}$--$\mathbf{79.7\text{ FPS}}$ trên GPU laptop RTX 3050 6GB. Trên $40$ video thô tập test ($3.103$ lần mất dấu tự nhiên của YOLOv8n), hệ thống \textbf{GapLink-VMS} đạt $\mathbf{87.30\%}$ khôi phục tự nhiên, giảm báo động giả lộ trình cấm đi $3.8\times$ ($49.22\% \to \mathbf{12.88\%}$) và tăng điểm F1 cảnh báo đỗ quá giờ khi bị che thêm $+17.87\text{ pp}$ so với C-3.
+    \item \textbf{Kiến trúc gọn nhẹ \& Triển khai VMS Thời gian thực với Live YOLOv8:} Chỉ với $327.979$ tham số ($1.3\text{ MB}$), GapLink-Lite huấn luyện trong $\sim 100\text{ s}$ mỗi seed và chạy đầu-cuối cùng YOLOv8n ở tốc độ $\mathbf{34.5\text{ FPS}}$ ($28.95$ ms/khung) tại ngã tư đông xe trên GPU laptop RTX 3050 6GB. Trên $40$ video thô tập test ($3.103$ lần mất dấu tự nhiên của YOLOv8n), hệ thống \textbf{GapLink-VMS} đạt $\mathbf{87.30\%}$ khôi phục tự nhiên, giảm báo động giả lộ trình cấm đi $3.8\times$ ($49.22\% \to \mathbf{12.88\%}$) và tăng điểm F1 cảnh báo đỗ quá giờ khi bị che thêm $+17.87\text{ pp}$ so với C-3.
 \end{enumerate}
+
+\section{Hạn chế và Sai lệch so với Quy trình}
+\label{sec:limitations}
+
+Mục này liệt kê mọi điểm lệch khỏi \texttt{docs/PREREG.md} và quy trình test một lần (nhật ký đầy đủ: \texttt{docs/DEVIATIONS.md}; hash của mọi tạo phẩm đóng băng: \texttt{release/FREEZE\_MANIFEST.json}).
+\begin{itemize}
+    \item \textbf{Tập test đã được đánh giá hai lần.} Lần chạy khóa đầu tiên (checkpoint \texttt{589b41\ldots}, Top-1 $83.59\%$) làm lộ lỗi chuyển đổi dữ liệu (vùng ignore của UA-DETRAC bị gộp thành một track giả mỗi chuỗi) và \texttt{a\_max}$=60$ nhỏ hơn gap tiêm tối đa ($90$). Sau khi sửa, mô hình được huấn luyện lại và đóng băng lại (\texttt{844fc3\ldots}, tag \texttt{final-v3}) cùng các điểm vận hành mới ($\tau$, $\theta$, dạng hiệu chuẩn). Các lựa chọn này được ghi là dựa trên validation, nhưng vì bản tóm tắt validation được tạo lại trong cùng phiên với lần chạy test thứ hai, chúng tôi không chứng minh được chúng hoàn toàn độc lập với test. Mọi con số báo cáo lấy từ lần chạy thứ hai này.
+    \item \textbf{H2 không đạt}; kết quả bao phủ của bản chưa hiệu chuẩn là hậu kiểm (Mục~\ref{sec:modeling}).
+    \item \textbf{Tập validation nhỏ.} Validation chỉ gồm $4$ địa điểm camera, nên ngưỡng chọn ở $\text{WLR}\le5\%$ của baseline trôi lên $6.5$--$9.1\%$ trên test, và hệ số hiệu chuẩn gap dài bị quá khớp.
+    \item \textbf{Trùng địa điểm.} $7$ trong $15$ địa điểm test chính thức cũng có trong train/validation. GapLink-Lite đạt $93.39\%$ trên cụm trùng so với $93.44\%$ trên cụm mới, nên không thấy dấu hiệu học thuộc, nhưng split chính thức của UA-DETRAC không hoàn toàn tách theo địa điểm.
+    \item \textbf{Khoảng tin cậy.} Khoảng tin cậy nay được bootstrap trên $15$ địa điểm camera; bản nháp trước lấy mẫu lại $40$ chuỗi nên đánh giá thấp độ bất định. Dự đoán cấp sự kiện được tính lại từ checkpoint đóng băng và trùng khít các số tổng hợp đã đóng băng trước khi bootstrap lại.
+    \item \textbf{Phân tích hậu kiểm.} Baseline khớp WLR trên đường cong test, tập khó $<0.50h$ và quan sát về bản chưa hiệu chuẩn được định nghĩa sau khi xem kết quả test, nên không dùng cho kết luận nào.
+    \item \textbf{Điểm vận hành live.} Với đầu vào YOLOv8n, ngưỡng v1.1 (chọn trên sự kiện box GT) cho Nat-WLR $10.20\%$ trên test. Phiên bản~1.2 áp lại đúng quy tắc chọn của PREREG trên $13$ video validation rồi chạy thêm một lần test live (Mục~\ref{sec:live_v12}); do đó video test live đã được chấm hai lần, với cùng checkpoint.
+    \item \textbf{Clip demo.} Các video kịch bản VMS chỉ minh họa định tính và không được chọn theo quy tắc chọn clip của PREREG.
+\end{itemize}
 
 \section{Hướng cải tiến trong tương lai}
 \label{sec:future_improvements}

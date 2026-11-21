@@ -1,0 +1,79 @@
+{
+  "freeze_name": "gaplink-lite-v1.1-results",
+  "created_utc": "2026-11-21T01:45:34+00:00",
+  "git_commit_at_freeze": "f31a7c9cb66d3ed7a57f520e6de006eaf7708b15",
+  "final_sha256": "844fc391deafe951b429e3e4f2b9f1983647ce7ff1dbfa048eadb6f4c0741bfd",
+  "consistency_checks": {
+    "final.pt == final.sha256": true,
+    "final.pt == tracker.yaml:final_sha256": true,
+    "final.pt == test_results:final_sha256": true,
+    "test_events.pkl == test_results:test_events_sha256": true,
+    "tau == tracker.yaml:gaplink_tau": true
+  },
+  "files": {
+    "release/final.pt": {
+      "sha256": "844fc391deafe951b429e3e4f2b9f1983647ce7ff1dbfa048eadb6f4c0741bfd",
+      "bytes": 1327613
+    },
+    "release/final.sha256": {
+      "sha256": "09d6008955ed56b11c2d9be2df38e1c1f25ef1e34c6686a0983c2b3794557778",
+      "bytes": 66
+    },
+    "release/calib.json": {
+      "sha256": "16ad3a988c904d6de7a9f66e89c1fbd68d5dbc02d553aa3b06aca5d0a4b3d01f",
+      "bytes": 203
+    },
+    "release/tracker.yaml": {
+      "sha256": "c5272dbc083e25cfcaa64f2439ca4bcf56dbe922c7d0eb9aab39bdd05ac71317",
+      "bytes": 267
+    },
+    "release/main.yaml": {
+      "sha256": "3ff5406407ecc0e8f1aa8db985e4978cf58b8fe20213dd13d224cbca37548bb5",
+      "bytes": 271
+    },
+    "release/yolov8n.pt": {
+      "sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36",
+      "bytes": 6549796
+    },
+    "data/splits.csv": {
+      "sha256": "cd6e3e2380410e992e99cd637f2b6c9243ad9d51cdca883ab72b2aecb049a04e",
+      "bytes": 3784
+    },
+    "data/cache/val_events.pkl": {
+      "sha256": "860274626ded23458f9c9786634d96f27fbf26f24f5ef590f41d17588dce73bf",
+      "bytes": 40335373
+    },
+    "data/cache/test_events.pkl": {
+      "sha256": "fca7fa993252871dcf11d06b5a83174c4bb2bf6838ddf2b27f30b614529d8351",
+      "bytes": 95626073
+    },
+    "runs/d4_val/val_summary.json": {
+      "sha256": "dcb3159af3bc6e63da2b408ee91e55d31512cbac9cef3687bd3881c6813b3195",
+      "bytes": 4289
+    },
+    "runs/baselines_val.json": {
+      "sha256": "a956024591b43b1a69588fda75f5e9a80fc913665c7344dc33d15bf50e7b94df",
+      "bytes": 9295
+    },
+    "runs/test_final/test_results.json": {
+      "sha256": "be6de3a244be0c0ce415100863f6415707def842c0a1f0e2a694c02aa19c2db9",
+      "bytes": 144320
+    },
+    "runs/test_final/live_security_results.json": {
+      "sha256": "f470758732100fa3282a5c10440d177e88f24c741210776faba276e96b910daa",
+      "bytes": 16120
+    },
+    "runs/test_final/evidence_chain_results.json": {
+      "sha256": "51ab7d08c28e9801153ee70acedef8dd445b91b0a59821e99cac7a468d9408fa",
+      "bytes": 13600
+    },
+    "runs/test_final/audit_diagnostics.json": {
+      "sha256": "61ebc2ff0cd69fc16ab969201d84c696da799127d94ab09b24cad6861a72720d",
+      "bytes": 20395
+    },
+    "docs/PREREG.md": {
+      "sha256": "ddc689c4a44922f75b6a758674cb38aa123c88b9023eb606aaf0d0c06e1220ee",
+      "bytes": 3068
+    }
+  }
+}

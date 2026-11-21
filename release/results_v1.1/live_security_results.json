@@ -1,0 +1,651 @@
+{
+  "n_test_sequences": 40,
+  "detector": "YOLOv8n (imgsz=640, conf=0.28, agnostic_nms=0.52, min_hits=3)",
+  "latency_rtx3050": {
+    "yolo_ms": 12.53,
+    "hsv_post_ms": 3.26,
+    "gaplink_vms_ms": 13.16,
+    "total_ms": 28.95,
+    "fps": 34.5
+  },
+  "methods": {
+    "C-1": {
+      "raw_counts": {
+        "nat_gaps_total": 1612,
+        "nat_gaps_recovered": 144,
+        "reassoc_total_valid_gt": 0,
+        "reassoc_wrong": 0,
+        "route_gt_all": 391,
+        "route_gt_occl": 162,
+        "route_tp_all": 140,
+        "route_tp_occl": 54,
+        "route_fp": 5,
+        "route_unverified": 3052,
+        "dwell_gt_all": 851,
+        "dwell_gt_occl": 160,
+        "dwell_tp_all": 444,
+        "dwell_tp_occl": 7,
+        "dwell_fp": 10
+      },
+      "natural_occlusion": {
+        "n_gaps": 1612,
+        "nat_irr": 0.0893,
+        "nat_wlr": 0.0
+      },
+      "forbidden_route": {
+        "gt_all": 391,
+        "gt_occl": 162,
+        "tp_all": 140,
+        "tp_occl": 54,
+        "fp_wrong_id": 5,
+        "unverified_entries": 3052,
+        "recall_all": 0.3581,
+        "recall_occl": 0.3333,
+        "false_alarm_rate": 0.0345
+      },
+      "dwell_alert": {
+        "gt_all": 851,
+        "gt_occl": 160,
+        "tp_all": 444,
+        "tp_occl": 7,
+        "fp_wrong_id": 10,
+        "recall_all": 0.5217,
+        "recall_occl": 0.0437,
+        "precision": 0.978,
+        "f1_occl": 0.0838
+      }
+    },
+    "C-2": {
+      "raw_counts": {
+        "nat_gaps_total": 3100,
+        "nat_gaps_recovered": 2549,
+        "reassoc_total_valid_gt": 5367,
+        "reassoc_wrong": 1692,
+        "route_gt_all": 391,
+        "route_gt_occl": 162,
+        "route_tp_all": 122,
+        "route_tp_occl": 60,
+        "route_fp": 61,
+        "route_unverified": 1223,
+        "dwell_gt_all": 851,
+        "dwell_gt_occl": 160,
+        "dwell_tp_all": 372,
+        "dwell_tp_occl": 48,
+        "dwell_fp": 175
+      },
+      "natural_occlusion": {
+        "n_gaps": 3100,
+        "nat_irr": 0.8223,
+        "nat_wlr": 0.3153
+      },
+      "forbidden_route": {
+        "gt_all": 391,
+        "gt_occl": 162,
+        "tp_all": 122,
+        "tp_occl": 60,
+        "fp_wrong_id": 61,
+        "unverified_entries": 1223,
+        "recall_all": 0.312,
+        "recall_occl": 0.3704,
+        "false_alarm_rate": 0.3333
+      },
+      "dwell_alert": {
+        "gt_all": 851,
+        "gt_occl": 160,
+        "tp_all": 372,
+        "tp_occl": 48,
+        "fp_wrong_id": 175,
+        "recall_all": 0.4371,
+        "recall_occl": 0.3,
+        "precision": 0.6801,
+        "f1_occl": 0.4163
+      }
+    },
+    "C-3": {
+      "raw_counts": {
+        "nat_gaps_total": 3069,
+        "nat_gaps_recovered": 2374,
+        "reassoc_total_valid_gt": 5514,
+        "reassoc_wrong": 2083,
+        "route_gt_all": 391,
+        "route_gt_occl": 162,
+        "route_tp_all": 131,
+        "route_tp_occl": 69,
+        "route_fp": 127,
+        "route_unverified": 1089,
+        "dwell_gt_all": 851,
+        "dwell_gt_occl": 160,
+        "dwell_tp_all": 349,
+        "dwell_tp_occl": 42,
+        "dwell_fp": 294
+      },
+      "natural_occlusion": {
+        "n_gaps": 3069,
+        "nat_irr": 0.7735,
+        "nat_wlr": 0.3778
+      },
+      "forbidden_route": {
+        "gt_all": 391,
+        "gt_occl": 162,
+        "tp_all": 131,
+        "tp_occl": 69,
+        "fp_wrong_id": 127,
+        "unverified_entries": 1089,
+        "recall_all": 0.335,
+        "recall_occl": 0.4259,
+        "false_alarm_rate": 0.4922
+      },
+      "dwell_alert": {
+        "gt_all": 851,
+        "gt_occl": 160,
+        "tp_all": 349,
+        "tp_occl": 42,
+        "fp_wrong_id": 294,
+        "recall_all": 0.4101,
+        "recall_occl": 0.2625,
+        "precision": 0.5428,
+        "f1_occl": 0.3539
+      }
+    },
+    "C-4": {
+      "raw_counts": {
+        "nat_gaps_total": 3068,
+        "nat_gaps_recovered": 2406,
+        "reassoc_total_valid_gt": 5638,
+        "reassoc_wrong": 2051,
+        "route_gt_all": 391,
+        "route_gt_occl": 162,
+        "route_tp_all": 128,
+        "route_tp_occl": 65,
+        "route_fp": 128,
+        "route_unverified": 1068,
+        "dwell_gt_all": 851,
+        "dwell_gt_occl": 160,
+        "dwell_tp_all": 353,
+        "dwell_tp_occl": 45,
+        "dwell_fp": 290
+      },
+      "natural_occlusion": {
+        "n_gaps": 3068,
+        "nat_irr": 0.7842,
+        "nat_wlr": 0.3638
+      },
+      "forbidden_route": {
+        "gt_all": 391,
+        "gt_occl": 162,
+        "tp_all": 128,
+        "tp_occl": 65,
+        "fp_wrong_id": 128,
+        "unverified_entries": 1068,
+        "recall_all": 0.3274,
+        "recall_occl": 0.4012,
+        "false_alarm_rate": 0.5
+      },
+      "dwell_alert": {
+        "gt_all": 851,
+        "gt_occl": 160,
+        "tp_all": 353,
+        "tp_occl": 45,
+        "fp_wrong_id": 290,
+        "recall_all": 0.4148,
+        "recall_occl": 0.2812,
+        "precision": 0.549,
+        "f1_occl": 0.3719
+      }
+    },
+    "C-3 (WLR<=5%)": {
+      "raw_counts": {
+        "nat_gaps_total": 2615,
+        "nat_gaps_recovered": 1270,
+        "reassoc_total_valid_gt": 4030,
+        "reassoc_wrong": 949,
+        "route_gt_all": 391,
+        "route_gt_occl": 162,
+        "route_tp_all": 144,
+        "route_tp_occl": 73,
+        "route_fp": 68,
+        "route_unverified": 1977,
+        "dwell_gt_all": 851,
+        "dwell_gt_occl": 160,
+        "dwell_tp_all": 428,
+        "dwell_tp_occl": 50,
+        "dwell_fp": 216
+      },
+      "natural_occlusion": {
+        "n_gaps": 2615,
+        "nat_irr": 0.4857,
+        "nat_wlr": 0.2355
+      },
+      "forbidden_route": {
+        "gt_all": 391,
+        "gt_occl": 162,
+        "tp_all": 144,
+        "tp_occl": 73,
+        "fp_wrong_id": 68,
+        "unverified_entries": 1977,
+        "recall_all": 0.3683,
+        "recall_occl": 0.4506,
+        "false_alarm_rate": 0.3208
+      },
+      "dwell_alert": {
+        "gt_all": 851,
+        "gt_occl": 160,
+        "tp_all": 428,
+        "tp_occl": 50,
+        "fp_wrong_id": 216,
+        "recall_all": 0.5029,
+        "recall_occl": 0.3125,
+        "precision": 0.6646,
+        "f1_occl": 0.4251
+      }
+    },
+    "GapLink-Lite": {
+      "raw_counts": {
+        "nat_gaps_total": 3103,
+        "nat_gaps_recovered": 2709,
+        "reassoc_total_valid_gt": 5302,
+        "reassoc_wrong": 541,
+        "route_gt_all": 391,
+        "route_gt_occl": 162,
+        "route_tp_all": 142,
+        "route_tp_occl": 74,
+        "route_fp": 21,
+        "route_unverified": 1362,
+        "dwell_gt_all": 851,
+        "dwell_gt_occl": 160,
+        "dwell_tp_all": 429,
+        "dwell_tp_occl": 62,
+        "dwell_fp": 75
+      },
+      "natural_occlusion": {
+        "n_gaps": 3103,
+        "nat_irr": 0.873,
+        "nat_wlr": 0.102
+      },
+      "forbidden_route": {
+        "gt_all": 391,
+        "gt_occl": 162,
+        "tp_all": 142,
+        "tp_occl": 74,
+        "fp_wrong_id": 21,
+        "unverified_entries": 1362,
+        "recall_all": 0.3632,
+        "recall_occl": 0.4568,
+        "false_alarm_rate": 0.1288
+      },
+      "dwell_alert": {
+        "gt_all": 851,
+        "gt_occl": 160,
+        "tp_all": 429,
+        "tp_occl": 62,
+        "fp_wrong_id": 75,
+        "recall_all": 0.5041,
+        "recall_occl": 0.3875,
+        "precision": 0.8512,
+        "f1_occl": 0.5326
+      }
+    }
+  },
+  "per_seq": {
+    "MVI_39031": {
+      "n_nat_gaps": 28,
+      "gt_route": 0,
+      "gt_route_occl": 0,
+      "gt_dwell": 23,
+      "gt_dwell_occl": 7,
+      "gaplink_route_tp": 0,
+      "gaplink_dwell_tp": 14
+    },
+    "MVI_39051": {
+      "n_nat_gaps": 4,
+      "gt_route": 15,
+      "gt_route_occl": 4,
+      "gt_dwell": 1,
+      "gt_dwell_occl": 0,
+      "gaplink_route_tp": 1,
+      "gaplink_dwell_tp": 0
+    },
+    "MVI_39211": {
+      "n_nat_gaps": 10,
+      "gt_route": 8,
+      "gt_route_occl": 1,
+      "gt_dwell": 10,
+      "gt_dwell_occl": 0,
+      "gaplink_route_tp": 4,
+      "gaplink_dwell_tp": 3
+    },
+    "MVI_39271": {
+      "n_nat_gaps": 24,
+      "gt_route": 34,
+      "gt_route_occl": 6,
+      "gt_dwell": 14,
+      "gt_dwell_occl": 5,
+      "gaplink_route_tp": 3,
+      "gaplink_dwell_tp": 5
+    },
+    "MVI_39311": {
+      "n_nat_gaps": 124,
+      "gt_route": 28,
+      "gt_route_occl": 15,
+      "gt_dwell": 41,
+      "gt_dwell_occl": 7,
+      "gaplink_route_tp": 10,
+      "gaplink_dwell_tp": 15
+    },
+    "MVI_39361": {
+      "n_nat_gaps": 32,
+      "gt_route": 0,
+      "gt_route_occl": 0,
+      "gt_dwell": 7,
+      "gt_dwell_occl": 3,
+      "gaplink_route_tp": 0,
+      "gaplink_dwell_tp": 4
+    },
+    "MVI_39371": {
+      "n_nat_gaps": 29,
+      "gt_route": 0,
+      "gt_route_occl": 0,
+      "gt_dwell": 5,
+      "gt_dwell_occl": 0,
+      "gaplink_route_tp": 0,
+      "gaplink_dwell_tp": 1
+    },
+    "MVI_39401": {
+      "n_nat_gaps": 34,
+      "gt_route": 16,
+      "gt_route_occl": 2,
+      "gt_dwell": 31,
+      "gt_dwell_occl": 5,
+      "gaplink_route_tp": 3,
+      "gaplink_dwell_tp": 3
+    },
+    "MVI_39501": {
+      "n_nat_gaps": 25,
+      "gt_route": 2,
+      "gt_route_occl": 1,
+      "gt_dwell": 11,
+      "gt_dwell_occl": 3,
+      "gaplink_route_tp": 1,
+      "gaplink_dwell_tp": 8
+    },
+    "MVI_39511": {
+      "n_nat_gaps": 15,
+      "gt_route": 2,
+      "gt_route_occl": 2,
+      "gt_dwell": 5,
+      "gt_dwell_occl": 3,
+      "gaplink_route_tp": 1,
+      "gaplink_dwell_tp": 4
+    },
+    "MVI_40701": {
+      "n_nat_gaps": 77,
+      "gt_route": 24,
+      "gt_route_occl": 9,
+      "gt_dwell": 43,
+      "gt_dwell_occl": 8,
+      "gaplink_route_tp": 4,
+      "gaplink_dwell_tp": 10
+    },
+    "MVI_40711": {
+      "n_nat_gaps": 22,
+      "gt_route": 0,
+      "gt_route_occl": 0,
+      "gt_dwell": 5,
+      "gt_dwell_occl": 0,
+      "gaplink_route_tp": 0,
+      "gaplink_dwell_tp": 2
+    },
+    "MVI_40712": {
+      "n_nat_gaps": 40,
+      "gt_route": 0,
+      "gt_route_occl": 0,
+      "gt_dwell": 31,
+      "gt_dwell_occl": 2,
+      "gaplink_route_tp": 0,
+      "gaplink_dwell_tp": 7
+    },
+    "MVI_40714": {
+      "n_nat_gaps": 180,
+      "gt_route": 1,
+      "gt_route_occl": 0,
+      "gt_dwell": 41,
+      "gt_dwell_occl": 8,
+      "gaplink_route_tp": 1,
+      "gaplink_dwell_tp": 26
+    },
+    "MVI_40742": {
+      "n_nat_gaps": 73,
+      "gt_route": 1,
+      "gt_route_occl": 1,
+      "gt_dwell": 16,
+      "gt_dwell_occl": 0,
+      "gaplink_route_tp": 0,
+      "gaplink_dwell_tp": 16
+    },
+    "MVI_40743": {
+      "n_nat_gaps": 28,
+      "gt_route": 21,
+      "gt_route_occl": 4,
+      "gt_dwell": 30,
+      "gt_dwell_occl": 0,
+      "gaplink_route_tp": 4,
+      "gaplink_dwell_tp": 7
+    },
+    "MVI_40761": {
+      "n_nat_gaps": 268,
+      "gt_route": 26,
+      "gt_route_occl": 22,
+      "gt_dwell": 23,
+      "gt_dwell_occl": 13,
+      "gaplink_route_tp": 15,
+      "gaplink_dwell_tp": 13
+    },
+    "MVI_40762": {
+      "n_nat_gaps": 102,
+      "gt_route": 0,
+      "gt_route_occl": 0,
+      "gt_dwell": 11,
+      "gt_dwell_occl": 2,
+      "gaplink_route_tp": 0,
+      "gaplink_dwell_tp": 9
+    },
+    "MVI_40763": {
+      "n_nat_gaps": 133,
+      "gt_route": 26,
+      "gt_route_occl": 22,
+      "gt_dwell": 9,
+      "gt_dwell_occl": 4,
+      "gaplink_route_tp": 12,
+      "gaplink_dwell_tp": 4
+    },
+    "MVI_40771": {
+      "n_nat_gaps": 35,
+      "gt_route": 0,
+      "gt_route_occl": 0,
+      "gt_dwell": 2,
+      "gt_dwell_occl": 1,
+      "gaplink_route_tp": 0,
+      "gaplink_dwell_tp": 1
+    },
+    "MVI_40772": {
+      "n_nat_gaps": 24,
+      "gt_route": 0,
+      "gt_route_occl": 0,
+      "gt_dwell": 9,
+      "gt_dwell_occl": 0,
+      "gaplink_route_tp": 0,
+      "gaplink_dwell_tp": 9
+    },
+    "MVI_40773": {
+      "n_nat_gaps": 29,
+      "gt_route": 7,
+      "gt_route_occl": 4,
+      "gt_dwell": 12,
+      "gt_dwell_occl": 1,
+      "gaplink_route_tp": 5,
+      "gaplink_dwell_tp": 7
+    },
+    "MVI_40774": {
+      "n_nat_gaps": 4,
+      "gt_route": 2,
+      "gt_route_occl": 0,
+      "gt_dwell": 7,
+      "gt_dwell_occl": 0,
+      "gaplink_route_tp": 2,
+      "gaplink_dwell_tp": 5
+    },
+    "MVI_40775": {
+      "n_nat_gaps": 74,
+      "gt_route": 0,
+      "gt_route_occl": 0,
+      "gt_dwell": 4,
+      "gt_dwell_occl": 0,
+      "gaplink_route_tp": 0,
+      "gaplink_dwell_tp": 3
+    },
+    "MVI_40792": {
+      "n_nat_gaps": 15,
+      "gt_route": 5,
+      "gt_route_occl": 1,
+      "gt_dwell": 10,
+      "gt_dwell_occl": 2,
+      "gaplink_route_tp": 1,
+      "gaplink_dwell_tp": 3
+    },
+    "MVI_40793": {
+      "n_nat_gaps": 80,
+      "gt_route": 32,
+      "gt_route_occl": 12,
+      "gt_dwell": 15,
+      "gt_dwell_occl": 8,
+      "gaplink_route_tp": 13,
+      "gaplink_dwell_tp": 7
+    },
+    "MVI_40851": {
+      "n_nat_gaps": 90,
+      "gt_route": 10,
+      "gt_route_occl": 3,
+      "gt_dwell": 35,
+      "gt_dwell_occl": 4,
+      "gaplink_route_tp": 2,
+      "gaplink_dwell_tp": 21
+    },
+    "MVI_40852": {
+      "n_nat_gaps": 100,
+      "gt_route": 7,
+      "gt_route_occl": 4,
+      "gt_dwell": 58,
+      "gt_dwell_occl": 10,
+      "gaplink_route_tp": 3,
+      "gaplink_dwell_tp": 27
+    },
+    "MVI_40853": {
+      "n_nat_gaps": 125,
+      "gt_route": 0,
+      "gt_route_occl": 0,
+      "gt_dwell": 43,
+      "gt_dwell_occl": 5,
+      "gaplink_route_tp": 0,
+      "gaplink_dwell_tp": 22
+    },
+    "MVI_40854": {
+      "n_nat_gaps": 34,
+      "gt_route": 0,
+      "gt_route_occl": 0,
+      "gt_dwell": 65,
+      "gt_dwell_occl": 7,
+      "gaplink_route_tp": 0,
+      "gaplink_dwell_tp": 35
+    },
+    "MVI_40855": {
+      "n_nat_gaps": 139,
+      "gt_route": 18,
+      "gt_route_occl": 7,
+      "gt_dwell": 37,
+      "gt_dwell_occl": 3,
+      "gaplink_route_tp": 11,
+      "gaplink_dwell_tp": 26
+    },
+    "MVI_40863": {
+      "n_nat_gaps": 109,
+      "gt_route": 0,
+      "gt_route_occl": 0,
+      "gt_dwell": 18,
+      "gt_dwell_occl": 4,
+      "gaplink_route_tp": 0,
+      "gaplink_dwell_tp": 12
+    },
+    "MVI_40864": {
+      "n_nat_gaps": 206,
+      "gt_route": 15,
+      "gt_route_occl": 12,
+      "gt_dwell": 30,
+      "gt_dwell_occl": 9,
+      "gaplink_route_tp": 8,
+      "gaplink_dwell_tp": 16
+    },
+    "MVI_40891": {
+      "n_nat_gaps": 263,
+      "gt_route": 0,
+      "gt_route_occl": 0,
+      "gt_dwell": 31,
+      "gt_dwell_occl": 5,
+      "gaplink_route_tp": 0,
+      "gaplink_dwell_tp": 19
+    },
+    "MVI_40892": {
+      "n_nat_gaps": 183,
+      "gt_route": 1,
+      "gt_route_occl": 0,
+      "gt_dwell": 36,
+      "gt_dwell_occl": 10,
+      "gaplink_route_tp": 0,
+      "gaplink_dwell_tp": 23
+    },
+    "MVI_40901": {
+      "n_nat_gaps": 79,
+      "gt_route": 20,
+      "gt_route_occl": 4,
+      "gt_dwell": 5,
+      "gt_dwell_occl": 0,
+      "gaplink_route_tp": 5,
+      "gaplink_dwell_tp": 3
+    },
+    "MVI_40902": {
+      "n_nat_gaps": 69,
+      "gt_route": 1,
+      "gt_route_occl": 1,
+      "gt_dwell": 0,
+      "gt_dwell_occl": 0,
+      "gaplink_route_tp": 0,
+      "gaplink_dwell_tp": 0
+    },
+    "MVI_40903": {
+      "n_nat_gaps": 109,
+      "gt_route": 38,
+      "gt_route_occl": 16,
+      "gt_dwell": 44,
+      "gt_dwell_occl": 12,
+      "gaplink_route_tp": 19,
+      "gaplink_dwell_tp": 21
+    },
+    "MVI_40904": {
+      "n_nat_gaps": 124,
+      "gt_route": 6,
+      "gt_route_occl": 6,
+      "gt_dwell": 13,
+      "gt_dwell_occl": 4,
+      "gaplink_route_tp": 5,
+      "gaplink_dwell_tp": 7
+    },
+    "MVI_40905": {
+      "n_nat_gaps": 122,
+      "gt_route": 25,
+      "gt_route_occl": 3,
+      "gt_dwell": 20,
+      "gt_dwell_occl": 5,
+      "gaplink_route_tp": 9,
+      "gaplink_dwell_tp": 11
+    }
+  }
+}

@@ -7,10 +7,14 @@ Packaged end-to-end with **Live YOLOv8n + Online 128-bin HSV Extraction** into *
 2. **Restricted-Zone Anti-Loitering / Dwell-Time Alerts (`Dwell > T_max` across passing occluders)**
 3. **Click-to-Lock Suspect Target Pursuit (`2σ` Gaussian Search Zone & Dustbin Safe-Hold)**
 
-## Key Results on Locked UA-DETRAC Test Split (40 Sequences)
-- **5-Seed Event-Level Accuracy (`12,000` locked test events):** **`93.64% ± 0.14%`** Top-1 (`93.41%` Seed 1) vs. `80.29%` for Kalman+Mahalanobis (`C-3`), cutting Wrong-Link Rate (WLR) by **$6.5\times$** (`19.24% → 2.98%`).
-- **Online Tracker Identity Recovery (`1,922` controlled occlusions):** **`96.20%` IRR / `99.11%` IDF1** (full occlusion) and **`95.99%` IRR / `99.02%` IDF1** (partial occlusion).
-- **Live YOLOv8n End-to-End Speed (Laptop RTX 3050 6GB):** **`12.54 ms/frame` (`79.7 FPS`)** single-frame streaming latency (`9.99 ms` YOLOv8n + `1.45 ms` online HSV + `1.10 ms` GapLink-Lite VMS).
+## Key Results on Locked UA-DETRAC Test Split (40 sequences, 15 camera locations)
+Frozen checkpoint `release/final.pt` (SHA256 `844fc391…`). All numbers: `release/FROZEN_RESULTS.md`, sources `release/results_v1.1/*.json`; verify with `python scripts/freeze_results.py`. Protocol deviations (incl. a second test run after a data bug fix): `docs/DEVIATIONS.md`.
+
+- **Event level (12,000 events):** Top-1 **93.41%**, WLR **3.01%** (5-seed mean 93.64% ± 0.14%) vs. C-3 Kalman+Mahalanobis 80.29% / 19.24%. CIs: paired bootstrap over camera locations (`release/results_v1.1/location_bootstrap.json`).
+- **Online tracker (1,922 injected occlusions):** IRR **96.20%** / IDF1 **99.11%** (full), **95.99%** / **99.02%** (partial); IRR gain over C-3 +11.24 pp, location-bootstrap 95% CI [9.10, 14.35].
+- **Pre-registered hypotheses:** H1 supported, **H2 not supported** (calibrated long-gap coverage 95.14% val / 95.86% test > 95%), H3 supported, P1 passed.
+- **Live YOLOv8n + GapLink-VMS (40 raw test videos):** Nat-IRR 87.30%, Nat-WLR 10.20% at the v1.1 point (τ = 0.25); v1.2 live operating point selected on validation — see `release/live_v1.2.yaml`.
+- **Speed (RTX 3050 Laptop 6GB, batch 1, dense intersection):** **28.95 ms/frame (34.5 FPS)** = 12.53 ms YOLOv8n + 3.26 ms HSV/NMS + 13.16 ms GapLink-Lite + VMS.
 
 ## Quick Start & Reproduce Commands
 ```powershell
