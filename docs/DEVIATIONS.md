@@ -74,3 +74,9 @@ chính thức dùng đúng câu chữ PREREG. Bằng chứng: `git log`, tag `v1
 - PREREG §3: "IRR cao nhất thỏa WLR ≤ 5%". `scripts/calibrate_and_freeze.py` chọn τ theo **Top-1 cấp sự kiện** thỏa WLR ≤ 5%.
 - Trên val, Top-1 gần như phẳng theo τ (93,16–93,17% với τ ∈ [0,05; 0,30]) nên ảnh hưởng thực tế nhỏ, nhưng vẫn là sai lệch tiêu chí.
   Phiên bản live v1.2 dùng đúng IRR (Nat-IRR) theo PREREG.
+
+## D12. Mở rộng tập ứng viên live v1.2 sau khi xem val (trước mọi lần chạy test v1.2)
+- Kết quả val giữa chừng (họ A, chỉ ngưỡng τ) cho thấy GapLink chỉ đạt Nat-WLR ≤ 5% khi τ ≥ 0,85 và Nat-IRR thấp hơn C-2.
+- Quét val họ A bị dừng tay (Ctrl+C) ở 10/13 video, chưa ghi `release/live_v1.2.yaml`, chưa commit/tag lựa chọn nào; bước test bị chặn thêm bằng `release/live_v1.2.HOLD`.
+- Thêm họ B (GapLink có cổng Gaussian từ chính μ, σ của mô hình), tập ứng viên + quy tắc ghi ở `docs/PREREG_live_v1.2.md`,
+  commit/tag `v1.2b-prereg` trước khi đánh giá họ B. Không retrain, không đổi checkpoint. Test v1.2 vẫn chạy đúng một lần.
