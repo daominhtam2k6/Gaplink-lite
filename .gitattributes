@@ -1,0 +1,5 @@
+# Frozen artifacts are SHA256-pinned (release/FREEZE_MANIFEST.json): never convert line endings.
+release/** -text
+docs/PREREG.md -text
+*.pt binary
+*.pkl binary
