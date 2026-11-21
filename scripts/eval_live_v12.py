@@ -54,7 +54,8 @@ def paths():
     return root if root.exists() else ROOT
 
 
-def make_assoc(kind, thr, tcfg, model, device):
+def make_assoc(kind, thr, tcfg, models, device):
+    model = models["final"]
     from src.baselines import ConstantVelocityBaseline, KalmanMahalanobisBaseline
     from src.model.gaplink import GapLinkAssociator
     if kind == "C-1":
@@ -68,6 +69,8 @@ def make_assoc(kind, thr, tcfg, model, device):
                                          lambda_c=float(tcfg["c4_lambda_c"]), name="C-4")
     if kind == "GapLink-Lite":
         return GapLinkAssociator(model, device=device, tau=float(thr), calib=None)
+    if kind == "GapLink-v13":
+        return GapLinkAssociator(models["v13"], device=device, tau=float(thr), calib=None)
     if kind == "GapLink-Gated":
         from src.gated_assoc import CHI2_2D, make_gated_associator
         gate, tau = thr
@@ -75,7 +78,8 @@ def make_assoc(kind, thr, tcfg, model, device):
     raise ValueError(kind)
 
 
-def run_split(root: Path, seqs: list[str], configs: list[tuple[str, str, float]], out_dir: Path, cache_name: str):
+def run_split(root: Path, seqs: list[str], configs: list[tuple[str, str, float]], out_dir: Path, cache_name: str,
+              extra_ckpts: dict | None = None):
     """configs: (label, kind, threshold). Returns {label: {seq: counts}}; per-seq results cached in out_dir."""
     import torch
     import scripts.eval_live_security as els
@@ -87,10 +91,17 @@ def run_split(root: Path, seqs: list[str], configs: list[tuple[str, str, float]]
     els.CACHE_DIR = root / "data" / "cache" / cache_name
     tcfg = yaml.safe_load((root / "release" / "tracker.yaml").read_text(encoding="utf-8"))
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    ckpt = torch.load(root / "release" / "final.pt", map_location=device, weights_only=False)
-    model = GapLinkLite(use_ctx=True, use_color=True, gap_aware=True).to(device)
-    model.load_state_dict(ckpt["model"])
-    model.eval()
+
+    def load(p):
+        m = GapLinkLite(use_ctx=True, use_color=True, gap_aware=True).to(device)
+        m.load_state_dict(torch.load(p, map_location=device, weights_only=False)["model"])
+        return m.eval()
+
+    model = load(root / "release" / "final.pt")
+    models = {"final": model}
+    if extra_ckpts:
+        for k, p in extra_ckpts.items():
+            models[k] = load(p)
     detector = LiveVehicleDetector(imgsz=640, conf_thr=0.28, nms_iou=0.52)
 
     seq_dir = out_dir / "per_seq"
@@ -108,7 +119,7 @@ def run_split(root: Path, seqs: list[str], configs: list[tuple[str, str, float]]
             zones, _, _, _ = els.build_adaptive_security_zones(seq)
             gt_sets = els.compute_yolo_observable_security_gt(seq, zones, det_gt_map, dets)
             for lbl, kind, thr in todo:
-                assoc = make_assoc(kind, thr, tcfg, model, device)
+                assoc = make_assoc(kind, thr, tcfg, models, device)
                 done[lbl] = run_method_on_seq(seq, dets, det_gt_map, nat_gaps, zones, gt_sets, assoc, tcfg)
                 cp.write_text(json.dumps(done), encoding="utf-8")
         for lbl, _, _ in configs:
@@ -216,14 +227,121 @@ def cmd_test(root: Path):
         print("WARNING: parity failed - do not report v1.2 until the scorer difference is explained")
 
 
+# ---------------------------------------------------------------- v1.3 (detector-aware checkpoint) ----
+V13_YAML = "live_v1.3.yaml"
+
+
+def cmd_select_v13(root: Path, ckpt: Path):
+    """Val sweep for docs/PREREG_live_v1.3.md: GapLink family = {final.pt, live_v1.3 ckpt} x TAU_GRID."""
+    import csv
+    from src.live_eval import select_operating_point
+    splits = list(csv.DictReader(open(root / "data" / "splits.csv", encoding="utf-8")))
+    val_seqs = [r["seq"] for r in splits if r["split"] == "val"]
+    configs = [("C-1", "C-1", 0.0)]
+    configs += [(f"GapLink-Lite@{t}", "GapLink-Lite", t) for t in TAU_GRID]
+    configs += [(f"GapLink-v13@{t}", "GapLink-v13", t) for t in TAU_GRID]
+    for k, grid in THETA_GRID.items():
+        configs += [(f"{k}@{t}", k, t) for t in grid]
+    ck_sha = sha256_file(ckpt)
+    cache_dir = root / "runs" / "live_v12_val"  # shared per-seq cache; v13 labels are distinct
+    # guard: cached v13 rows must come from this exact checkpoint
+    stamp = cache_dir / "v13_ckpt.sha256"
+    if stamp.exists() and stamp.read_text().strip() != ck_sha:
+        raise SystemExit("cached GapLink-v13 rows were produced by a different checkpoint; delete them first")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    stamp.write_text(ck_sha)
+    per = run_split(root, val_seqs, configs, cache_dir, cache_name="yolo_val", extra_ckpts={"v13": ckpt})
+    sweep = {}
+    for lbl, kind, thr in configs:
+        sm = aggregate(per[lbl])
+        sweep[lbl] = {"kind": kind, "thr": thr, **sm["natural_occlusion"], "route": sm["forbidden_route"], "dwell": sm["dwell_alert"]}
+    chosen = {}
+    families = {"GapLink-Lite": ("GapLink-Lite", "GapLink-v13"), **{k: (k,) for k in THETA_GRID}}
+    order = {"GapLink-Lite": 0, "GapLink-v13": 1}
+    for fam, kinds in families.items():
+        rows = [{"label": l, "kind": v["kind"], "thr": v["thr"], "nat_irr": v["nat_irr"], "nat_wlr": v["nat_wlr"]}
+                for l, v in sweep.items() if v["kind"] in kinds]
+        rows.sort(key=lambda r: order.get(r["kind"], 0))  # tie-break: unchanged model first
+        chosen[fam] = select_operating_point(rows, wlr_max=WLR_MAX)
+    out_dir = root / "runs" / "live_v13_val"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    res = {"split": "val", "n_seqs": len(val_seqs), "wlr_max": WLR_MAX, "git_commit": git_commit(root),
+           "final_sha256": sha256_file(root / "release" / "final.pt"), "v13_ckpt": str(ckpt), "v13_sha256": ck_sha,
+           "sweep": sweep, "chosen": chosen}
+    (out_dir / "select.json").write_text(json.dumps(res, indent=2), encoding="utf-8")
+    gl = chosen["GapLink-Lite"]
+    op = {"version": "1.3-live", "selected_on": "val (13 videos, 4 locations), YOLOv8n imgsz640 conf0.28",
+          "rule": f"PREREG §3 via docs/PREREG_live_v1.3.md: max Nat-IRR s.t. Nat-WLR <= {WLR_MAX}; else min Nat-WLR",
+          "final_sha256": res["final_sha256"], "v13_ckpt": str(Path(ckpt).relative_to(root)) if str(ckpt).startswith(str(root)) else str(ckpt),
+          "v13_sha256": ck_sha, "val_select_sha256": sha256_file(out_dir / "select.json"),
+          "gaplink_kind_live": gl["kind"], "gaplink_tau_live": gl["thr"],
+          "c2_theta_live": chosen["C-2"]["thr"], "c3_theta_live": chosen["C-3"]["thr"], "c4_theta_live": chosen["C-4"]["thr"]}
+    (root / "release" / V13_YAML).write_text(yaml.safe_dump(op, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    print(json.dumps(chosen, indent=2))
+    print(f"wrote release/{V13_YAML} -> commit it BEFORE running --test --version v13")
+
+
+def cmd_test_v13(root: Path):
+    import csv
+    hold = root / "release" / "live_v1.3.HOLD"
+    if hold.exists():
+        raise SystemExit(f"test run blocked by {hold}")
+    op_p = root / "release" / V13_YAML
+    if not op_p.exists():
+        raise SystemExit(f"release/{V13_YAML} missing: run --select --version v13 first")
+    op = yaml.safe_load(op_p.read_text(encoding="utf-8"))
+    ckpt = root / op["v13_ckpt"] if not Path(op["v13_ckpt"]).is_absolute() else Path(op["v13_ckpt"])
+    assert sha256_file(root / "release" / "final.pt") == op["final_sha256"], "final.pt changed"
+    assert sha256_file(ckpt) == op["v13_sha256"], "v1.3 checkpoint changed"
+    assert sha256_file(root / "runs" / "live_v13_val" / "select.json") == op["val_select_sha256"], "val selection changed"
+    out_dir = root / "runs" / "live_v13_test"
+    final = out_dir / "live_v13_results.json"
+    if final.exists():
+        raise SystemExit(f"{final} exists: the v1.3 live test run is single-shot")
+    tcfg = yaml.safe_load((root / "release" / "tracker.yaml").read_text(encoding="utf-8"))
+    splits = list(csv.DictReader(open(root / "data" / "splits.csv", encoding="utf-8")))
+    test_seqs = [r["seq"] for r in splits if r["split"] == "test"]
+    configs = [
+        ("C-1", "C-1", 0.0),
+        ("v1.1/C-2", "C-2", tcfg["c2_theta"]), ("v1.1/C-3", "C-3", tcfg["c3_theta"]),
+        ("v1.1/C-4", "C-4", tcfg["c4_theta"]), ("v1.1/GapLink-Lite", "GapLink-Lite", tcfg["gaplink_tau"]),
+        ("v1.3/C-2", "C-2", op["c2_theta_live"]), ("v1.3/C-3", "C-3", op["c3_theta_live"]),
+        ("v1.3/C-4", "C-4", op["c4_theta_live"]), ("v1.3/GapLink-Lite", op["gaplink_kind_live"], op["gaplink_tau_live"]),
+    ]
+    per = run_split(root, test_seqs, configs, out_dir, cache_name="yolo_test", extra_ckpts={"v13": ckpt})
+    methods = {lbl: aggregate(per[lbl]) for lbl, _, _ in configs}
+    frozen = json.loads((root / "runs" / "test_final" / "live_security_results.json").read_text(encoding="utf-8"))["methods"]
+    parity = {lbl: methods[lbl]["raw_counts"] == frozen[fk]["raw_counts"]
+              for lbl, fk in [("C-1", "C-1"), ("v1.1/C-2", "C-2"), ("v1.1/C-3", "C-3"), ("v1.1/C-4", "C-4"),
+                              ("v1.1/GapLink-Lite", "GapLink-Lite")]}
+    res = {"split": "test", "n_seqs": len(test_seqs), "git_commit": git_commit(root), "operating_points": op,
+           "parity_with_v1.1": parity, "methods": methods, "per_seq_counts": per}
+    final.write_text(json.dumps(res, indent=2), encoding="utf-8")
+    print(json.dumps(parity, indent=2))
+    for lbl in methods:
+        print(lbl, methods[lbl]["natural_occlusion"], methods[lbl]["forbidden_route"], methods[lbl]["dwell_alert"])
+    if not all(parity.values()):
+        print("WARNING: parity failed - do not report v1.3 until the scorer difference is explained")
+
+
 def main():
     ap = argparse.ArgumentParser()
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--select", action="store_true")
     g.add_argument("--test", action="store_true")
+    ap.add_argument("--version", choices=["v12", "v13"], default="v12")
+    ap.add_argument("--ckpt", default=None, help="v13: detector-aware checkpoint (runs/live_v13_s<seed>/best.pt)")
     a = ap.parse_args()
     root = paths()
-    cmd_select(root) if a.select else cmd_test(root)
+    if a.version == "v13":
+        if a.select:
+            if not a.ckpt:
+                raise SystemExit("--ckpt required for --select --version v13")
+            cmd_select_v13(root, Path(a.ckpt) if Path(a.ckpt).is_absolute() else root / a.ckpt)
+        else:
+            cmd_test_v13(root)
+    else:
+        cmd_select(root) if a.select else cmd_test(root)
 
 
 if __name__ == "__main__":

@@ -80,3 +80,8 @@ chính thức dùng đúng câu chữ PREREG. Bằng chứng: `git log`, tag `v1
 - Quét val họ A bị dừng tay (Ctrl+C) ở 10/13 video, chưa ghi `release/live_v1.2.yaml`, chưa commit/tag lựa chọn nào; bước test bị chặn thêm bằng `release/live_v1.2.HOLD`.
 - Thêm họ B (GapLink có cổng Gaussian từ chính μ, σ của mô hình), tập ứng viên + quy tắc ghi ở `docs/PREREG_live_v1.2.md`,
   commit/tag `v1.2b-prereg` trước khi đánh giá họ B. Không retrain, không đổi checkpoint. Test v1.2 vẫn chạy đúng một lần.
+
+## D13. Bỏ v1.2/v1.2b trước test, chuyển sang live v1.3 (checkpoint riêng cho chế độ live)
+- v1.2b dừng tay khi quét val; không có test nào chạy ở v1.2/v1.2b. Họ B (cổng Gaussian) là kết quả âm trên val (một phần video).
+- v1.3 thêm checkpoint `release/live_v1.3.pt` fine-tune trên sự kiện YOLO của tập train; chỉ dùng cho chế độ live.
+  Kế hoạch khóa ở `docs/PREREG_live_v1.3.md` (tag `v1.3-prereg`) trước khi sinh dữ liệu và huấn luyện.
