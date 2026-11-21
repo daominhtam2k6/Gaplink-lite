@@ -13,6 +13,7 @@
 \renewcommand{\appendixname}{Phụ lục}
 \renewcommand{\listfigurename}{Danh mục Hình vẽ}
 \renewcommand{\listtablename}{Danh mục Bảng biểu}
+\AtBeginDocument{\renewcommand{\lstlistingname}{Đoạn mã}}
 
 \begin{document}
 
@@ -40,26 +41,35 @@
         \toprule
         \textbf{Từ viết tắt} & \textbf{Định nghĩa / Mô tả đầy đủ} \\
         \midrule
-        \textbf{AI}   & Trí tuệ nhân tạo (Artificial Intelligence) \\
-        \textbf{SIC}  & Samsung Innovation Campus \\
-        \textbf{MOT}  & Theo dõi đa đối tượng (Multi-Object Tracking) \\
-        \textbf{ID}   & Định danh đối tượng (Object Identity) \\
-        \textbf{IRR}  & Tỷ lệ khôi phục định danh (Nat-IRR: trên khoảng mất dấu tự nhiên của detector) \\
-        \textbf{WLR}  & Tỷ lệ ghép nhầm định danh (Nat-WLR: trên khoảng mất dấu tự nhiên) \\
-        \textbf{IDF1} & Chỉ số F1 cho định danh (ID F1-Score) \\
-        \textbf{IDSW} & Số lần chuyển định danh (ID Switches) \\
+        \textbf{AI} & Trí tuệ nhân tạo (Artificial Intelligence) \\
+        \textbf{CI} & Khoảng tin cậy (KTC; bootstrap ghép cặp theo địa điểm camera) \\
+        \textbf{CPU / GPU} & Bộ xử lý trung tâm / đồ họa \\
+        \textbf{CV} & Vận tốc không đổi (mô hình chuyển động) \\
+        \textbf{EMA} & Trung bình trượt hàm mũ \\
+        \textbf{FPS} & Số khung hình mỗi giây \\
+        \textbf{GRU} & Gated Recurrent Unit (mạng hồi quy có cổng) \\
+        \textbf{GT} & Ground truth (nhãn thật) \\
+        \textbf{HSV} & Sắc độ--Độ bão hòa--Giá trị (histogram màu) \\
+        \textbf{ID} & Danh tính của đối tượng được theo dõi \\
+        \textbf{IDF1} & Điểm F1 theo danh tính \\
+        \textbf{IDSW} & Số lần đổi danh tính \\
+        \textbf{IoU} & Tỉ lệ giao trên hợp (Intersection over Union) \\
+        \textbf{IRR} & Tỉ lệ khôi phục danh tính (Nat-IRR: trên khoảng trống tự nhiên của detector) \\
+        \textbf{MOT} & Theo dõi đa đối tượng (Multi-Object Tracking) \\
         \textbf{MOTA} & Độ chính xác theo dõi đa đối tượng \\
-        \textbf{NLL}  & Log-likelihood âm (Negative Log-Likelihood) \\
-        \textbf{OT}   & Vận chuyển tối ưu (Optimal Transport, Sinkhorn) \\
-        \textbf{GRU}  & Mạng hồi quy có cổng (Gated Recurrent Unit) \\
-        \textbf{HSV}  & Histogram màu Hue--Saturation--Value \\
-        \textbf{CI}   & Khoảng tin cậy (bootstrap theo địa điểm camera) \\
-        \textbf{YOLO} & You Only Look Once (detector YOLOv8n) \\
-        \textbf{VMS}  & Hệ thống quản lý video (bảng điều khiển GapLink-VMS) \\
+        \textbf{NLL} & Negative log-likelihood (log-hợp lý âm) \\
+        \textbf{OT} & Vận chuyển tối ưu (Sinkhorn) \\
         \textbf{PREREG} & Tiền đăng ký giả thuyết và giao thức (\texttt{docs/PREREG.md}) \\
+        \textbf{SIC} & Samsung Innovation Campus \\
+        \textbf{SSE} & Server-Sent Events (luồng video trực tiếp của bảng điều khiển) \\
+        \textbf{VMS} & Hệ thống quản lý video (bảng điều khiển GapLink-VMS) \\
+        \textbf{WLR} & Tỉ lệ liên kết sai (Nat-WLR: trên khoảng trống tự nhiên của detector) \\
+        \textbf{YOLO} & You Only Look Once (detector YOLOv8n) \\
         \bottomrule
     \end{tabularx}
 \end{table}
+
+\noindent\textit{Quy ước số liệu:} dấu chấm là dấu thập phân, khoảng trắng hẹp phân tách hàng nghìn (ví dụ $327\,979$; $93.41\%$), giữ nguyên như trong các file kết quả.
 \clearpage
 
 \pagenumbering{arabic}

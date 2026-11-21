@@ -1,7 +1,7 @@
 \chapter{Nhận xét và Đánh giá của Thành viên}
 \label{chap:team_review}
 
-% Author photograph (template: team picture). Shown only if figures/author_photo.jpg exists.
+% Ảnh tác giả (template: ảnh nhóm). Chỉ hiển thị nếu có figures/author_photo.jpg.
 \IfFileExists{figures/author_photo.jpg}{%
 \begin{figure}[htbp]
     \centering
@@ -14,17 +14,20 @@
 \noindent
 \begin{table}[htbp]
     \centering
-    \caption{Nhận xét và Tự đánh giá của Thành viên thực hiện}
+    \caption{Nhận xét và đánh giá của từng thành viên}
     \label{tab:team_member_comments}
     \renewcommand{\arraystretch}{2.0}
     \arrayrulecolor{SamsungGray}
     \begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash\sffamily}p{3.2cm}|>{\raggedright\arraybackslash}X|}
         \hline
         \rowcolor{SamsungLightBlue}
-        \multicolumn{1}{|c|}{\sffamily\bfseries\color{SamsungDarkGray}HỌ VÀ TÊN} & 
-        \multicolumn{1}{c|}{\sffamily\bfseries\color{SamsungDarkGray}NHẬN XÉT VÀ TỰ ĐÁNH GIÁ} \\
+        \multicolumn{1}{|c|}{\sffamily\bfseries\color{SamsungDarkGray}HỌ TÊN} & 
+        \multicolumn{1}{c|}{\sffamily\bfseries\color{SamsungDarkGray}NHẬN XÉT và ĐÁNH GIÁ} \\
         \hline
-        \textbf{\memberOne} & Thiết kế, kiểm toán và đánh giá GapLink-Lite qua 5 seed ngẫu nhiên và 1.922 khoảng che khuất trên bộ dữ liệu UA-DETRAC đã làm sạch. Quá trình tự kiểm toán kỹ lưỡng đã xử lý triệt để các sai lệch dữ liệu (tách $528.798$ dòng ignore, công bố $72.714$ hộp bị lọc), loại bỏ rò rỉ màu sắc khi che khuất một phần bằng histogram 5 góc nhìn, đồng bộ $a_{\max}=95$ với gap $90$ khung hình, đối chiếu đường cong WLR tương đương, tách cụm camera trùng/mới và kiểm chứng chỉ số IDF1/MOTA/IDSW. \\
+        \textbf{\memberOne} & \textbf{Vai trò:} Chủ nhiệm đồ án (đồ án cá nhân): xác định bài toán, dữ liệu, mô hình, đánh giá, ứng dụng và báo cáo.\newline
+\textbf{Công việc:} Xác định nhiệm vụ và đăng ký trước các giả thuyết; chuyển đổi, làm sạch UA-DETRAC và xây dựng cách chia theo địa điểm camera; thiết kế, cài đặt và huấn luyện GapLink-Lite cùng các baseline C-1\dots C-4; chạy test Giai đoạn~1 đã khóa và đánh giá trực tiếp Giai đoạn~2; fine-tune checkpoint thích ứng detector; xây dựng và profile bảng điều khiển GapLink-VMS, chọn ba clip trình diễn; viết bộ kiểm thử tự động và báo cáo.\newline
+\textbf{Tự đánh giá:} Kết quả chính vững và kiểm chứng được: hai trong ba giả thuyết đăng ký trước và kiểm tra giao thức đều đạt, và lợi thế so với phép ghép Kalman vẫn còn khi chạy với detector trực tiếp. Điểm yếu là giả thuyết hiệu chuẩn (H2) không đạt, tỉ lệ liên kết sai trực tiếp cao hơn mục tiêu 5\%, và lần chạy test Giai đoạn~1 thứ hai sau khi sửa dữ liệu; tất cả đều được báo cáo công khai.\newline
+\textbf{Nhận xét đồng đội:} Không áp dụng (đồ án cá nhân).\\
         \hline
     \end{tabularx}
 \end{table}
