@@ -2,9 +2,28 @@
 \chapter{Mã nguồn và Chi tiết Cài đặt}
 \label{app:code}
 
-Phụ lục này cung cấp tầng vận chuyển tối ưu Sinkhorn miền log (\texttt{src/model/sinkhorn.py}) cùng toàn bộ hàm lan truyền thuận của \texttt{GapLinkLite} (\texttt{src/model/gaplink.py}).
+Phụ lục này trích các đoạn mã then chốt. Kho mã được tổ chức như sau: \texttt{src/} (nạp dữ liệu, xây dựng sự kiện, mô hình, baseline, tracker, độ đo, quy tắc giám sát), \texttt{train.py} (huấn luyện), \texttt{scripts/} (chuyển đổi, chia tập, đánh giá, đóng băng, vẽ hình, tìm và xuất clip demo), \texttt{demo/} (bảng điều khiển GapLink-VMS), \texttt{release/} (checkpoint, ngưỡng và kết quả đã đóng băng), \texttt{docs/} (tiền đăng ký và nhật ký sai lệch) và \texttt{tests/} (bộ \texttt{pytest}).
 
-\begin{lstlisting}[language=Python, caption={Vận chuyển tối ưu Sinkhorn miền Log (src/model/sinkhorn.py)}, label={lst:sinkhorn_vi}]
+\section{Vòng lặp Huấn luyện}
+Mỗi bước lấy một batch sự kiện che khuất tổng hợp với tỉ lệ sự kiện khó tăng dần, và tối ưu mất mát gán cùng mất mát Gaussian bằng AdamW, khởi động tuyến tính và giảm theo cosine.
+
+\begin{lstlisting}[language=Python, caption={Một bước huấn luyện (train.py, rút gọn)}, label={lst:train}]
+for step in range(1, total_steps + 1):
+    hard_prob = hp_start + (hp_end - hp_start) * min(1.0, step / total_steps / 0.6)
+    lr = base_lr * step / warmup_steps if step <= warmup_steps else \
+         base_lr * 0.5 * (1 + math.cos(math.pi * (step - warmup_steps) / (total_steps - warmup_steps)))
+    for pg in opt.param_groups:
+        pg["lr"] = lr
+    batch = pool_ds.sample_batch(batch_size, hard_prob=hard_prob, rng=rng)
+    losses = model.compute_loss(batch, w_assign=1.0, w_nll=0.5)   # L_assign + 0.5 L_NLL
+    opt.zero_grad(set_to_none=True)
+    losses["loss"].backward()
+    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+    opt.step()
+\end{lstlisting}
+
+\section{Sinkhorn Miền Log với Dustbin}
+\begin{lstlisting}[language=Python, caption={Vận chuyển tối ưu Sinkhorn miền log (src/model/sinkhorn.py)}, label={lst:sinkhorn}]
 def log_sinkhorn(S, z_t, z_c, trk_mask, cand_mask, iters=20):
     B, N, M = S.shape
     neg_inf = -1e9
@@ -29,42 +48,115 @@ def log_sinkhorn(S, z_t, z_c, trk_mask, cand_mask, iters=20):
     return log_alpha
 \end{lstlisting}
 
-\begin{lstlisting}[language=Python, caption={Hàm Forward của GapLinkLite (src/model/gaplink.py)}, label={lst:gaplink_vi}]
-class GapLinkLite(nn.Module):
-    def forward(self, batch):
-        h_i, g_emb, last_box = self.motion_enc(batch["hist"], batch["hist_len"], batch["gap"], batch["W"], batch["H"], gap_aware=self.gap_aware)
-        ctx_i = self.ctx_enc(batch["ctx_lost"], batch["ctx_conf"], batch["ctx_mask_lost"], batch["ctx_mask_conf"], use_ctx=self.use_ctx)
-        mu, logvar = self.predictor(h_i, ctx_i, batch["hist"], batch["hist_len"], batch["gap"], gap_aware=self.gap_aware)
-        S, z_t, z_c = self.scorer(h_i=h_i, ctx_i=ctx_i, g_emb=g_emb, last_box=last_box, mu=mu, logvar=logvar,
-                                  track_color=batch["track_color"], cand=batch["cand"], cand_hist=batch["cand_hist"],
-                                  side=batch.get("side", torch.zeros_like(batch["gap"])), W=batch["W"], H=batch["H"],
-                                  use_color=self.use_color, training=self.training)
-        logP = log_sinkhorn(S, z_t, z_c, batch["trk_mask"], batch["cand_mask"], iters=self.sinkhorn_iters)
-        pred_box, sigma_px = decode_predicted_boxes(last_box, mu, logvar)
-        return {"logP": logP, "P": torch.exp(logP), "mu": mu, "logvar": logvar, "pred_box": pred_box, "sigma_px": sigma_px}
+\section{Mất mát Gán}
+\begin{lstlisting}[language=Python, caption={Negative log-likelihood của phép gán đúng (src/model/sinkhorn.py)}, label={lst:assign_loss}]
+def assignment_loss(logP, label, cand_label, tm, cm):
+    B, N1, M1 = logP.shape
+    N, M = N1 - 1, M1 - 1
+    # lost track -> its true candidate, or the dustbin column if it has none
+    t_target = torch.where(label >= 0, label, torch.full_like(label, M)).clamp(0, M)
+    row_logp = logP[:, :N, :].gather(2, t_target.unsqueeze(-1)).squeeze(-1)
+    loss_t, n_t = -(row_logp * tm.float()).sum(), tm.float().sum().clamp(min=1.0)
+    # candidate without a lost track -> dustbin row
+    unmatched_c = cm & (cand_label < 0)
+    loss_c = -(logP[:, N, :M] * unmatched_c.float()).sum()
+    return (loss_t + loss_c) / (n_t + unmatched_c.float().sum())
 \end{lstlisting}
 
-\chapter{Siêu tham số và Cấu hình Đóng băng}
+\section{Quyết định Tái liên kết}
+\begin{lstlisting}[language=Python, caption={Chỉ chấp nhận liên kết khi vượt ngưỡng và vượt dustbin (src/model/gaplink.py)}, label={lst:decide}]
+def decide(self, ev):
+    N, M = len(ev["t_lost"]), len(ev["cand"])
+    out = np.full((N,), -1, dtype=np.int32)          # -1 = keep waiting (dustbin)
+    if N == 0 or M == 0:
+        return out
+    P = self.infer_event(ev)["P"]
+    P_real, P_dust = P[:N, :M], P[:N, M]
+    rows, cols = linear_sum_assignment(-P_real)
+    for r, c in zip(rows, cols):
+        if P_real[r, c] >= self.tau and P_real[r, c] > P_dust[r]:
+            out[r] = int(c)
+    return out
+\end{lstlisting}
+
+\section{Chấm Sự kiện của Bảng điều khiển theo Ground Truth}
+\begin{lstlisting}[language=Python, caption={Phán quyết tái liên kết và lộ trình của bảng điều khiển (demo/relink\_viz.py, demo/vms\_lite\_core.py)}, label={lst:judge}]
+# re-link after a gap of >= MIN_GAP frames: same real vehicle before and after?
+g0, g1 = lost_info[tid]["gt"], entry["gt_tid_after"]
+verdict = "unk" if (g0 < 0 or g1 < 0) else ("ok" if g0 == g1 else "wrong")
+
+# a new track whose real vehicle is still owned by a lost track -> "new ID"
+if owner is not None and owner != tid and owner in live_lost and gap >= MIN_GAP:
+    counts["missed"] += 1
+
+# forbidden route Z_A -> Z_B
+def judge(alert, zone_a):
+    g0, g1 = alert["origin_gt_tid"], alert["dest_gt_tid"]
+    if g1 < 0:  return "unk"
+    if g0 == g1: return "ok"                                   # correct ID
+    return "wrong_id" if visited(g1, zone_a, alert["frame"]) else "false"
+\end{lstlisting}
+
+\chapter{Cấu hình}
 \label{app:hyperparameters}
 
 \begin{table}[htbp]
-    \centering
-    \caption{Các siêu tham số và cấu hình đóng băng}
+    \centering\small
+    \caption{Siêu tham số và thiết lập phát hành đã đóng băng}
     \label{tab:hyperparameters}
     \begin{tabularx}{\textwidth}{l l X}
         \toprule
         \textbf{Tham số} & \textbf{Giá trị đóng băng} & \textbf{Mô tả} \\
         \midrule
-        Seed ngẫu nhiên & \texttt{20260417..20260421} & 5 khởi tạo ngẫu nhiên độc lập cho mô hình chính \& ablation \\
-        Số tham số huấn luyện & $327.979$ & Nghiêm ngặt dưới ngưỡng $1.000.000$; 100\% khởi tạo ngẫu nhiên \\
-        Tối ưu hóa \& Lịch trình & AdamW, cosine & Warm-up rồi giảm cosine; $2.400$ bước (lưu trong checkpoint), batch size 64 \\
-        Chân trời theo dõi $a_{\max}$ & $95$ khung hình & Bao phủ toàn bộ khoảng che khuất tới 90 khung hình \\
+        Seed ngẫu nhiên & \texttt{20260417..20260421} & 5 lần khởi tạo ngẫu nhiên độc lập cho mô hình chính và ablation \\
+        Tham số huấn luyện & $327\,979$ & Dưới ngân sách $1\,000\,000$; 100\% khởi tạo ngẫu nhiên \\
+        Bộ tối ưu và lịch & AdamW, cosine & Khởi động rồi giảm cosine; $2\,400$ bước (lưu trong checkpoint), batch 64 \\
+        Cửa sổ tracker $a_{\max}$ & $95$ khung & Bao mọi khoảng che khuất được chèn tới 90 khung \\
         Ngưỡng chấp nhận $\tau$ & $0.25$ & Chọn trên validation theo quy tắc WLR $\le 5.0\%$ \\
-        Hiệu chuẩn phụ $(a, b, c)$ & $(0.413, -0.341, 0.074)$ & Khớp trên val half-A; test Cov90 $= 90.22\%$ (bin dài $95.86\%$) \\
-        SHA256 mô hình đóng băng & \texttt{844fc391deafe951b429e3e4...} & Lưu tại \texttt{release/final.sha256} \\
+        Hiệu chuẩn $(a, b, c)$ & $(0.413, -0.341, 0.074)$ & Khớp trên nửa A validation; Cov90 test $= 90.22\%$ \\
+        SHA256 mô hình đóng băng & \texttt{844fc391deafe951b429e3e4...} & Lưu trong \texttt{release/final.sha256} \\
         \midrule
-        Checkpoint live (Giai đoạn 2) & \texttt{da2a3b14bcc14f4dce23...} & \texttt{release/live\_v1.3.pt}: fine-tune từ mô hình đóng băng, $3.000$ bước (tốt nhất ở $1.500$), sự kiện detector/pool $70/30$ \\
-        Điểm vận hành live & $\tau=0.65$ & Chọn trên $13$ video validation (C-2 $\theta=1.2$, C-3 $\theta=1.0$, C-4 $\theta=1.2$); \texttt{release/live\_v1.3.yaml} \\
+        Checkpoint trực tiếp (Giai đoạn 2) & \texttt{da2a3b14bcc14f4dce23...} & \texttt{release/live\_v1.3.pt}: fine-tune từ mô hình đóng băng, $3\,000$ bước (tốt nhất ở $1\,500$), sự kiện detector/pool $70/30$ \\
+        Điểm vận hành trực tiếp & $\tau=0.65$ & Chọn trên $13$ video validation (C-2 $\theta=1.2$, C-3 $\theta=1.0$, C-4 $\theta=1.2$); \texttt{release/live\_v1.3.yaml} \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\begin{table}[htbp]
+    \centering
+    \caption{Thiết lập lấy mẫu sự kiện và tăng cường dữ liệu (\texttt{src/events.py}, \texttt{EventCfg})}
+    \label{tab:event_cfg}
+    \begin{tabularx}{\textwidth}{l l X}
+        \toprule
+        \textbf{Thiết lập} & \textbf{Giá trị} & \textbf{Ý nghĩa} \\
+        \midrule
+        Độ dài lịch sử & $20$ (tối thiểu $8$) & Số box của track bị mất đưa vào mô hình \\
+        Nhóm khoảng trống / xác suất & $3$--$15$, $16$--$45$, $46$--$90$ / $0.4, 0.4, 0.2$ & Độ dài che khuất \\
+        Loại sự kiện & $0.4 / 0.4 / 0.1 / 0.1$ & Bị che, bị bỏ sót, đã rời, vẫn vắng mặt \\
+        Track bị mất / ứng viên & $\le 6$ / $\le 10$ & Kích thước một sự kiện \\
+        Ngữ cảnh lân cận & $8$ & Số xe quanh track bị mất \\
+        Nhiễu vị trí & $0.03$ (lịch sử), $0.05$ (ứng viên) & Tỉ lệ theo kích thước box \\
+        Dao động kích thước & $\pm 10\%$ & Chiều rộng và cao box ứng viên \\
+        Xác suất che một phần & $0.4$ & Màu chỉ lấy từ box con nhìn thấy \\
+        Bỏ ứng viên đúng & $0.05$ & Xe thật vắng mặt tại $t_{\text{conf}}$ \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\begin{table}[htbp]
+    \centering
+    \caption{Cấu hình bảng điều khiển GapLink-VMS (\texttt{demo/vms\_lite.py})}
+    \label{tab:vms_cfg}
+    \begin{tabularx}{\textwidth}{l l X}
+        \toprule
+        \textbf{Thiết lập} & \textbf{Giá trị} & \textbf{Ghi chú} \\
+        \midrule
+        Detector & YOLOv8n, \texttt{imgsz} $640$, conf.\ $0.28$ & Detection được cache theo từng clip \\
+        Baseline / mô hình & C-3 ($\theta = 1.0$) / GapLink-Lite v1.3 ($\tau = 0.65$) & Điểm vận hành trực tiếp chọn trên validation \\
+        Xác nhận track & $3$ lần khớp & Như nhau ở cả hai khung \\
+        Chấm tái liên kết & khoảng trống $\ge 3$ khung, IoU GT $\ge 0.45$ & Hậu kiểm; tracker không bao giờ dùng \\
+        Thiết bị chạy GapLink-Lite & CPU, 1 luồng & Nhanh nhất trên laptop RTX 3050 (Mục~\ref{sec:rule_tuning}) \\
+        Luồng & JPEG chất lượng $80$, server-sent events & Máy chủ web cục bộ cổng $8010$ \\
         \bottomrule
     \end{tabularx}
 \end{table}

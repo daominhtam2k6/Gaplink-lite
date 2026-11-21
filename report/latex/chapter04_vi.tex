@@ -1,36 +1,29 @@
 \chapter{Tác động Dự kiến}
 \label{chap:projected_impact}
 
-\section{Thành tựu và Lợi ích}
+\section{Kết quả Đạt được và Lợi ích}
 \label{sec:accomplishments}
 
-\begin{enumerate}
-    \item \textbf{Khôi phục danh tính tin cậy với mô hình rất nhỏ.} Với $327.979$ tham số tự huấn luyện (1.3~MB), GapLink-Lite đạt $93.41\%$ Top-1 cấp sự kiện với $3.01\%$ ghép nhầm, so với $80.29\%$ / $19.24\%$ của baseline Kalman + Mahalanobis ($+13.12$~pp, CI 95\% $[12.29, 14.19]$). Trong tracker trực tuyến, mô hình khôi phục $96.20\%$ số lần che khuất với $0.21\%$ ghép nhầm và IDF1 $99.11\%$. Mô hình tốt nhất ở cả $15$ địa điểm camera của tập test, và khi sai thì chủ yếu là từ chối nối thay vì nối nhầm xe. Hai trong ba giả thuyết tiền đăng ký (H1, H3) và kiểm tra giao thức (P1) đạt; H2 trượt sát biên ở một nhóm gap.
-    \item \textbf{Lợi thế giữ được trên detection thực.} Sau detector YOLOv8n trực tiếp, trên che khuất tự nhiên và khi mọi phương pháp được chỉnh trên validation theo cùng một quy tắc, GapLink-Lite vượt họ Kalman dùng trong SORT/DeepSORT/ByteTrack ở cả mức khôi phục lẫn ghép nhầm, và ngang baseline cổ điển mạnh nhất về khôi phục trong khi tỷ lệ ghép nhầm chỉ bằng một nửa ($6.09\%$ so với $12.92\%$, CI của chênh lệch $[3.18, 11.04]$~pp).
-    \item \textbf{Ứng dụng giám sát dùng được.} GapLink-VMS biến việc ít ghép nhầm thành ít báo động giả trên các tác vụ cụ thể (tuyến cấm, dừng đỗ quá giờ, bám mục tiêu), chạy $34.5$~FPS trên GPU laptop RTX~3050 và không cần nhận dạng biển số, vốn khó khả thi ở độ phân giải camera góc rộng.
-    \item \textbf{Kết quả kiểm chứng được.} Giả thuyết được tiền đăng ký, tập test được đánh giá một lần từ checkpoint đã băm, và mọi con số có thể kiểm tra lại từ manifest đóng băng cùng $48$ test tự động.
-\end{enumerate}
-
-\section{Hướng Cải tiến}
-\label{sec:future_improvements}
-
-\subsection{Hạn chế của phiên bản hiện tại}
-\label{sec:limitations}
-
+Đồ án tạo ra một mô hình tái liên kết hoạt động được và một bảng điều khiển thể hiện tác dụng của nó trên video giám sát thật. Các kết quả chính:
 \begin{itemize}
-    \item \textbf{Hiệu chuẩn ở gap dài.} H2 không đạt vì hệ số hiệu chuẩn cho gap dài, khớp trên bốn địa điểm validation, làm bao phủ quá mức ($95.86\%$ trên test).
-    \item \textbf{Mục tiêu ghép nhầm khi chạy live.} Không phương pháp nào, kể cả GapLink-Lite ($6.09\%$), giữ được tỷ lệ ghép nhầm live dưới $5\%$ trên test; trên validation, baseline vận tốc không đổi khôi phục nhiều hơn, nên thứ hạng live nhạy với tập validation nhỏ.
-    \item \textbf{Lịch sử đánh giá.} Tập test giai đoạn~1 được đánh giá lần thứ hai sau khi sửa một lỗi chuyển đổi dữ liệu, và video test live được chấm cho cả checkpoint gốc lẫn checkpoint theo detector. Mọi lần chạy được công bố trong \texttt{docs/DEVIATIONS.md}.
-    \item \textbf{Phạm vi dữ liệu.} Tập test chính thức của UA-DETRAC có $7$ trong $15$ địa điểm trùng với tập huấn luyện (không ảnh hưởng đo được: $93.39\%$ so với $93.44\%$ Top-1); validation chỉ có $4$ địa điểm; bản fine-tune live dùng một seed.
-    \item \textbf{Loại phương tiện.} UA-DETRAC chỉ gán nhãn ô tô, xe van, xe buýt và các xe lớn khác, không có lớp xe máy, nên mô hình được huấn luyện và đánh giá không có xe máy và pipeline live lọc bỏ lớp này. Bản thân phương pháp chỉ dùng động học của box và histogram màu, nên giới hạn đến từ dữ liệu; phạm vi đã đánh giá là giám sát nơi xe bốn bánh chiếm ưu thế (cao tốc, trạm thu phí, hầm, bãi đỗ xe, khu công nghiệp, cảng).
+    \item \textbf{Một mô hình nhỏ, tự huấn luyện, tái liên kết phương tiện đáng tin cậy.} Với $327\,979$ tham số (1.3~MB) huấn luyện từ khởi tạo ngẫu nhiên, GapLink-Lite đạt $93.41\%$ Top-1 cấp sự kiện ở mức $3.01\%$ liên kết sai, so với $80.29\%$ / $19.24\%$ của baseline Kalman + Mahalanobis ($+13.12$~pp, KTC 95\% $[12.29, 14.19]$). Trong tracker trực tuyến, nó khôi phục $96.20\%$ che khuất với $0.21\%$ liên kết sai và $99.11\%$ IDF1, và là phương pháp tốt nhất ở cả $15$ địa điểm camera test.
+    \item \textbf{Kiểu lỗi an toàn hơn.} Khi không chắc chắn, GapLink-Lite chờ (dustbin) thay vì liên kết với xe khác; với khoảng trống dài, tỉ lệ chọn sai xe của nó là $7.4\%$ so với $32.2\%$ của baseline Kalman.
+    \item \textbf{Lợi thế vẫn còn với detection thật.} Sau detector YOLOv8n trực tiếp và khi mọi phương pháp được tinh chỉnh trên validation theo cùng một quy tắc, GapLink-Lite vượt họ Kalman cả về khôi phục lẫn liên kết sai, và giảm một nửa liên kết sai của baseline cổ điển mạnh nhất ở cùng mức khôi phục ($6.09\%$ so với $12.92\%$).
+    \item \textbf{Một bảng điều khiển trình diễn tập trung.} GapLink-VMS thể hiện song song với baseline các nhiệm vụ khôi phục danh tính, kiểm tra lộ trình cấm và bám theo mục tiêu, chấm mọi sự kiện theo ground truth, ghi sự cố kèm ảnh cắt trước/sau, và chạy ở $36$--$46$~FPS trên laptop.
+    \item \textbf{Kết quả kiểm chứng được.} Giả thuyết được đăng ký trước, tập test được đánh giá một lần từ checkpoint đã băm, sai lệch được ghi lại, và mã nguồn được bao phủ bởi bộ kiểm thử tự động.
 \end{itemize}
 
-\subsection{Lộ trình}
+\textbf{Lợi ích kỳ vọng.} Trong giám sát, mỗi liên kết sai trở thành một báo động giả hoặc một đối tượng nghi vấn bị mất dấu. Một bước tái liên kết hiếm khi gộp hai xe làm giảm số cảnh báo người vận hành phải bác bỏ (trên clip lộ trình: ba vi phạm sai ID hoặc giả của C-3 so với không có của GapLink-Lite) và giữ được mục tiêu đang khóa khi bị xe lớn che khuất. Vì mô hình chỉ cần box và histogram màu, nó không thêm xử lý biển số hay khuôn mặt và có thể đặt sau bất kỳ detector nào để thay thế trực tiếp bước ghép Kalman.
 
+\section{Hướng Cải tiến Tương lai}
+\label{sec:future_improvements}
+
+Các hạn chế ở Mục~\ref{sec:limitations} gợi ra những hướng sau:
 \begin{itemize}
-    \item \textbf{Huấn luyện theo detector mạnh hơn.} Nhiều seed, thêm sự kiện detector với tỷ lệ xuất hiện lại cân bằng (hiện $94.6\%$ dòng track mất dấu là trường hợp không khớp), và đầu bất định học trên nhiễu detector, để đưa tỷ lệ ghép nhầm live xuống dưới $5\%$.
-    \item \textbf{Xe máy.} Huấn luyện và đánh giá trên dữ liệu tracking có danh tính xe máy (ví dụ VisDrone-MOT) để bao quát giao thông hỗn hợp đô thị Việt Nam.
-    \item \textbf{Kiểm chứng bên ngoài.} Đánh giá trên video camera mới, chưa từng dùng, có gán nhãn danh tính, và so với bản cài đặt tham chiếu của ByteTrack/OC-SORT.
-    \item \textbf{Dự đoán đa mode.} Thay Gaussian đơn bằng hỗn hợp 2--3 thành phần để mô hình hóa xe rẽ tại ngã tư khi bị che lâu.
-    \item \textbf{Camera di động.} Bổ sung bù chuyển động camera (homography hoặc optical flow) trước khi chuẩn hóa động học cho camera hành trình.
+    \item \textbf{Tỉ lệ liên kết sai trực tiếp dưới 5\%.} Huấn luyện mô hình thích ứng detector với nhiều seed, thêm sự kiện detector với số ca xuất hiện lại cân bằng hơn (hiện $94.6\%$ dòng track bị mất là ca không có cặp ghép) và một đầu độ bất định được huấn luyện trên nhiễu detector.
+    \item \textbf{Xe máy và giao thông hỗn hợp.} Huấn luyện và đánh giá trên dữ liệu tracking có danh tính xe máy (ví dụ VisDrone-MOT \cite{zhu2021visdrone}) để bao phủ giao thông đô thị Việt Nam.
+    \item \textbf{Kiểm định bên ngoài.} Đánh giá trên dữ liệu camera mới có chú thích và so với các bản cài đặt tham chiếu của ByteTrack và OC-SORT.
+    \item \textbf{Dự đoán đa mode.} Thay Gaussian đơn bằng hỗn hợp 2--3 thành phần để biểu diễn việc rẽ tại nút giao trong các khoảng che khuất dài.
+    \item \textbf{Camera chuyển động.} Thêm bù chuyển động camera (homography hoặc optical flow) trước bước chuẩn hóa động học.
+    \item \textbf{Triển khai.} Kết nối bảng điều khiển với luồng camera RTSP có phát hiện trực tuyến và giữ bước kiểm tra của con người cho mọi cảnh báo.
 \end{itemize}
