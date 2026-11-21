@@ -1,0 +1,873 @@
+{
+  "split": "val",
+  "n_seqs": 13,
+  "wlr_max": 0.05,
+  "git_commit": "c0ee16646f9620618945a65166561f633bb53f0e",
+  "final_sha256": "844fc391deafe951b429e3e4f2b9f1983647ce7ff1dbfa048eadb6f4c0741bfd",
+  "v13_ckpt": "D:\\gaplink\\release\\live_v1.3.pt",
+  "v13_sha256": "da2a3b14bcc14f4dce23d6841d304c1fef6f9488f8bfeb4b1a8df7d5b7dc637f",
+  "sweep": {
+    "C-1": {
+      "kind": "C-1",
+      "thr": 0.0,
+      "n_gaps": 248,
+      "nat_irr": 0.0605,
+      "nat_wlr": 0.0,
+      "route": {
+        "recall_all": 0.2661,
+        "recall_occl": 0.2105,
+        "false_alarm_rate": 0.1077
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "GapLink-Lite@0.25": {
+      "kind": "GapLink-Lite",
+      "thr": 0.25,
+      "n_gaps": 437,
+      "nat_irr": 0.8169,
+      "nat_wlr": 0.1333,
+      "route": {
+        "recall_all": 0.2844,
+        "recall_occl": 0.2719,
+        "false_alarm_rate": 0.3404
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.5,
+        "f1_occl": 0.0
+      }
+    },
+    "GapLink-Lite@0.35": {
+      "kind": "GapLink-Lite",
+      "thr": 0.35,
+      "n_gaps": 437,
+      "nat_irr": 0.8169,
+      "nat_wlr": 0.1333,
+      "route": {
+        "recall_all": 0.2844,
+        "recall_occl": 0.2719,
+        "false_alarm_rate": 0.3404
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.5,
+        "f1_occl": 0.0
+      }
+    },
+    "GapLink-Lite@0.45": {
+      "kind": "GapLink-Lite",
+      "thr": 0.45,
+      "n_gaps": 437,
+      "nat_irr": 0.8169,
+      "nat_wlr": 0.1333,
+      "route": {
+        "recall_all": 0.2844,
+        "recall_occl": 0.2719,
+        "false_alarm_rate": 0.3404
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.5,
+        "f1_occl": 0.0
+      }
+    },
+    "GapLink-Lite@0.55": {
+      "kind": "GapLink-Lite",
+      "thr": 0.55,
+      "n_gaps": 436,
+      "nat_irr": 0.8142,
+      "nat_wlr": 0.1302,
+      "route": {
+        "recall_all": 0.289,
+        "recall_occl": 0.2895,
+        "false_alarm_rate": 0.3368
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.5,
+        "f1_occl": 0.0
+      }
+    },
+    "GapLink-Lite@0.65": {
+      "kind": "GapLink-Lite",
+      "thr": 0.65,
+      "n_gaps": 433,
+      "nat_irr": 0.7968,
+      "nat_wlr": 0.1151,
+      "route": {
+        "recall_all": 0.2936,
+        "recall_occl": 0.2982,
+        "false_alarm_rate": 0.2727
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "GapLink-Lite@0.75": {
+      "kind": "GapLink-Lite",
+      "thr": 0.75,
+      "n_gaps": 429,
+      "nat_irr": 0.8019,
+      "nat_wlr": 0.0863,
+      "route": {
+        "recall_all": 0.3028,
+        "recall_occl": 0.3158,
+        "false_alarm_rate": 0.2414
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "GapLink-Lite@0.85": {
+      "kind": "GapLink-Lite",
+      "thr": 0.85,
+      "n_gaps": 415,
+      "nat_irr": 0.7663,
+      "nat_wlr": 0.0544,
+      "route": {
+        "recall_all": 0.2706,
+        "recall_occl": 0.2456,
+        "false_alarm_rate": 0.2237
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "GapLink-Lite@0.95": {
+      "kind": "GapLink-Lite",
+      "thr": 0.95,
+      "n_gaps": 385,
+      "nat_irr": 0.6597,
+      "nat_wlr": 0.0256,
+      "route": {
+        "recall_all": 0.2661,
+        "recall_occl": 0.2281,
+        "false_alarm_rate": 0.1594
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "GapLink-v13@0.25": {
+      "kind": "GapLink-v13",
+      "thr": 0.25,
+      "n_gaps": 454,
+      "nat_irr": 0.8282,
+      "nat_wlr": 0.0699,
+      "route": {
+        "recall_all": 0.3165,
+        "recall_occl": 0.3333,
+        "false_alarm_rate": 0.2069
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "GapLink-v13@0.35": {
+      "kind": "GapLink-v13",
+      "thr": 0.35,
+      "n_gaps": 454,
+      "nat_irr": 0.8282,
+      "nat_wlr": 0.0699,
+      "route": {
+        "recall_all": 0.3165,
+        "recall_occl": 0.3333,
+        "false_alarm_rate": 0.2069
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "GapLink-v13@0.45": {
+      "kind": "GapLink-v13",
+      "thr": 0.45,
+      "n_gaps": 454,
+      "nat_irr": 0.8282,
+      "nat_wlr": 0.0699,
+      "route": {
+        "recall_all": 0.3165,
+        "recall_occl": 0.3333,
+        "false_alarm_rate": 0.2069
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "GapLink-v13@0.55": {
+      "kind": "GapLink-v13",
+      "thr": 0.55,
+      "n_gaps": 451,
+      "nat_irr": 0.8182,
+      "nat_wlr": 0.0596,
+      "route": {
+        "recall_all": 0.3119,
+        "recall_occl": 0.3246,
+        "false_alarm_rate": 0.2
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "GapLink-v13@0.65": {
+      "kind": "GapLink-v13",
+      "thr": 0.65,
+      "n_gaps": 432,
+      "nat_irr": 0.7755,
+      "nat_wlr": 0.0421,
+      "route": {
+        "recall_all": 0.3028,
+        "recall_occl": 0.307,
+        "false_alarm_rate": 0.1852
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "GapLink-v13@0.75": {
+      "kind": "GapLink-v13",
+      "thr": 0.75,
+      "n_gaps": 409,
+      "nat_irr": 0.7335,
+      "nat_wlr": 0.0467,
+      "route": {
+        "recall_all": 0.3119,
+        "recall_occl": 0.3246,
+        "false_alarm_rate": 0.1605
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "GapLink-v13@0.85": {
+      "kind": "GapLink-v13",
+      "thr": 0.85,
+      "n_gaps": 373,
+      "nat_irr": 0.6488,
+      "nat_wlr": 0.0316,
+      "route": {
+        "recall_all": 0.2752,
+        "recall_occl": 0.2544,
+        "false_alarm_rate": 0.1176
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "GapLink-v13@0.95": {
+      "kind": "GapLink-v13",
+      "thr": 0.95,
+      "n_gaps": 290,
+      "nat_irr": 0.3483,
+      "nat_wlr": 0.0385,
+      "route": {
+        "recall_all": 0.2523,
+        "recall_occl": 0.1842,
+        "false_alarm_rate": 0.1129
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "C-2@0.35": {
+      "kind": "C-2",
+      "thr": 0.35,
+      "n_gaps": 347,
+      "nat_irr": 0.5072,
+      "nat_wlr": 0.02,
+      "route": {
+        "recall_all": 0.2982,
+        "recall_occl": 0.2982,
+        "false_alarm_rate": 0.1096
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "C-2@0.5": {
+      "kind": "C-2",
+      "thr": 0.5,
+      "n_gaps": 387,
+      "nat_irr": 0.6253,
+      "nat_wlr": 0.027,
+      "route": {
+        "recall_all": 0.2936,
+        "recall_occl": 0.2895,
+        "false_alarm_rate": 0.1467
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "C-2@0.65": {
+      "kind": "C-2",
+      "thr": 0.65,
+      "n_gaps": 418,
+      "nat_irr": 0.7297,
+      "nat_wlr": 0.0276,
+      "route": {
+        "recall_all": 0.289,
+        "recall_occl": 0.2807,
+        "false_alarm_rate": 0.16
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "C-2@0.8": {
+      "kind": "C-2",
+      "thr": 0.8,
+      "n_gaps": 432,
+      "nat_irr": 0.7616,
+      "nat_wlr": 0.0346,
+      "route": {
+        "recall_all": 0.3028,
+        "recall_occl": 0.307,
+        "false_alarm_rate": 0.1429
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "C-2@1.0": {
+      "kind": "C-2",
+      "thr": 1.0,
+      "n_gaps": 442,
+      "nat_irr": 0.7919,
+      "nat_wlr": 0.0363,
+      "route": {
+        "recall_all": 0.2936,
+        "recall_occl": 0.2895,
+        "false_alarm_rate": 0.1579
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "C-2@1.2": {
+      "kind": "C-2",
+      "thr": 1.2,
+      "n_gaps": 450,
+      "nat_irr": 0.8156,
+      "nat_wlr": 0.0487,
+      "route": {
+        "recall_all": 0.2982,
+        "recall_occl": 0.2982,
+        "false_alarm_rate": 0.1875
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "C-2@1.6": {
+      "kind": "C-2",
+      "thr": 1.6,
+      "n_gaps": 463,
+      "nat_irr": 0.838,
+      "nat_wlr": 0.0746,
+      "route": {
+        "recall_all": 0.3119,
+        "recall_occl": 0.3333,
+        "false_alarm_rate": 0.1807
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "C-2@2.0": {
+      "kind": "C-2",
+      "thr": 2.0,
+      "n_gaps": 466,
+      "nat_irr": 0.8455,
+      "nat_wlr": 0.1158,
+      "route": {
+        "recall_all": 0.3165,
+        "recall_occl": 0.3421,
+        "false_alarm_rate": 0.2333
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "C-2@2.5": {
+      "kind": "C-2",
+      "thr": 2.5,
+      "n_gaps": 465,
+      "nat_irr": 0.8516,
+      "nat_wlr": 0.179,
+      "route": {
+        "recall_all": 0.3165,
+        "recall_occl": 0.3596,
+        "false_alarm_rate": 0.367
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "C-2@3.0": {
+      "kind": "C-2",
+      "thr": 3.0,
+      "n_gaps": 466,
+      "nat_irr": 0.8498,
+      "nat_wlr": 0.2344,
+      "route": {
+        "recall_all": 0.2936,
+        "recall_occl": 0.3246,
+        "false_alarm_rate": 0.4667
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "C-3@0.5": {
+      "kind": "C-3",
+      "thr": 0.5,
+      "n_gaps": 309,
+      "nat_irr": 0.2071,
+      "nat_wlr": 0.1909,
+      "route": {
+        "recall_all": 0.2798,
+        "recall_occl": 0.2632,
+        "false_alarm_rate": 0.2651
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "C-3@1.0": {
+      "kind": "C-3",
+      "thr": 1.0,
+      "n_gaps": 332,
+      "nat_irr": 0.3223,
+      "nat_wlr": 0.1637,
+      "route": {
+        "recall_all": 0.2798,
+        "recall_occl": 0.2807,
+        "false_alarm_rate": 0.3297
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "C-3@1.8": {
+      "kind": "C-3",
+      "thr": 1.8,
+      "n_gaps": 358,
+      "nat_irr": 0.4022,
+      "nat_wlr": 0.181,
+      "route": {
+        "recall_all": 0.2752,
+        "recall_occl": 0.2719,
+        "false_alarm_rate": 0.4444
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.1429,
+        "f1_occl": 0.0
+      }
+    },
+    "C-3@2.8": {
+      "kind": "C-3",
+      "thr": 2.8,
+      "n_gaps": 375,
+      "nat_irr": 0.4667,
+      "nat_wlr": 0.2108,
+      "route": {
+        "recall_all": 0.2615,
+        "recall_occl": 0.2368,
+        "false_alarm_rate": 0.5128
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.125,
+        "f1_occl": 0.0
+      }
+    },
+    "C-3@4.61": {
+      "kind": "C-3",
+      "thr": 4.61,
+      "n_gaps": 392,
+      "nat_irr": 0.523,
+      "nat_wlr": 0.2454,
+      "route": {
+        "recall_all": 0.2798,
+        "recall_occl": 0.2632,
+        "false_alarm_rate": 0.5643
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.0769,
+        "f1_occl": 0.0
+      }
+    },
+    "C-3@6.0": {
+      "kind": "C-3",
+      "thr": 6.0,
+      "n_gaps": 409,
+      "nat_irr": 0.5672,
+      "nat_wlr": 0.2551,
+      "route": {
+        "recall_all": 0.289,
+        "recall_occl": 0.2807,
+        "false_alarm_rate": 0.5772
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.1111,
+        "f1_occl": 0.0
+      }
+    },
+    "C-3@9.21": {
+      "kind": "C-3",
+      "thr": 9.21,
+      "n_gaps": 431,
+      "nat_irr": 0.6357,
+      "nat_wlr": 0.2281,
+      "route": {
+        "recall_all": 0.2798,
+        "recall_occl": 0.2719,
+        "false_alarm_rate": 0.5906
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.1111,
+        "f1_occl": 0.0
+      }
+    },
+    "C-3@13.8": {
+      "kind": "C-3",
+      "thr": 13.8,
+      "n_gaps": 441,
+      "nat_irr": 0.6961,
+      "nat_wlr": 0.284,
+      "route": {
+        "recall_all": 0.2844,
+        "recall_occl": 0.2895,
+        "false_alarm_rate": 0.6026
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.1667,
+        "f1_occl": 0.0
+      }
+    },
+    "C-3@18.0": {
+      "kind": "C-3",
+      "thr": 18.0,
+      "n_gaps": 439,
+      "nat_irr": 0.7289,
+      "nat_wlr": 0.3224,
+      "route": {
+        "recall_all": 0.289,
+        "recall_occl": 0.3158,
+        "false_alarm_rate": 0.648
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.0909,
+        "f1_occl": 0.0
+      }
+    },
+    "C-3@25.0": {
+      "kind": "C-3",
+      "thr": 25.0,
+      "n_gaps": 444,
+      "nat_irr": 0.7523,
+      "nat_wlr": 0.397,
+      "route": {
+        "recall_all": 0.2661,
+        "recall_occl": 0.2982,
+        "false_alarm_rate": 0.7056
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.0556,
+        "f1_occl": 0.0
+      }
+    },
+    "C-4@1.2": {
+      "kind": "C-4",
+      "thr": 1.2,
+      "n_gaps": 318,
+      "nat_irr": 0.3208,
+      "nat_wlr": 0.0381,
+      "route": {
+        "recall_all": 0.2661,
+        "recall_occl": 0.2544,
+        "false_alarm_rate": 0.1471
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 1.0,
+        "f1_occl": 0.0
+      }
+    },
+    "C-4@2.0": {
+      "kind": "C-4",
+      "thr": 2.0,
+      "n_gaps": 343,
+      "nat_irr": 0.4082,
+      "nat_wlr": 0.0914,
+      "route": {
+        "recall_all": 0.2844,
+        "recall_occl": 0.2807,
+        "false_alarm_rate": 0.2439
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.5,
+        "f1_occl": 0.0
+      }
+    },
+    "C-4@3.2": {
+      "kind": "C-4",
+      "thr": 3.2,
+      "n_gaps": 368,
+      "nat_irr": 0.4701,
+      "nat_wlr": 0.1548,
+      "route": {
+        "recall_all": 0.2798,
+        "recall_occl": 0.2719,
+        "false_alarm_rate": 0.396
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.25,
+        "f1_occl": 0.0
+      }
+    },
+    "C-4@4.8": {
+      "kind": "C-4",
+      "thr": 4.8,
+      "n_gaps": 391,
+      "nat_irr": 0.5422,
+      "nat_wlr": 0.1989,
+      "route": {
+        "recall_all": 0.2798,
+        "recall_occl": 0.2632,
+        "false_alarm_rate": 0.5234
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.1429,
+        "f1_occl": 0.0
+      }
+    },
+    "C-4@7.0": {
+      "kind": "C-4",
+      "thr": 7.0,
+      "n_gaps": 414,
+      "nat_irr": 0.6135,
+      "nat_wlr": 0.2229,
+      "route": {
+        "recall_all": 0.2752,
+        "recall_occl": 0.2544,
+        "false_alarm_rate": 0.5804
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.1,
+        "f1_occl": 0.0
+      }
+    },
+    "C-4@10.0": {
+      "kind": "C-4",
+      "thr": 10.0,
+      "n_gaps": 428,
+      "nat_irr": 0.6542,
+      "nat_wlr": 0.2274,
+      "route": {
+        "recall_all": 0.2661,
+        "recall_occl": 0.2544,
+        "false_alarm_rate": 0.6133
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.0769,
+        "f1_occl": 0.0
+      }
+    },
+    "C-4@15.0": {
+      "kind": "C-4",
+      "thr": 15.0,
+      "n_gaps": 442,
+      "nat_irr": 0.7059,
+      "nat_wlr": 0.2762,
+      "route": {
+        "recall_all": 0.2798,
+        "recall_occl": 0.2807,
+        "false_alarm_rate": 0.6139
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.0909,
+        "f1_occl": 0.0
+      }
+    },
+    "C-4@22.0": {
+      "kind": "C-4",
+      "thr": 22.0,
+      "n_gaps": 439,
+      "nat_irr": 0.754,
+      "nat_wlr": 0.3398,
+      "route": {
+        "recall_all": 0.2936,
+        "recall_occl": 0.3333,
+        "false_alarm_rate": 0.6614
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.0556,
+        "f1_occl": 0.0
+      }
+    },
+    "C-4@29.0": {
+      "kind": "C-4",
+      "thr": 29.0,
+      "n_gaps": 447,
+      "nat_irr": 0.745,
+      "nat_wlr": 0.4238,
+      "route": {
+        "recall_all": 0.2569,
+        "recall_occl": 0.2895,
+        "false_alarm_rate": 0.7268
+      },
+      "dwell": {
+        "recall_all": 0.25,
+        "recall_occl": 0.0,
+        "precision": 0.04,
+        "f1_occl": 0.0
+      }
+    }
+  },
+  "chosen": {
+    "GapLink-Lite": {
+      "label": "GapLink-v13@0.65",
+      "kind": "GapLink-v13",
+      "thr": 0.65,
+      "nat_irr": 0.7755,
+      "nat_wlr": 0.0421,
+      "rule": "max nat_irr s.t. nat_wlr<=0.05"
+    },
+    "C-2": {
+      "label": "C-2@1.2",
+      "kind": "C-2",
+      "thr": 1.2,
+      "nat_irr": 0.8156,
+      "nat_wlr": 0.0487,
+      "rule": "max nat_irr s.t. nat_wlr<=0.05"
+    },
+    "C-3": {
+      "label": "C-3@1.0",
+      "kind": "C-3",
+      "thr": 1.0,
+      "nat_irr": 0.3223,
+      "nat_wlr": 0.1637,
+      "rule": "no config with nat_wlr<=0.05: min nat_wlr"
+    },
+    "C-4": {
+      "label": "C-4@1.2",
+      "kind": "C-4",
+      "thr": 1.2,
+      "nat_irr": 0.3208,
+      "nat_wlr": 0.0381,
+      "rule": "max nat_irr s.t. nat_wlr<=0.05"
+    }
+  }
+}

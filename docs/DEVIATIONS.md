@@ -85,3 +85,15 @@ chính thức dùng đúng câu chữ PREREG. Bằng chứng: `git log`, tag `v1
 - v1.2b dừng tay khi quét val; không có test nào chạy ở v1.2/v1.2b. Họ B (cổng Gaussian) là kết quả âm trên val (một phần video).
 - v1.3 thêm checkpoint `release/live_v1.3.pt` fine-tune trên sự kiện YOLO của tập train; chỉ dùng cho chế độ live.
   Kế hoạch khóa ở `docs/PREREG_live_v1.3.md` (tag `v1.3-prereg`) trước khi sinh dữ liệu và huấn luyện.
+
+## D14. Bộ chấm dwell bị đổi sau lần chạy live v1.1
+- `runs/test_final/live_security_results.json` tạo ngày 18/11 (code 0690d37). Commit f31a7c9 (20/11) thêm bộ lọc xe đứng yên
+  vào `src/security_analytics.py` nhưng không cập nhật định nghĩa GT dwell trong `scripts/eval_live_security.py`.
+- Chạy lại điểm v1.1 bằng code hiện tại: Nat-IRR, Nat-WLR và mọi số đếm tuyến cấm **trùng khít**; số đếm dwell khác
+  (GapLink TP 429 → 191, C-2 372 → 179). Cột dwell trong bảng live v1.1 chỉ đúng với code 18/11, không dùng để so sánh với v1.3.
+- Bảng live v1.3 trong báo cáo không có cột dwell.
+
+## D15. Kết quả live v1.3 (một lần test, 21/11/2026)
+- Chọn trên val: GapLink-v13 τ=0,65 (77,55% / 4,21%), C-2 θ=1,2 (81,56% / 4,87%), C-3 θ=1,0 (không đạt ≤5%), C-4 θ=1,2.
+- Test: GapLink-v13 84,41% Nat-IRR / 6,09% Nat-WLR; C-2 84,58% / 12,92%. ΔWLR −6,82 pp, CI theo địa điểm [−11,04; −3,18].
+- Thứ hạng Nat-IRR giữa val và test khác nhau (val C-2 dẫn 4 pp) → val 4 địa điểm yếu; không phương pháp nào giữ WLR ≤ 5% trên test.

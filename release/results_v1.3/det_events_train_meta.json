@@ -1,0 +1,12 @@
+{
+  "split": "train",
+  "n_seqs": 47,
+  "n_events": 7746,
+  "n_tracks": 32792,
+  "frac_dustbin": 0.9461454013173944,
+  "gap_p50": 40.0,
+  "frac_gap_le5": 0.11359477921444255,
+  "frac_hard": 0.009811515620965659,
+  "cap_per_seq": 3000,
+  "seed": 20261121
+}

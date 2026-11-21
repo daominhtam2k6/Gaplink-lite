@@ -1,0 +1,72 @@
+{
+  "freeze_name": "gaplink-live-v1.3",
+  "created_utc": "2026-11-21T04:05:01+00:00",
+  "git_commit_at_freeze": "024bf1e72fb4e49a74ed153ca1624fc1f7ed8974",
+  "consistency_checks": {
+    "live_v1.3.pt == live_v1.3.yaml:v13_sha256": true,
+    "live_v1.3.pt == live_v1.3.sha256": true,
+    "final.pt unchanged": true,
+    "select.json == yaml:val_select_sha256": true,
+    "test used the frozen operating points": true,
+    "parity: natural-gap + route counts reproduce v1.1": true
+  },
+  "files": {
+    "release/final.pt": {
+      "sha256": "844fc391deafe951b429e3e4f2b9f1983647ce7ff1dbfa048eadb6f4c0741bfd",
+      "bytes": 1327613
+    },
+    "release/live_v1.3.pt": {
+      "sha256": "da2a3b14bcc14f4dce23d6841d304c1fef6f9488f8bfeb4b1a8df7d5b7dc637f",
+      "bytes": 1327613
+    },
+    "release/live_v1.3.sha256": {
+      "sha256": "f46a41117ed5595c14eedca3eac11efc9e3768796cc540f83f6ac794f39b51c2",
+      "bytes": 64
+    },
+    "release/live_v1.3.yaml": {
+      "sha256": "09f5b1bffc05509c87bd93b8969c2108edb073018aea24e5b706e0e704c5aad7",
+      "bytes": 584
+    },
+    "release/live_v1.3_train_log.json": {
+      "sha256": "bf3bb2935e137131bdd25196f8090bb2c9db5b87237be7b22c1c37e42e3b2d2d",
+      "bytes": 3038
+    },
+    "release/tracker.yaml": {
+      "sha256": "c5272dbc083e25cfcaa64f2439ca4bcf56dbe922c7d0eb9aab39bdd05ac71317",
+      "bytes": 267
+    },
+    "release/yolov8n.pt": {
+      "sha256": "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36",
+      "bytes": 6549796
+    },
+    "data/splits.csv": {
+      "sha256": "cd6e3e2380410e992e99cd637f2b6c9243ad9d51cdca883ab72b2aecb049a04e",
+      "bytes": 3784
+    },
+    "data/cache/det_events_train_meta.json": {
+      "sha256": "419d4023a67e56e7154e2954b4db4d5bd42c7467a3ca820a63b9faffaae49d7a",
+      "bytes": 266
+    },
+    "data/cache/det_events_val_meta.json": {
+      "sha256": "e114a818ece526242bf2243e90eefb6b3e600aaaf3d722935ede253c8c49b8f7",
+      "bytes": 264
+    },
+    "runs/live_v13_val/select.json": {
+      "sha256": "46ddf35af8515dcc82e6228bc2c5be038516151dea328db69487821ac55266f6",
+      "bytes": 20097
+    },
+    "runs/live_v13_test/live_v13_results.json": {
+      "sha256": "5b934e0a6f829646752f11aad65c355b8c5a8b9a9f964047c3d29ff600296d30",
+      "bytes": 181316
+    },
+    "runs/live_v13_test/location_bootstrap_live.json": {
+      "sha256": "81e482fe979db6da9c2a1cb46f7da37483928025dfc8655b5b6a8ad2b01c6cdf",
+      "bytes": 878
+    },
+    "docs/PREREG_live_v1.3.md": {
+      "sha256": "134e1e1f038c30a208bf3963207a38541a639acfc4718a361b53133028950a89",
+      "bytes": 2498
+    }
+  },
+  "note": "dwell counts differ from v1.1 by design (scorer changed 20/11/2026, DEVIATIONS D14)"
+}

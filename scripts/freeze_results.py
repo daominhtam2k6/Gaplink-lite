@@ -23,6 +23,19 @@ import yaml
 ROOT_DEFAULT = Path(__file__).resolve().parents[1]
 MANIFEST_REL = "release/FREEZE_MANIFEST.json"
 RESULTS_COPY_DIR = "release/results_v1.1"
+# v1.3 live freeze (separate manifest; v1.1 manifest is never rewritten for it)
+V13_MANIFEST_REL = "release/FREEZE_MANIFEST_v1.3.json"
+V13_COPY_DIR = "release/results_v1.3"
+V13_ARTIFACTS = [
+    "release/final.pt", "release/live_v1.3.pt", "release/live_v1.3.sha256", "release/live_v1.3.yaml",
+    "release/live_v1.3_train_log.json", "release/tracker.yaml", "release/yolov8n.pt", "data/splits.csv",
+    "data/cache/det_events_train_meta.json", "data/cache/det_events_val_meta.json",
+    "runs/live_v13_val/select.json", "runs/live_v13_test/live_v13_results.json",
+    "runs/live_v13_test/location_bootstrap_live.json", "docs/PREREG_live_v1.3.md",
+]
+V13_COPY = ["runs/live_v13_val/select.json", "runs/live_v13_test/live_v13_results.json",
+            "runs/live_v13_test/location_bootstrap_live.json", "data/cache/det_events_train_meta.json",
+            "data/cache/det_events_val_meta.json"]
 
 # Artifacts the frozen numbers depend on (relative to root).
 ARTIFACTS = [
@@ -133,13 +146,57 @@ def verify(root: Path) -> int:
     return 0 if bad == 0 else 1
 
 
+def freeze_v13(root: Path, write: bool) -> int:
+    mpath = root / V13_MANIFEST_REL
+    if write:
+        if mpath.exists():
+            print(f"{mpath} exists; v1.3 freeze is write-once"); return 3
+        files = {rel: {"sha256": sha256_file(root / rel), "bytes": (root / rel).stat().st_size} for rel in V13_ARTIFACTS}
+        op = yaml.safe_load((root / "release/live_v1.3.yaml").read_text(encoding="utf-8"))
+        res = json.loads((root / "runs/live_v13_test/live_v13_results.json").read_text(encoding="utf-8"))
+        checks = {
+            "live_v1.3.pt == live_v1.3.yaml:v13_sha256": files["release/live_v1.3.pt"]["sha256"] == op["v13_sha256"],
+            "live_v1.3.pt == live_v1.3.sha256": files["release/live_v1.3.pt"]["sha256"] == (root / "release/live_v1.3.sha256").read_text().split()[0].lower(),
+            "final.pt unchanged": files["release/final.pt"]["sha256"] == op["final_sha256"],
+            "select.json == yaml:val_select_sha256": files["runs/live_v13_val/select.json"]["sha256"] == op["val_select_sha256"],
+            "test used the frozen operating points": res["operating_points"] == op,
+            "parity: natural-gap + route counts reproduce v1.1": True,
+        }
+        frozen = json.loads((root / "runs/test_final/live_security_results.json").read_text(encoding="utf-8"))["methods"]
+        keys = [k for k in frozen["C-1"]["raw_counts"] if not k.startswith("dwell")]
+        for lbl, fk in [("C-1", "C-1"), ("v1.1/C-2", "C-2"), ("v1.1/C-3", "C-3"), ("v1.1/C-4", "C-4"), ("v1.1/GapLink-Lite", "GapLink-Lite")]:
+            if any(res["methods"][lbl]["raw_counts"][k] != frozen[fk]["raw_counts"][k] for k in keys):
+                checks["parity: natural-gap + route counts reproduce v1.1"] = False
+        out = root / V13_COPY_DIR
+        out.mkdir(parents=True, exist_ok=True)
+        for rel in V13_COPY:
+            shutil.copy2(root / rel, out / Path(rel).name)
+        m = {"freeze_name": "gaplink-live-v1.3", "created_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+             "git_commit_at_freeze": git_commit(root), "consistency_checks": checks, "files": files,
+             "note": "dwell counts differ from v1.1 by design (scorer changed 20/11/2026, DEVIATIONS D14)"}
+        mpath.write_text(json.dumps(m, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(json.dumps(checks, indent=2)); print(f"wrote {mpath}")
+        return 0 if all(checks.values()) else 1
+    if not mpath.exists():
+        print("no v1.3 manifest"); return 2
+    m = json.loads(mpath.read_text(encoding="utf-8"))
+    bad = [rel for rel, meta in m["files"].items() if not (root / rel).exists() or sha256_file(root / rel) != meta["sha256"]]
+    bad += [rel for rel in V13_COPY if sha256_file(root / V13_COPY_DIR / Path(rel).name) != m["files"][rel]["sha256"]]
+    bad += [k for k, ok in m["consistency_checks"].items() if not ok]
+    print("[OK] v1.3 frozen artifacts verified" if not bad else f"[FAIL] {bad}")
+    return 0 if not bad else 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=None)
     ap.add_argument("--write", action="store_true")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--set", choices=["v1.1", "v1.3"], default="v1.1")
     a = ap.parse_args()
     root = resolve_root(a.root)
+    if a.set == "v1.3":
+        return freeze_v13(root, a.write)
     if not a.write:
         return verify(root)
     mpath = root / MANIFEST_REL

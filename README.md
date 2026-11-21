@@ -13,7 +13,7 @@ Frozen checkpoint `release/final.pt` (SHA256 `844fc391…`). All numbers: `relea
 - **Event level (12,000 events):** Top-1 **93.41%**, WLR **3.01%** (5-seed mean 93.64% ± 0.14%) vs. C-3 Kalman+Mahalanobis 80.29% / 19.24%. CIs: paired bootstrap over camera locations (`release/results_v1.1/location_bootstrap.json`).
 - **Online tracker (1,922 injected occlusions):** IRR **96.20%** / IDF1 **99.11%** (full), **95.99%** / **99.02%** (partial); IRR gain over C-3 +11.24 pp, location-bootstrap 95% CI [9.10, 14.35].
 - **Pre-registered hypotheses:** H1 supported, **H2 not supported** (calibrated long-gap coverage 95.14% val / 95.86% test > 95%), H3 supported, P1 passed.
-- **Live YOLOv8n + GapLink-VMS (40 raw test videos):** Nat-IRR 87.30%, Nat-WLR 10.20% at the v1.1 point (τ = 0.25); v1.2 live operating point selected on validation — see `release/live_v1.2.yaml`.
+- **Live YOLOv8n + GapLink-VMS (40 raw test videos):** v1.1 point (τ = 0.25): Nat-IRR 87.30%, Nat-WLR 10.20%. **v1.3** detector-aware checkpoint (`release/live_v1.3.pt`) with validation-selected operating points: Nat-IRR **84.41%** vs 84.58% for C-2 (Δ −0.17 pp, CI [−1.33, 1.08]) at **half the wrong-link rate** (6.09% vs 12.92%, Δ −6.82 pp, CI [−11.04, −3.18]). Details: `release/FROZEN_RESULTS.md`.
 - **Speed (RTX 3050 Laptop 6GB, batch 1, dense intersection):** **28.95 ms/frame (34.5 FPS)** = 12.53 ms YOLOv8n + 3.26 ms HSV/NMS + 13.16 ms GapLink-Lite + VMS.
 
 ## Quick Start & Reproduce Commands

@@ -33,3 +33,17 @@ def test_sha256_file_roundtrip(tmp_path):
     p = tmp_path / "x.bin"
     p.write_bytes(b"gaplink" * 300000)  # > 1 chunk
     assert fr.sha256_file(p) == hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+V13 = ROOT / fr.V13_MANIFEST_REL
+
+
+@pytest.mark.skipif(not V13.exists(), reason="no v1.3 freeze manifest yet")
+def test_v13_frozen_and_consistent():
+    m = json.loads(V13.read_text(encoding="utf-8"))
+    assert all(m["consistency_checks"].values()), m["consistency_checks"]
+    for rel, meta in m["files"].items():
+        p = ROOT / rel
+        if not p.exists():
+            pytest.skip(f"{rel} not present on this machine")
+        assert fr.sha256_file(p) == meta["sha256"], f"frozen v1.3 artifact changed: {rel}"

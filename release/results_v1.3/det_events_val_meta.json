@@ -1,0 +1,12 @@
+{
+  "split": "val",
+  "n_seqs": 13,
+  "n_events": 5379,
+  "n_tracks": 26195,
+  "frac_dustbin": 0.9641534644016033,
+  "gap_p50": 41.0,
+  "frac_gap_le5": 0.09291849589616338,
+  "frac_hard": 0.010039040713887339,
+  "cap_per_seq": 2000,
+  "seed": 20261121
+}

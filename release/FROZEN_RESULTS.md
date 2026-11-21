@@ -46,5 +46,26 @@ Phân tích hậu kiểm (không thay H2): đầu ra **chưa** hiệu chuẩn tr
 | C-3 | 77,35% | 37,78% | 49,22% | 35,39% |
 | GapLink-Lite | **87,30%** | **10,20%** | **12,88%** | **53,26%** |
 
+Cột dwell của bảng live v1.1 dùng bộ chấm ngày 18/11, không tái tạo được với code cuối (D14).
+
 Latency (ngã tư đông, RTX 3050 6GB, batch 1): **28,95 ms/frame = 34,5 FPS**
 (YOLO 12,53 + HSV/NMS 3,26 + GapLink-VMS 13,16 ms). Không dùng số 79,7 FPS (D7).
+
+## Live v1.3 — checkpoint theo detector (đóng băng riêng: `release/FREEZE_MANIFEST_v1.3.json`)
+- Checkpoint `release/live_v1.3.pt` SHA256 `da2a3b14…637f`, fine-tune từ `final.pt` (bước 1.500/3.000, seed 20261121).
+- Chọn trên val theo `docs/PREREG_live_v1.3.md` (tag `v1.3-prereg` → `v1.3-live-selected`), test chạy 1 lần.
+- Kiểm tra: `python scripts/freeze_results.py --set v1.3` → `[OK]`.
+
+| (chọn trên val) | Val Nat-IRR | Val Nat-WLR | Test Nat-IRR | Test Nat-WLR | Route recall (che) | Route FAR |
+|---|---|---|---|---|---|---|
+| C-1 | 6,05% | 0,00% | 8,93% | 0,00% | 33,33% | 3,45% |
+| C-2 θ=1,2 | 81,56% | 4,87% | 84,58% | 12,92% | 41,98% | 11,32% |
+| C-3 θ=1,0 † | 32,23% | 16,37% | 57,63% | 24,70% | 47,53% | 32,56% |
+| C-4 θ=1,2 | 32,08% | 3,81% | 61,85% | 9,94% | 49,38% | 14,04% |
+| GapLink v1.1 τ=0,25 (tham chiếu) | 81,69% | 13,33% | 87,30% | 10,20% | 45,68% | 12,88% |
+| **GapLink v1.3 τ=0,65** | 77,55% | 4,21% | **84,41%** | **6,09%** | 42,59% | **9,27%** |
+
+† không θ nào đạt Nat-WLR ≤ 5% trên val.
+CI 95% theo 15 địa điểm (`release/results_v1.3/location_bootstrap_live.json`): v1.3 − C-2: ΔNat-IRR −0,17 pp [−1,33; 1,08], ΔNat-WLR −6,82 pp [−11,04; −3,18];
+v1.3 − v1.1: ΔNat-IRR −2,89 [−3,47; −1,77], ΔNat-WLR −4,11 [−5,98; −1,57], ΔFAR −3,61 [−7,24; −0,74].
+Dwell không báo cáo cho v1.3 (D14).
