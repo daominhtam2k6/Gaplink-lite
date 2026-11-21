@@ -1,0 +1,146 @@
+{
+ "scenario": "route",
+ "title": "Forbidden route Z_A -> Z_B through occlusion",
+ "zones": [
+  {
+   "zone_id": "Z_C",
+   "name": "Permitted Origin C",
+   "role": "entry",
+   "points": [
+    [
+     0.8829,
+     0.265
+    ],
+    [
+     0.4774,
+     0.2793
+    ],
+    [
+     0.4755,
+     0.1034
+    ],
+    [
+     0.881,
+     0.089
+    ]
+   ]
+  },
+  {
+   "zone_id": "Z_DWELL",
+   "name": "No-Stopping Security Zone",
+   "role": "dwell",
+   "points": [
+    [
+     0.1,
+     0.2
+    ],
+    [
+     0.9,
+     0.2
+    ],
+    [
+     0.9,
+     0.88
+    ],
+    [
+     0.1,
+     0.88
+    ]
+   ]
+  },
+  {
+   "zone_id": "Z_B",
+   "points": [
+    [
+     0.2847,
+     0.5437
+    ],
+    [
+     0.0,
+     0.5544
+    ],
+    [
+     0.0,
+     0.1209
+    ],
+    [
+     0.2799,
+     0.1103
+    ]
+   ]
+  },
+  {
+   "zone_id": "Z_A",
+   "points": [
+    [
+     0.4438,
+     0.2319
+    ],
+    [
+     0.4366,
+     0.5378
+    ],
+    [
+     0.8986,
+     0.5314
+    ],
+    [
+     0.8913,
+     0.248
+    ],
+    [
+     0.4457,
+     0.2415
+    ]
+   ]
+  }
+ ],
+ "forbidden_routes": [
+  [
+   "Z_A",
+   "Z_B"
+  ]
+ ],
+ "max_dwell_sec": 5.0,
+ "key_moments": [
+  {
+   "frame": 44,
+   "cx": 0.1851,
+   "cy": 0.2881,
+   "label": "baseline false alarm"
+  },
+  {
+   "frame": 129,
+   "cx": 0.199,
+   "cy": 0.3067,
+   "label": "baseline false alarm"
+  },
+  {
+   "frame": 197,
+   "cx": 0.2798,
+   "cy": 0.3278,
+   "label": "baseline false alarm"
+  }
+ ],
+ "lock": [],
+ "source": {
+  "seq": "MVI_40761",
+  "f0": 1576,
+  "f1": 1825,
+  "candidates": "runs/demo_mining/demo3_candidates_C-3.json",
+  "rank": 0
+ },
+ "expected": {
+  "gaplink": {
+   "ok": 1,
+   "wrong_id": 0,
+   "false": 0
+  },
+  "baseline": {
+   "ok": 2,
+   "wrong_id": 6,
+   "false": 1
+  }
+ },
+ "zones_edited": true
+}

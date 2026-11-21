@@ -1,6 +1,16 @@
 \chapter{Team Member Review and Comment}
 \label{chap:team_review}
 
+% Author photograph (template: team picture). Shown only if figures/author_photo.jpg exists.
+\IfFileExists{figures/author_photo.jpg}{%
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.38\textwidth]{figures/author_photo.jpg}
+    \caption{Author photograph --- \memberOne}
+    \label{fig:team_photo}
+\end{figure}
+}{}
+
 \noindent
 \begin{table}[htbp]
     \centering
@@ -14,7 +24,10 @@
         \multicolumn{1}{|c|}{\sffamily\bfseries\color{SamsungDarkGray}NAME} & 
         \multicolumn{1}{c|}{\sffamily\bfseries\color{SamsungDarkGray}REVIEW and COMMENT} \\
         \hline
-        \textbf{\memberOne} & Designed, audited, and benchmarked GapLink-Lite across 5 random seeds and 1,922 injected occlusion intervals on the cleaned UA-DETRAC dataset. Performing a rigorous self-audit resolved data-conversion artifacts (separating 528,798 ignore-zone rows), eliminated partial-crop color leakage via 5-view precomputed histograms, aligned $a_{\max}=95$ with 90-frame gaps, and added WLR-matched operating curves plus IDF1/IDSW metrics. \\
+        \textbf{\memberOne} & \textbf{Role:} Project owner (individual project): problem definition, data, model, evaluation, application and report.\newline
+\textbf{Tasks:} Defined the task and pre-registered the hypotheses; converted and cleaned UA-DETRAC and built the camera-location split; designed, implemented and trained GapLink-Lite and the baselines C-1\dots C-4; ran the locked Phase-1 test and the live Phase-2 evaluation; fine-tuned the detector-aware checkpoint; built and profiled the GapLink-VMS console and selected the three demonstration clips; wrote the automated tests and the report.\newline
+\textbf{Self-review:} The main result is solid and verifiable: two of three pre-registered hypotheses and the protocol check pass, and the advantage over the Kalman association survives a live detector. The weak points are the failed calibration hypothesis (H2), the live wrong-link rate above the 5\% target, and the second Phase-1 test run after a data fix, all reported openly.\newline
+\textbf{Peer comment:} Not applicable (individual project).\\
         \hline
     \end{tabularx}
 \end{table}

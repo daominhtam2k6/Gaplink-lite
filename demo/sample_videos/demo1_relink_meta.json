@@ -1,0 +1,157 @@
+{
+ "scenario": "relink",
+ "title": "Identity recovery after occlusion",
+ "zones": [
+  {
+   "zone_id": "Z_A",
+   "name": "Restricted Origin A",
+   "role": "entry",
+   "points": [
+    [
+     0.9434,
+     0.7847
+    ],
+    [
+     0.7571,
+     0.9624
+    ],
+    [
+     0.529,
+     0.2061
+    ],
+    [
+     0.7153,
+     0.0285
+    ]
+   ]
+  },
+  {
+   "zone_id": "Z_C",
+   "name": "Permitted Origin C",
+   "role": "entry",
+   "points": [
+    [
+     0.7153,
+     0.0285
+    ],
+    [
+     0.529,
+     0.2061
+    ],
+    [
+     0.4126,
+     0.0
+    ],
+    [
+     0.5989,
+     0.0
+    ]
+   ]
+  },
+  {
+   "zone_id": "Z_B",
+   "name": "Checkpoint Zone B",
+   "role": "restricted",
+   "points": [
+    [
+     0.5791,
+     1.0
+    ],
+    [
+     0.3139,
+     1.0
+    ],
+    [
+     0.0,
+     0.2427
+    ],
+    [
+     0.2346,
+     0.0
+    ]
+   ]
+  },
+  {
+   "zone_id": "Z_DWELL",
+   "name": "No-Stopping Security Zone",
+   "role": "dwell",
+   "points": [
+    [
+     0.1,
+     0.2
+    ],
+    [
+     0.9,
+     0.2
+    ],
+    [
+     0.9,
+     0.88
+    ],
+    [
+     0.1,
+     0.88
+    ]
+   ]
+  }
+ ],
+ "forbidden_routes": [
+  [
+   "Z_A",
+   "Z_B"
+  ]
+ ],
+ "max_dwell_sec": 5.0,
+ "key_moments": [
+  {
+   "frame": 22,
+   "cx": 0.1691,
+   "cy": 0.1496,
+   "label": "GapLink re-link"
+  },
+  {
+   "frame": 73,
+   "cx": 0.0717,
+   "cy": 0.5057,
+   "label": "GapLink re-link"
+  },
+  {
+   "frame": 123,
+   "cx": 0.4673,
+   "cy": 0.0794,
+   "label": "GapLink re-link"
+  },
+  {
+   "frame": 175,
+   "cx": 0.4625,
+   "cy": 0.08,
+   "label": "GapLink re-link"
+  },
+  {
+   "frame": 228,
+   "cx": 0.4619,
+   "cy": 0.0772,
+   "label": "GapLink re-link"
+  }
+ ],
+ "lock": [],
+ "source": {
+  "seq": "MVI_40775",
+  "f0": 151,
+  "f1": 400,
+  "candidates": "runs/demo_mining/demo3_candidates_C-3.json",
+  "rank": 0
+ },
+ "expected": {
+  "gaplink": {
+   "ok": 46,
+   "wrong": 0,
+   "missed": 0
+  },
+  "baseline": {
+   "ok": 19,
+   "wrong": 13,
+   "missed": 17
+  }
+ }
+}

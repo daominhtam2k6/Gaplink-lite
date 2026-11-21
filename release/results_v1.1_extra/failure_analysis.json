@@ -1,0 +1,314 @@
+{
+  "source": "release/final.pt + data/cache/test_events.pkl (frozen); tau/theta from release/tracker.yaml",
+  "taxonomy": {
+    "GapLink-Lite": {
+      "short (3-15)": {
+        "correct": 11404,
+        "missed_relink": 95,
+        "wrong_candidate": 28,
+        "false_link_after_exit": 34
+      },
+      "medium (16-45)": {
+        "correct": 10153,
+        "missed_relink": 381,
+        "wrong_candidate": 142,
+        "false_link_after_exit": 138
+      },
+      "long (46-90)": {
+        "correct": 3776,
+        "missed_relink": 495,
+        "wrong_candidate": 351,
+        "false_link_after_exit": 123
+      }
+    },
+    "C-3": {
+      "short (3-15)": {
+        "correct": 10894,
+        "missed_relink": 90,
+        "wrong_candidate": 165,
+        "false_link_after_exit": 412
+      },
+      "medium (16-45)": {
+        "correct": 8299,
+        "missed_relink": 33,
+        "wrong_candidate": 1236,
+        "false_link_after_exit": 1246
+      },
+      "long (46-90)": {
+        "correct": 2581,
+        "missed_relink": 6,
+        "wrong_candidate": 1529,
+        "false_link_after_exit": 629
+      }
+    },
+    "C-4": {
+      "short (3-15)": {
+        "correct": 10915,
+        "missed_relink": 82,
+        "wrong_candidate": 128,
+        "false_link_after_exit": 436
+      },
+      "medium (16-45)": {
+        "correct": 8734,
+        "missed_relink": 29,
+        "wrong_candidate": 790,
+        "false_link_after_exit": 1261
+      },
+      "long (46-90)": {
+        "correct": 3048,
+        "missed_relink": 4,
+        "wrong_candidate": 1061,
+        "false_link_after_exit": 632
+      }
+    }
+  },
+  "prereg_cases": [
+    {
+      "event_idx": 7075,
+      "track": 3,
+      "seq": "MVI_40775",
+      "gap": 13,
+      "gap_bin": "short (3-15)",
+      "p_correct": 2.3064560039642856e-08,
+      "gt_cand": 0,
+      "gaplink_pred": 7,
+      "c3_pred": 7,
+      "type": "wrong_candidate",
+      "c3_correct": false,
+      "is_hard": true
+    },
+    {
+      "event_idx": 1264,
+      "track": 0,
+      "seq": "MVI_39311",
+      "gap": 11,
+      "gap_bin": "short (3-15)",
+      "p_correct": 4.3912524461120483e-07,
+      "gt_cand": 4,
+      "gaplink_pred": 3,
+      "c3_pred": 2,
+      "type": "wrong_candidate",
+      "c3_correct": false,
+      "is_hard": true
+    },
+    {
+      "event_idx": 11337,
+      "track": 1,
+      "seq": "MVI_40903",
+      "gap": 10,
+      "gap_bin": "short (3-15)",
+      "p_correct": 1.1370192396498169e-06,
+      "gt_cand": 8,
+      "gaplink_pred": -1,
+      "c3_pred": 7,
+      "type": "missed_relink",
+      "c3_correct": false,
+      "is_hard": true
+    },
+    {
+      "event_idx": 3019,
+      "track": 2,
+      "seq": "MVI_40701",
+      "gap": 35,
+      "gap_bin": "medium (16-45)",
+      "p_correct": 2.785812647232433e-08,
+      "gt_cand": 0,
+      "gaplink_pred": 7,
+      "c3_pred": 7,
+      "type": "wrong_candidate",
+      "c3_correct": false,
+      "is_hard": true
+    },
+    {
+      "event_idx": 3022,
+      "track": 1,
+      "seq": "MVI_40701",
+      "gap": 19,
+      "gap_bin": "medium (16-45)",
+      "p_correct": 8.513205074223151e-08,
+      "gt_cand": 6,
+      "gaplink_pred": -1,
+      "c3_pred": 9,
+      "type": "missed_relink",
+      "c3_correct": false,
+      "is_hard": false
+    },
+    {
+      "event_idx": 2466,
+      "track": 0,
+      "seq": "MVI_39501",
+      "gap": 23,
+      "gap_bin": "medium (16-45)",
+      "p_correct": 8.419827281613834e-06,
+      "gt_cand": 8,
+      "gaplink_pred": -1,
+      "c3_pred": 5,
+      "type": "missed_relink",
+      "c3_correct": false,
+      "is_hard": true
+    },
+    {
+      "event_idx": 5998,
+      "track": 2,
+      "seq": "MVI_40771",
+      "gap": 87,
+      "gap_bin": "long (46-90)",
+      "p_correct": 1.0498863584063045e-10,
+      "gt_cand": 6,
+      "gaplink_pred": 7,
+      "c3_pred": 7,
+      "type": "wrong_candidate",
+      "c3_correct": false,
+      "is_hard": true
+    },
+    {
+      "event_idx": 9245,
+      "track": 0,
+      "seq": "MVI_40855",
+      "gap": 89,
+      "gap_bin": "long (46-90)",
+      "p_correct": 7.356102855737845e-07,
+      "gt_cand": 9,
+      "gaplink_pred": -1,
+      "c3_pred": 5,
+      "type": "missed_relink",
+      "c3_correct": false,
+      "is_hard": false
+    },
+    {
+      "event_idx": 11280,
+      "track": 1,
+      "seq": "MVI_40903",
+      "gap": 61,
+      "gap_bin": "long (46-90)",
+      "p_correct": 7.251149327203166e-06,
+      "gt_cand": 0,
+      "gaplink_pred": 3,
+      "c3_pred": 3,
+      "type": "wrong_candidate",
+      "c3_correct": false,
+      "is_hard": true
+    },
+    {
+      "event_idx": 9263,
+      "track": 0,
+      "seq": "MVI_40855",
+      "gap": 73,
+      "gap_bin": "long (46-90)",
+      "p_correct": 1.2184432307549287e-05,
+      "gt_cand": 1,
+      "gaplink_pred": -1,
+      "c3_pred": 9,
+      "type": "missed_relink",
+      "c3_correct": false,
+      "is_hard": true
+    }
+  ],
+  "per_location_top1": {
+    "LOC_T01": {
+      "GapLink-Lite": 0.9105830475257227,
+      "C-3": 0.7974032337089662,
+      "C-4": 0.8388045075943165,
+      "n_tracks": 4082,
+      "n_seqs": 6
+    },
+    "LOC_T02": {
+      "GapLink-Lite": 0.9506139154160982,
+      "C-3": 0.7994542974079127,
+      "C-4": 0.8542974079126876,
+      "n_tracks": 3665,
+      "n_seqs": 5
+    },
+    "LOC_T03": {
+      "GapLink-Lite": 0.8965417029933159,
+      "C-3": 0.7724498692240628,
+      "C-4": 0.8172043010752689,
+      "n_tracks": 3441,
+      "n_seqs": 5
+    },
+    "LOC_T04": {
+      "GapLink-Lite": 0.9277456647398844,
+      "C-3": 0.7557803468208093,
+      "C-4": 0.8020231213872833,
+      "n_tracks": 692,
+      "n_seqs": 1
+    },
+    "LOC_T07": {
+      "GapLink-Lite": 0.9491650294695482,
+      "C-3": 0.8239194499017681,
+      "C-4": 0.8396365422396856,
+      "n_tracks": 4072,
+      "n_seqs": 6
+    },
+    "LOC_T09": {
+      "GapLink-Lite": 0.9543786051389617,
+      "C-3": 0.8405873099108547,
+      "C-4": 0.8505506030414264,
+      "n_tracks": 1907,
+      "n_seqs": 3
+    },
+    "LOC_T10": {
+      "GapLink-Lite": 0.9758534554537885,
+      "C-3": 0.8684429641965029,
+      "C-4": 0.8859283930058285,
+      "n_tracks": 1201,
+      "n_seqs": 2
+    },
+    "LOC_T11": {
+      "GapLink-Lite": 0.9690721649484536,
+      "C-3": 0.8217967599410898,
+      "C-4": 0.8762886597938144,
+      "n_tracks": 679,
+      "n_seqs": 1
+    },
+    "LOC_T14": {
+      "GapLink-Lite": 0.9572463768115942,
+      "C-3": 0.8159420289855073,
+      "C-4": 0.8420289855072464,
+      "n_tracks": 1380,
+      "n_seqs": 2
+    },
+    "LOC_T17": {
+      "GapLink-Lite": 0.9428571428571428,
+      "C-3": 0.788235294117647,
+      "C-4": 0.8016806722689076,
+      "n_tracks": 595,
+      "n_seqs": 1
+    },
+    "LOC_T19": {
+      "GapLink-Lite": 0.9082774049217002,
+      "C-3": 0.7472035794183445,
+      "C-4": 0.7516778523489933,
+      "n_tracks": 447,
+      "n_seqs": 1
+    },
+    "LOC_T20": {
+      "GapLink-Lite": 0.9420289855072463,
+      "C-3": 0.7797101449275362,
+      "C-4": 0.8115942028985508,
+      "n_tracks": 690,
+      "n_seqs": 1
+    },
+    "LOC_T21": {
+      "GapLink-Lite": 0.9069925322471147,
+      "C-3": 0.7556008146639511,
+      "C-4": 0.7820773930753564,
+      "n_tracks": 1473,
+      "n_seqs": 2
+    },
+    "LOC_T23": {
+      "GapLink-Lite": 0.9463087248322147,
+      "C-3": 0.8210290827740492,
+      "C-4": 0.8516032811334825,
+      "n_tracks": 1341,
+      "n_seqs": 2
+    },
+    "LOC_T24": {
+      "GapLink-Lite": 0.9257731958762887,
+      "C-3": 0.8027491408934708,
+      "C-4": 0.8563573883161512,
+      "n_tracks": 1455,
+      "n_seqs": 2
+    }
+  }
+}

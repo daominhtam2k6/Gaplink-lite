@@ -1,0 +1,143 @@
+{
+ "scenario": "dwell",
+ "title": "Stopped vehicle hidden by passing traffic",
+ "zones": [
+  {
+   "zone_id": "Z_A",
+   "name": "Restricted Origin A",
+   "role": "entry",
+   "points": [
+    [
+     0.1016,
+     0.2197
+    ],
+    [
+     0.1949,
+     0.2195
+    ],
+    [
+     0.195,
+     0.3372
+    ],
+    [
+     0.1017,
+     0.3374
+    ]
+   ]
+  },
+  {
+   "zone_id": "Z_C",
+   "name": "Permitted Origin C",
+   "role": "entry",
+   "points": [
+    [
+     0.1017,
+     0.3374
+    ],
+    [
+     0.195,
+     0.3372
+    ],
+    [
+     0.1954,
+     0.9511
+    ],
+    [
+     0.1022,
+     0.9513
+    ]
+   ]
+  },
+  {
+   "zone_id": "Z_B",
+   "name": "Checkpoint Zone B",
+   "role": "restricted",
+   "points": [
+    [
+     0.4739,
+     0.2188
+    ],
+    [
+     0.9462,
+     0.2178
+    ],
+    [
+     0.9467,
+     0.9494
+    ],
+    [
+     0.4744,
+     0.9504
+    ]
+   ]
+  },
+  {
+   "zone_id": "Z_DWELL",
+   "name": "No-Stopping Security Zone",
+   "role": "dwell",
+   "points": [
+    [
+     0.1,
+     0.2
+    ],
+    [
+     0.9,
+     0.2
+    ],
+    [
+     0.9,
+     0.88
+    ],
+    [
+     0.1,
+     0.88
+    ]
+   ]
+  }
+ ],
+ "forbidden_routes": [
+  [
+   "Z_A",
+   "Z_B"
+  ]
+ ],
+ "max_dwell_sec": 5.0,
+ "key_moments": [
+  {
+   "frame": 129,
+   "cx": 0.3698,
+   "cy": 0.3325,
+   "label": "baseline false alarm"
+  },
+  {
+   "frame": 183,
+   "cx": 0.1834,
+   "cy": 0.3557,
+   "label": "baseline false alarm"
+  },
+  {
+   "frame": 254,
+   "cx": 0.8719,
+   "cy": 0.5425,
+   "label": "baseline false alarm"
+  }
+ ],
+ "lock": [],
+ "source": {
+  "seq": "MVI_40762",
+  "f0": 1372,
+  "f1": 1747,
+  "candidates": "runs/demo_mining/candidates_C-3.json",
+  "rank": 3
+ },
+ "expected": {
+  "gaplink": {
+   "dwell_true": 3,
+   "dwell_fp": 0
+  },
+  "baseline": {
+   "dwell_true": 1,
+   "dwell_fp": 5
+  }
+ }
+}

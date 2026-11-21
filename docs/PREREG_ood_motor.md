@@ -1,7 +1,10 @@
 # PREREG — Out-of-domain exploratory test: motorcycles (VisDrone2019-MOT)
 
 Written 2026-11-21, **before** any VisDrone data was downloaded or converted. Not edited after results.
-Status: **exploratory**. It does not change H1/H2/H3/P1 or any frozen result in `release/`.
+Status: **exploratory**.
+
+**Execution status (2026-11-21 22:30):** not executed at the time of the final report; no VisDrone data has been converted and no result exists. Motorcycles are listed under Limitations / Future work in the report.
+ It does not change H1/H2/H3/P1 or any frozen result in `release/`.
 
 ## Question
 UA-DETRAC has no motorcycle labels, so GapLink-Lite never saw motorcycle trajectories.

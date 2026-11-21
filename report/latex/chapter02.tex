@@ -4,59 +4,288 @@
 \section{Data Acquisition}
 \label{sec:data_acquisition}
 
-The project uses the full \textbf{UA-DETRAC} multi-vehicle tracking benchmark \cite{wen2020uadetrac}, consisting of $100$ real-world traffic video sequences recorded at $25\text{ fps}$ ($960 \times 540$ pixels). In the raw CSV mirror, static ignore zones (\texttt{class='ignored'}, \texttt{target\_id=-1}, $528{,}798$ rows) were stored alongside $1{,}274{,}055$ vehicle rows. Our converter (\texttt{scripts/convert\_detrac.py}) separates all $407$ ignore-zone polygons into \texttt{{seq}\_ignore.txt} and filters vehicle detections whose centers fall inside ignore zones. This removes $72{,}714$ vehicle boxes ($\approx 5.7\%$), leaving $1{,}201{,}341$ valid vehicle boxes across $8{,}251$ trajectories (within $\sim 0.7\%$ of the $1.21\text{M}$ boxes and $8{,}250$ vehicles reported in \cite{wen2020uadetrac}); because ignore-zone filtering can also split trajectories near masked boundaries, $242$ trajectories exhibit natural frame gaps. Note that the CSV mirror collapses fine-grained vehicle subtypes into a single \texttt{vehicle} label; therefore, Figure~\ref{fig:eda_results} reports trajectory-length and traffic-density distributions rather than synthetic subtype counts.
+\subsection{Data Sources}
+\label{sec:data_sources}
+
+The project uses one public benchmark, \textbf{UA-DETRAC} \cite{wen2020uadetrac}: $100$ real traffic videos recorded at $25$~fps and $960 \times 540$ pixels by fixed, elevated cameras at roads and intersections, with box and identity annotations for every vehicle. It is the standard benchmark for multi-vehicle tracking from a surveillance viewpoint, which is exactly the setting of this project. The official split ($60$ training and $40$ test sequences) is kept: the $40$ test sequences are used only for the locked test runs.
+
+Two further data products are derived from the same videos: (i) \emph{occlusion events} sampled from ground-truth trajectories (Phase~1, Section~\ref{sec:data_augmentation}), and (ii) \emph{detector events} built by running YOLOv8n \cite{jocher2023yolov8} and the online tracker on the \emph{training} videos (Phase~2 fine-tuning, Section~\ref{sec:training_process}).
+
+\subsection{Data Collection}
+\label{sec:data_collection}
+
+The raw annotations were converted to the MOT text format by \texttt{scripts/convert\_detrac.py}. The source mirror stores static \emph{ignore regions} (areas the annotators did not label, such as distant parking lots) as rows of a fake track ($528{,}798$ rows with \texttt{target\_id}$=-1$). They were separated into $407$ ignore polygons, and the $72{,}714$ vehicle boxes ($5.7\%$) whose centres fall inside them were removed, so that a model is never asked to re-link a vehicle the annotators ignored.
+
+\subsection{Data Annotation}
+\label{sec:data_annotation}
+
+No manual labelling was required: every vehicle box in UA-DETRAC carries a trajectory identity. These identities provide the training label of every occlusion event (which candidate, if any, is the same vehicle as each lost track) and the ground truth of every evaluation. For detector events (Phase~2) and for the demonstration clips, each YOLOv8n box is matched afterwards to a ground-truth box by the Hungarian algorithm with IoU $\ge 0.45$; this \emph{post-hoc} label is used for scoring and fine-tuning only and never enters a tracker.
+
+\subsection{Dataset Statistics}
+\label{sec:dataset_stats}
+
+Table~\ref{tab:dataset_stats} summarises the cleaned dataset; the values were recomputed from the converted files for this report.
 
 \begin{table}[htbp]
     \centering
-    \caption{Cleaned UA-DETRAC dataset statistics and camera-location split (\texttt{data/stats.json})}
+    \caption{Cleaned UA-DETRAC statistics (\texttt{data/mot}, \texttt{data/stats.json})}
     \label{tab:dataset_stats}
     \begin{tabularx}{\textwidth}{l r X}
         \toprule
-        \textbf{Property} & \textbf{Value} & \textbf{Verification / Notes} \\
+        \textbf{Property} & \textbf{Value} & \textbf{Notes} \\
         \midrule
-        Total Video Sequences & $100$ & $60$ source-train + $40$ official source-test sequences ($960\times 540$) \\
-        Annotated Frames & $138{,}045$ & $45{,}603$ dense frames with $\ge 10$ simultaneous vehicles (mean $8.70$ veh/frame) \\
-        Total Vehicle Trajectories & $8{,}251$ & Track length percentiles: $P_{10} = 31$, $P_{50} = 86$, $P_{90} = 245$ frames \\
-        Total Vehicle Bounding Boxes & $1{,}201{,}341$ & Filtered $72{,}714$ boxes ($5.7\%$) inside $407$ ignore regions; $0$ pedestrian boxes \\
-        Train Split (Camera-Separated) & $47$ seqs & $13$ camera viewpoint clusters ($120{,}038$ sampled training events) \\
-        Validation Split (Camera-Separated) & $13$ seqs & $4$ camera viewpoint clusters ($6{,}000$ fixed validation events) \\
-        Test Split (Official Held-Out) & $40$ seqs & $15$ clusters ($7$ overlapping with train/val, $8$ strictly unseen; $12{,}000$ events) \\
+        Video sequences & $100$ & $60$ official training + $40$ official test \\
+        Annotated frames & $138{,}045$ & $45{,}603$ frames contain $\ge 10$ vehicles \\
+        Vehicle trajectories & $8{,}251$ & Median length $86$ frames; $P_{10}=31$, $P_{90}=245$ \\
+        Vehicle boxes & $1{,}201{,}341$ & Mean $8.7$ vehicles per frame; $0$ pedestrian boxes \\
+        Ignore regions & $407$ polygons & $72{,}714$ boxes inside them removed \\
+        Validation events & $6{,}000$ & $11{,}389$ lost tracks, fixed and hashed \\
+        Test events & $12{,}000$ & $27{,}120$ lost tracks, fixed and hashed \\
+        Training events & $120{,}038$ & Sampled from the $47$ training sequences \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
-To prevent viewpoint leakage between training and validation, \texttt{scripts/group\_locations.py} computes a $64 \times 36$ grayscale median background image per sequence and applies Agglomerative Clustering ($1 - r \le 0.65$), yielding $25$ raw camera viewpoint clusters matching UA-DETRAC's $\sim 24$ physical camera locations. The $60$ source-train sequences are partitioned strictly by cluster into $13$ training and $4$ validation clusters ($17$ total). Because the official $40$-sequence UA-DETRAC test split is preserved intact, its $15$ raw clusters include $7$ viewpoint clusters ($21$ sequences, $6{,}300$ events) that also appear in train/val and $8$ strictly unseen camera clusters ($19$ sequences, $5{,}700$ events); both subsets are evaluated separately in Chapter~\ref{chap:results}. Furthermore, to ensure zero appearance leakage during partial occlusion, \texttt{scripts/extract\_hist.py} precomputes a 5-view 128-bin HSV histogram tensor \texttt{(R, 5, 128)} per sequence: view $0$ uses the full inner $60\%$ box, while views $1$--$4$ extract histograms strictly from the visible cropped sub-box (keep-top, keep-bottom, keep-left, keep-right).
+\subsection{Data Splitting}
+\label{sec:data_splitting}
+
+Videos from the same camera look almost identical, so a random split by video would leak the scene into validation. \texttt{scripts/group\_locations.py} therefore computes a $64 \times 36$ median background per sequence and groups the sequences by agglomerative clustering ($1-r \le 0.65$) into $25$ camera clusters, close to the $\sim\!24$ physical locations of UA-DETRAC. The $60$ training sequences are split \emph{by cluster} into $47$ training sequences ($13$ clusters) and $13$ validation sequences ($4$ clusters). The official $40$ test sequences are kept intact; they cover $15$ clusters, $7$ of which also appear in training or validation and $8$ of which are unseen. Both subsets are reported separately (Section~\ref{sec:data_preprocessing}). No horizontal flipping or other mirrored copies are used anywhere, because flipping would create impossible traffic directions.
+
+\subsection{Ethical and Privacy Considerations}
+\label{sec:ethics}
+
+UA-DETRAC is a public research benchmark. The system processes vehicle boxes and coarse colour histograms only: it does not read licence plates, detect faces or identify people, and the live detector is restricted to vehicle classes. The console raises \emph{possible} events (a forbidden route, a lost target) for a human operator to review; it does not take enforcement decisions. The demonstration clips are short excerpts of the test videos and are used only for the presentation.
+
+\subsection{Limitations of the Data}
+\label{sec:data_limitations}
+
+UA-DETRAC contains cars, vans, buses and other large vehicles recorded in Chinese cities; it has no motorcycle class, so the model is trained and evaluated without motorcycles. All cameras are fixed and elevated, the validation split covers only four camera locations, and the official test split shares $7$ of its $15$ locations with training. These limits define the scope of the conclusions (Section~\ref{sec:limitations}).
 
 \section{Training Methodology}
 \label{sec:training_methodology}
 
-\textbf{Mathematical Formulation of GapLink-Lite.} Given $N \le 6$ lost vehicle tracks and $M \le 10$ candidate detections at confirmation frame $t_{\text{conf}}$, GapLink-Lite computes a doubly stochastic assignment distribution over an augmented $(N+1) \times (M+1)$ matrix:
+\subsection{Overview of Trained and Non-Trained Components}
+\label{sec:trained_components}
+
+Only the re-association network is trained (Table~\ref{tab:trained_components}); detection, tracking stages and surveillance rules are fixed algorithms or external models.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Trained and non-trained components}
+    \label{tab:trained_components}
+    \begin{tabularx}{\textwidth}{l c X}
+        \toprule
+        \textbf{Component} & \textbf{Trained?} & \textbf{Approach} \\
+        \midrule
+        GapLink-Lite re-association & Yes & Self-developed network, random initialisation, $327{,}979$ parameters \\
+        Detector-aware checkpoint (v1.3) & Yes & Fine-tuned from the frozen model on detector events of the training videos \\
+        Calibration of $\sigma$ & Fitted & Gap-dependent scale $(a,b,c)$ fitted on validation half~A \\
+        Vehicle detector & No & YOLOv8n \cite{jocher2023yolov8}, used unchanged (Phase~2 and demo only) \\
+        Stage-1 tracking & No & IoU + Hungarian matching \cite{kuhn1955hungarian} \\
+        Baselines C-1 \dots C-4 & No & IoU, constant velocity, Kalman \cite{kalman1960} + Mahalanobis \cite{mahalanobis1936}, + size and colour \\
+        Surveillance rules & No & Zone polygons, route and target-lock logic, GT-based judging \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection{Model Selection}
+\label{sec:model_selection}
+
+Given $N \le 6$ lost tracks and $M \le 10$ candidate detections at the confirmation frame $t_{\text{conf}}$, GapLink-Lite outputs a doubly stochastic assignment over an augmented $(N+1)\times(M+1)$ matrix whose extra row and column (the \emph{dustbins}) absorb unmatched tracks and candidates. Its five modules (Figure~\ref{fig:model_arch}) were chosen to address the three challenges of Section~\ref{sec:bg_challenges}:
 \begin{enumerate}
-    \item \textbf{Scale-Normalized Kinematics \& Motion Encoder:} For each lost track $i$ with history length $L_i \in [1, 20]$ ending at $t_{\text{lost},i}$ and last box $b_{i,L_i} = (c_x, c_y, w_l, h_l)$, each historical step is represented by 9 scale-invariant features normalized by $h_l$ (relative displacements, velocities, accelerations, log-size ratios, aspect ratio, and normalized time step). A 2-layer GRU ($d = 128$) produces hidden state $h_i \in \mathbb{R}^{128}$, while the occlusion gap $g_i = t_{\text{conf}} - t_{\text{lost},i}$ is embedded via $\phi(g_i) = [\ln(1+g_i), g_i/90, \mathbb{I}(g_i\le 15), \mathbb{I}(16\le g_i\le 45), \mathbb{I}(g_i>45)] \in \mathbb{R}^5$ into $g_{\text{emb},i} \in \mathbb{R}^{32}$.
-    \item \textbf{Symmetric DeepSets Context Encoder:} Up to $N_{\text{ctx}} = 8$ surrounding vehicles within radius $5 h_l$ at $t_{\text{lost},i}$ and $t_{\text{conf}}$ are encoded by a shared MLP followed by permutation-invariant max-plus-mean pooling \cite{zaheer2017deepsets} into $c_i \in \mathbb{R}^{128}$.
-    \item \textbf{Constant-Velocity Anchor + Residual Gaussian Predictor:} Using the constant-velocity anchor $\hat{\mu}^{\text{CV}}_i = v_i \cdot g_i / h_l$, the predictor outputs normalized residual mean and diagonal log-variance:
+    \item \textbf{Motion encoder.} Each history step of a lost track is described by scale-invariant features normalised by the last box height $h_l$ (displacement, velocity, log size ratio). A 2-layer GRU \cite{cho2014gru} ($d=128$) encodes the history, and the gap $g_i = t_{\text{conf}} - t_{\text{lost},i}$ is embedded separately, so that the model can widen its uncertainty for long gaps.
+    \item \textbf{Context encoder.} Up to $8$ neighbouring vehicles at $t_{\text{lost}}$ and $t_{\text{conf}}$ are encoded by a shared MLP and permutation-invariant max-plus-mean pooling (DeepSets \cite{zaheer2017deepsets}).
+    \item \textbf{Gaussian predictor.} A constant-velocity anchor plus a learned residual gives the predicted position and a diagonal log-variance:
     \begin{equation}
-        \mu_i = \hat{\mu}^{\text{CV}}_i + f_{\mu}(h_i, c_i, g_i), \qquad \ln \sigma_i^2 = \text{clamp}\big(f_{\sigma}(h_i, c_i, g_i), -6.0, 4.0\big)
+        \mu_i = \hat{\mu}^{\text{CV}}_i + f_{\mu}(h_i, c_i, g_i), \qquad \ln \sigma_i^2 = \operatorname{clamp}\big(f_{\sigma}(h_i, c_i, g_i), -6, 4\big).
     \end{equation}
-    \item \textbf{Pairwise \& Dustbin Scorer (SuperGlue-Style Augmentation):} For each track--candidate pair $(i, j)$ with normalized offset $y_{ij}$, Gaussian log-density anchor $m_{ij}$ is combined with center Mahalanobis distance, predicted box IoU, size-ratio differences, and visible-crop HSV cosine similarity into pairwise logit $S_{ij}$. Following SuperGlue's learnable dustbin formulation \cite{sarlin2020superglue}, track dustbin $z_i^t$ and candidate dustbin $z_j^c$ receive border proximity, appearance, and competitive summary statistics ($\max_j S_{ij}, \max_j \text{IoU}_{ij}, \max_j \cos_{ij}$) to accurately abstain on exited or still-occluded tracks.
-    \item \textbf{Log-Domain Sinkhorn Optimal Transport:} Forming the $(N+1)\times(M+1)$ score matrix $\tilde{S}$ with last column $z^t$, last row $(z^c)^\top$, and corner $0$, we run $T = 20$ alternating log-sum-exp row and column normalizations with target marginals $\mathbf{r} = [1, \dots, 1, M]^\top$ and $\mathbf{c} = [1, \dots, 1, N]^\top$ \cite{sinkhorn1967,cuturi2013sinkhorn,sarlin2020superglue} to obtain $\log P$.
+    \item \textbf{Pairwise and dustbin scorer.} For each track--candidate pair, the Gaussian log-density of the candidate under $(\mu_i, \sigma_i)$ is combined with box overlap, size ratio and visible-crop HSV cosine similarity into a logit $S_{ij}$. Track and candidate dustbin logits receive border proximity and competition statistics, so the model can say ``this track has left'' or ``this candidate is new'' \cite{sarlin2020superglue}.
+    \item \textbf{Log-domain Sinkhorn.} $T=20$ alternating row/column normalisations \cite{sinkhorn1967,cuturi2013sinkhorn} with marginals $\mathbf{r}=[1,\dots,1,M]$ and $\mathbf{c}=[1,\dots,1,N]$ produce $\log P$.
 \end{enumerate}
+A larger model was not needed: the 64-event overfit check reached $100\%$ Top-1, and the full model trains in about $100$~s per run, which allowed five seeds and three ablations within the schedule.
 
-\textbf{Joint Loss \& Multi-Seed Training.} Models are trained with AdamW (cosine learning-rate schedule with warm-up, batch size $64$, $2{,}400$ steps, gradient clipping $1.0$) on an NVIDIA GeForce RTX 3050 6GB Laptop GPU using $\mathcal{L} = \mathcal{L}_{\text{assign}} + 0.5\,\mathcal{L}_{\text{NLL}}$ with curriculum hard-event probability ramping from $0.40$ to $0.75$. All main and ablation configurations are trained across 5 random seeds (20 GPU runs total; $\sim 100\text{ s}$ per main run).
+\subsection{Training Environment}
+\label{sec:training_env}
 
-\textbf{Detector-aware fine-tuning for Phase~2.} A model trained on ground-truth boxes never sees detector jitter, 2--5-frame detector flicker or false-positive candidates. For the live setting we therefore log the exact events built by the online tracker on YOLOv8n detections of the \emph{training} sequences ($7{,}746$ events), label identities by post-hoc IoU matching ($\ge 0.45$) to ground truth, and fine-tune the frozen model for $3{,}000$ steps on a $70/30$ mixture of these events and the original training pool. The checkpoint (\texttt{release/live\_v1.3.pt}, same architecture) is selected on detector-aware validation events; the test videos are never used.
+All experiments ran locally on a laptop with an NVIDIA GeForce RTX~3050 Laptop GPU (6~GB VRAM) in a Python~3.12 virtual environment with PyTorch 2.11.0 (CUDA 12.8). Table~\ref{tab:train_hparams} lists the training configuration stored in the checkpoints.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Training hyperparameters}
+    \label{tab:train_hparams}
+    \begin{tabularx}{\textwidth}{l l X}
+        \toprule
+        \textbf{Parameter} & \textbf{Phase 1 model} & \textbf{Detector-aware fine-tune (v1.3)} \\
+        \midrule
+        Initial weights & Random (seeds 20260417--21) & Frozen Phase-1 checkpoint \\
+        Optimiser & AdamW \cite{loshchilov2019adamw}, cosine schedule with warm-up & AdamW \\
+        Steps / batch size & $2{,}400$ / $64$ events & $3{,}000$ (best at $1{,}500$) / $64$ \\
+        Gradient clipping & $1.0$ & $1.0$ \\
+        Loss & $\mathcal{L}_{\text{assign}} + 0.5\,\mathcal{L}_{\text{NLL}}$ & same \\
+        Training data & $120{,}038$ GT events & $70/30$ mix of $7{,}746$ detector events and GT events \\
+        Runs & 5 seeds full model + 3 ablations $\times$ 5 seeds & 1 seed (20261121) \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection{Data Augmentation}
+\label{sec:data_augmentation}
+
+Training events are synthesised on the fly from ground-truth trajectories by \texttt{src/events.py}, which acts as the augmentation pipeline:
+\begin{itemize}
+    \item \textbf{Occlusion length.} The gap is drawn from three bins, $3$--$15$, $16$--$45$ and $46$--$90$ frames, with probabilities $0.4/0.4/0.2$.
+    \item \textbf{Event types.} A lost track is either occluded and re-appearing, dropped by the detector, or absent at $t_{\text{conf}}$ because it left the view or is still hidden ($0.4/0.4/0.1/0.1$), so that the dustbins are trained.
+    \item \textbf{Box noise.} Gaussian position noise of $3\%$ (history) and $5\%$ (candidates) of the box size and $\pm10\%$ size jitter imitate detector boxes; $5\%$ of true candidates are dropped.
+    \item \textbf{Partial occlusion.} With probability $0.4$, a candidate's colour histogram is taken only from its visible sub-box (one of four precomputed partial views), so occluded pixels never leak.
+    \item \textbf{Curriculum.} The share of hard events (a distractor closer than the true candidate) rises from $0.40$ to $0.75$ during training.
+\end{itemize}
+Mirroring and other geometric transformations of the scene are not used (Section~\ref{sec:data_splitting}).
+
+\subsection{Loss Function and Metrics}
+\label{sec:loss_metrics}
+
+The assignment loss is the negative log-probability of the true assignment under $P$, including the dustbin entries; the prediction loss is the Gaussian negative log-likelihood of the true re-appearance position. Evaluation uses:
+\begin{itemize}
+    \item \textbf{Event Top-1}: fraction of lost tracks assigned to the correct candidate or correctly to the dustbin; \textbf{WLR} (wrong-link rate): fraction linked to a wrong candidate.
+    \item \textbf{90\% coverage} and 2D NLL of the predicted ellipse (calibration).
+    \item \textbf{IRR} (identity recovery rate): fraction of occlusion intervals after which the vehicle keeps its ID in the online tracker; \textbf{WLR}, \textbf{IDF1}, \textbf{MOTA} and \textbf{IDSW} at tracker level.
+    \item \textbf{Nat-IRR / Nat-WLR}: the same on natural detector gaps of $3$--$95$ frames in Phase~2.
+\end{itemize}
+Confidence intervals are paired bootstraps \cite{efron1994bootstrap} with the camera location as resampling unit ($15$ test locations, $10{,}000$ draws).
+
+\subsection{Training Process and Model Selection}
+\label{sec:training_process}
+
+Validation Top-1 was evaluated every $600$ steps (Figure~\ref{fig:training_curves}); the smoothed assignment loss falls until step $1{,}800$ and validation Top-1 reaches $93.2\%$ at the last evaluation (step $2{,}400$), with no sign of over-fitting on the validation locations. Seed~1 was frozen as \texttt{release/final.pt} (SHA-256 \texttt{844fc391\ldots}); the other four seeds are used for mean $\pm$ SD and ablations.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/fig_training_curves.png}
+    \caption{Training of the frozen model: smoothed assignment loss (left) and validation Top-1 accuracy (right), evaluated every 600 steps}
+    \label{fig:training_curves}
+\end{figure}
+
+\textbf{Detector-aware fine-tuning.} A model trained on ground-truth boxes never sees detector jitter, 2--5-frame flicker or false-positive candidates. For Phase~2, the events produced by the online tracker on YOLOv8n detections of the \emph{training} videos ($7{,}746$ events) were labelled post hoc and used to fine-tune the frozen model. The checkpoint (\texttt{release/live\_v1.3.pt}, same architecture) was selected on detector events of the validation videos; the test videos were not used.
+
+\subsection{Tuning of Rule-Based Modules}
+\label{sec:rule_tuning}
+
+All thresholds were selected on validation data and frozen in \texttt{release/tracker.yaml} and \texttt{release/live\_v1.3.yaml}:
+\begin{itemize}
+    \item \textbf{Acceptance threshold.} A GapLink-Lite link $(i,j)$ is accepted iff $P_{ij} \ge \tau$ and $P_{ij} > P_{i,\text{dustbin}}$. Phase~1: $\tau = 0.25$; Phase~2: $\tau = 0.65$ (highest validation Nat-IRR subject to Nat-WLR $\le 5\%$). Baseline gates were selected by the same rule (live: C-2 $\theta=1.2$, C-3 $\theta=1.0$, C-4 $\theta=1.2$).
+    \item \textbf{Tracker.} Stage-1 IoU threshold $0.30$; a track is confirmed after $3$ hits; lost tracks are kept for $a_{\max} = 95$ frames, longer than the longest injected gap.
+    \item \textbf{Calibration.} $\sigma' = \sigma \exp(a + b\ln(1+g) + c\ln^2(1+g))$ with $(a,b,c) = (0.413, -0.341, 0.074)$, fitted on validation half~A.
+    \item \textbf{Demo judging.} Re-links are scored only after gaps of $\ge 3$ frames (the lower bound of the gap bins); detector boxes are matched to ground truth at IoU $\ge 0.45$.
+\end{itemize}
+
+\textbf{Post-training optimisation.} The console was profiled stage by stage on the three clips with cached detections (script \texttt{bench\_vms\_fps.py}). Because the model is tiny, running it on the GPU is dominated by kernel-launch overhead: GapLink-Lite took $17$--$23$~ms per frame on CUDA but $8$--$9.5$~ms on the CPU with a single thread. Together with a cheaper zoom (crop + linear resize instead of a bicubic affine warp) and JPEG quality $80$, the per-frame cost of the console fell from $69$--$83$~ms ($12$--$14.5$~FPS) to $22$--$28$~ms ($36$--$46$~FPS), above the $25$~fps of the videos.
 
 \section{Workflow}
 \label{sec:workflow}
 
-The workflow follows the two evaluation phases. In Phase~1, UA-DETRAC annotations are converted and split by camera location, fixed event sets are generated, the model is trained and frozen, and a single locked test run evaluates both the event level and the online tracker under injected occlusions. In Phase~2, raw videos go through YOLOv8n, online HSV extraction, the two-stage tracker with a pluggable re-association module (GapLink-Lite or C-1\ldots C-4), and the GapLink-VMS security rules; ground truth is used only afterwards to score the results.
+\subsection{System Overview}
+\label{sec:system_overview}
 
-To guarantee zero train--test skew between event training and online tracking, both the training sampler and Stage-2 of the online tracker call the exact same pure function \texttt{assemble\_event} (verified by \texttt{tests/test\_parity.py}). During online tracking: Stage 1 matches active tracks to detections via Hungarian IoU ($\ge 0.30$); Stage 2 matches lost tracks ($2 \le \text{age} \le a_{\max}$, $a_{\max}=95$) to unmatched detections using the selected associator. For GapLink-Lite, Hungarian matching on $-P_{1:N,1:M}$ accepts $(i,j)$ iff $P_{ij} \ge \tau$ ($\tau = 0.25$) and $P_{ij} > P_{i,M+1}$.
+The system processes a video stream frame by frame and keeps state between frames (active and lost tracks, zone history, the locked target). Figure~\ref{fig:pipeline} shows the processing pipeline. Two trackers run on the same detections, one with the baseline and one with GapLink-Lite, so any difference on screen comes from the re-association module alone.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        node distance=0.42cm,
+        st/.style={draw=SamsungBlue!80!black, rounded corners=3pt, fill=SamsungLightBlue!35, text width=8.6cm, align=center, minimum height=0.8cm, font=\small},
+        dec/.style={draw=purple!60!black, diamond, aspect=2.6, fill=purple!6, text width=3.2cm, align=center, font=\small, inner sep=1pt},
+        side/.style={draw=gray!60!black, rounded corners=3pt, fill=gray!8, text width=3.0cm, align=center, minimum height=0.8cm, font=\small},
+        arr/.style={-{Stealth[length=2.2mm]}, thick}
+    ]
+        \node[st] (v) {Camera / video file (OpenCV)};
+        \node[st, below=of v] (d) {YOLOv8n vehicle detection + HSV histograms (cached for the demo clips)};
+        \node[st, below=of d] (s1) {Stage 1: IoU + Hungarian matching of active tracks};
+        \node[dec, below=of s1] (q) {Unmatched lost tracks and detections?};
+        \node[st, below=0.5cm of q] (s2) {Stage 2: re-association --- GapLink-Lite (Sinkhorn + dustbin) or baseline C-1\dots C-4};
+        \node[st, below=of s2] (r) {Surveillance rules: forbidden route $Z_A\!\to\!Z_B$, target lock};
+        \node[st, below=of r] (e) {Console overlay, counters, incident history (before/after crops)};
+        \node[side, right=0.9cm of q] (n) {New tracks / keep waiting};
+        \node[side, right=0.9cm of e] (g) {Post-hoc GT judging (evaluation only)};
+        \draw[arr] (v) -- (d); \draw[arr] (d) -- (s1); \draw[arr] (s1) -- (q);
+        \draw[arr] (q) -- node[right, font=\small]{yes} (s2); \draw[arr] (q) -- node[above, font=\small]{no} (n);
+        \draw[arr] (s2) -- (r); \draw[arr] (r) -- (e); \draw[arr, dashed] (g) -- (e);
+    \end{tikzpicture}
+    \caption{Processing pipeline of the online tracker and the GapLink-VMS console}
+    \label{fig:pipeline}
+\end{figure}
+
+\subsection{Two-Stage Online Tracking}
+\label{sec:two_stage}
+
+Stage~1 matches active tracks to detections with IoU $\ge 0.30$. Tracks that are not matched become \emph{lost} and wait up to $a_{\max} = 95$ frames. Stage~2 runs only when there are lost tracks aged $2$--$95$ frames and unmatched detections; it builds one event per group of up to $6$ lost tracks and $10$ candidates and calls the selected associator. Unmatched detections start new tracks. Training and tracking build events with the same function (\texttt{assemble\_event}, checked by \texttt{tests/test\_parity.py}), so there is no train--test skew in the event format.
+
+\subsection{Re-Association Decision}
+\label{sec:reassoc_decision}
+
+For GapLink-Lite, Hungarian matching on $-P_{1:N,1:M}$ proposes pairs, and a pair is accepted only if
+\begin{equation}
+    P_{ij} \ge \tau \quad\text{and}\quad P_{ij} > P_{i,M+1},
+\end{equation}
+i.e.\ if the link is more likely than ``not yet''. Otherwise the track keeps waiting (dustbin). The Kalman baselines accept a pair when the Mahalanobis distance $d^2_{ij} = \sum_{k\in\{x,y\}} (c_{jk} - \mu_{ik})^2 / \sigma_{ik}^2$ is below their gate $\theta$ (plus size and colour terms for C-4).
+
+\subsection{Surveillance Rules}
+\label{sec:surveillance_rules}
+
+\textbf{Forbidden route.} A track whose first zone is $Z_A$ and that later enters $Z_B$ raises a violation. With ground truth, each violation is judged as \emph{correct ID} (the same vehicle at $Z_A$ and $Z_B$), \emph{wrong ID} (the vehicle at $Z_B$ did come from $Z_A$, but the alert's ID started on another vehicle) or \emph{false} (the vehicle at $Z_B$ never was in $Z_A$).
+
+\textbf{Target lock.} The operator clicks a vehicle; the console follows its ID. While the target is hidden, the predicted position (GapLink-Lite's $\mu$ or the Kalman prediction) is drawn as a dashed path; when a vehicle re-appears, the target is \emph{re-acquired} if it is the same vehicle and \emph{wrong car} otherwise.
+
+\subsection{Incident History}
+\label{sec:incident_history}
+
+Only the events an operator must check are logged: wrong links, vehicles that received a new ID, route violations and a lost or wrong target. Each entry stores a crop of the vehicle before and after the event, the method, the ID and the time, so a reviewer can see at a glance whether the two crops show the same vehicle.
+
+\subsection{Evaluation Protocol and Result Freezing}
+\label{sec:eval_protocol}
+
+Hypotheses and protocol were registered in \texttt{docs/PREREG.md} before any test run. Thresholds were selected on validation only; the test events and test videos were evaluated once from SHA-256-hashed checkpoints; results are copied to \texttt{release/results\_v1.1} and \texttt{release/results\_v1.3} with freeze manifests verified by \texttt{scripts/freeze\_results.py}. Every deviation from the plan (including one re-run of the Phase-1 test after a data-conversion fix) is recorded in \texttt{docs/DEVIATIONS.md}.
+
+\subsection{User Workflow}
+\label{sec:user_workflow}
+
+The operator selects one of three clips, plays or steps through it, and reads the two panes side by side. For the route task, zones $Z_A$ and $Z_B$ can be redrawn on the frame and saved with the clip; for the target task, the operator pauses and clicks a vehicle. The result table and the incident history update live.
+
+\subsection{Operating Modes}
+\label{sec:operating_modes}
+
+The console (\texttt{demo/vms\_lite.py}) has three modes: an interactive web dashboard; \texttt{--check}, which runs the three clips without a user interface and writes their metrics to \texttt{runs/vms\_lite\_check/metrics.json}; and \texttt{--render}, which writes side-by-side MP4 files with slow motion at the key moments as a backup for the presentation.
 
 \section{System Design}
 \label{sec:system_design}
 
-Figure~\ref{fig:system_design} presents the vector architecture diagram of GapLink-Lite and its integration into the two-stage online vehicle tracker.
+Figure~\ref{fig:sys_arch} shows the overall architecture of the console and Figure~\ref{fig:model_arch} the internal structure of GapLink-Lite.
+
+\begin{figure}[htbp]
+    \centering
+    \resizebox{\textwidth}{!}{%
+    \begin{tikzpicture}[
+        box/.style={draw=SamsungBlue!80!black, rounded corners=4pt, fill=SamsungLightBlue!35, text width=2.7cm, align=center, minimum height=1.2cm, font=\small},
+        gl/.style={draw=green!50!black, rounded corners=4pt, fill=green!8, text width=2.7cm, align=center, minimum height=1.2cm, font=\small},
+        ext/.style={draw=gray!60!black, rounded corners=4pt, fill=gray!8, text width=2.7cm, align=center, minimum height=1.2cm, font=\small},
+        arr/.style={-{Stealth[length=2.3mm]}, thick}
+    ]
+        \node[ext] (vid) at (0,0) {Video clip\\ \scriptsize\texttt{demo/sample\_videos}};
+        \node[ext] (det) at (3.4,0) {YOLOv8n boxes + HSV\\ \scriptsize cached \texttt{\_dets.npz}};
+        \node[box] (t1) at (7.2,1.0) {Tracker A\\ \scriptsize Stage 1 + C-3 Kalman};
+        \node[gl] (t2) at (7.2,-1.0) {Tracker B\\ \scriptsize Stage 1 + GapLink-Lite};
+        \node[box] (j) at (11.0,0) {Judges\\ \scriptsize re-link, route, lock};
+        \node[ext] (gt) at (11.0,-2.4) {Ground truth\\ \scriptsize \texttt{\_gt.npz} (scoring only)};
+        \node[box] (srv) at (14.6,0) {FastAPI server\\ \scriptsize SSE stream, actions};
+        \node[ext] (ui) at (18.0,0) {Web browser\\ \scriptsize panes, table, history};
+        \draw[arr] (vid) -- (det); \draw[arr] (det) -- (t1); \draw[arr] (det) -- (t2);
+        \draw[arr] (t1) -- (j); \draw[arr] (t2) -- (j); \draw[arr, dashed] (gt) -- (j);
+        \draw[arr] (j) -- (srv); \draw[arr] (srv) -- (ui);
+        \draw[arr] (ui.south) to[bend left=25] node[below, font=\scriptsize]{zones, click-to-lock, seek} (srv.south);
+    \end{tikzpicture}%
+    }
+    \caption{Overall architecture of the GapLink-VMS demonstration console}
+    \label{fig:sys_arch}
+\end{figure}
 
 \begin{figure}[htbp]
     \centering
@@ -68,29 +297,19 @@ Figure~\ref{fig:system_design} presents the vector architecture diagram of GapLi
         outb/.style={draw=red!65!black, rounded corners=4pt, fill=red!6, text width=3.2cm, align=center, minimum height=2.2cm, font=\small},
         arr/.style={-{Stealth[length=2.5mm]}, thick, draw=black!75}
     ]
-        \node[inp] (lost) {\textbf{Lost Track Pool ($1\dots N$)}\\ \scriptsize Boxes ($K\le 20$), Gap $g_i$\\ 128-bin HSV EMA, Ctx@$t_{\text{lost}}$};
-        \node[inp, below=1.1cm of lost] (cand) {\textbf{Candidate Pool ($1\dots M$)}\\ \scriptsize Unmatched Dets@$t_{\text{conf}}$\\ Visible-Crop HSV, Ctx@$t_{\text{conf}}$};
-
-        \node[box, right=1.0cm of lost] (mot) {\textbf{1. Motion Encoder}\\ \scriptsize 2-Layer GRU ($d=128$)\\ + Gap MLP $\rightarrow (h_i, g_{\text{emb},i})$};
-        \node[box, right=1.0cm of cand] (ctx) {\textbf{2. Context Encoder}\\ \scriptsize Symmetric DeepSets\\ Max+Mean Pool $\rightarrow c_i$};
-
-        \node[box, fill=green!8, draw=green!55!black, right=1.0cm of mot] (pred) {\textbf{3. Gaussian Predictor}\\ \scriptsize CV Anchor + Residual MLP\\ $\rightarrow (\mu_i, \ln\sigma_i^2)$ + Calib $\sigma'(g)$};
-        \node[box, fill=purple!8, draw=purple!60!black, right=1.0cm of ctx] (scor) {\textbf{4. Pairwise \& Dustbin}\\ \scriptsize Logits $S_{ij}$ + Track $z_i^t$\\ + Cand $z_j^c$ (SuperGlue-style)};
-
-        \node[outb, right=1.0cm of $(pred.east)!0.5!(scor.east)$] (sink) {\textbf{5. Log-Sinkhorn ($T=20$)}\\ \scriptsize Augmented $(N+1)\times(M+1)$\\ Doubly Stochastic $P$\\ Hungarian + Gate $\tau=0.25$\\ $\rightarrow$ Recover ID or Abstain};
-
-        \draw[arr] (lost) -- (mot);
-        \draw[arr] (cand) -- (ctx);
-        \draw[arr] (lost.south east) -- (ctx.north west);
-        \draw[arr] (mot) -- (pred);
-        \draw[arr] (ctx) -- (scor);
-        \draw[arr] (ctx.north east) -- (pred.south west);
-        \draw[arr] (mot.south east) -- (scor.north west);
-        \draw[arr] (pred) -- (scor);
-        \draw[arr] (pred.east) -- (sink.west |- pred.east);
-        \draw[arr] (scor.east) -- (sink.west |- scor.east);
+        \node[inp] (lost) {\textbf{Lost tracks ($1\dots N$)}\\ \scriptsize boxes ($K\le 20$), gap $g_i$,\\ HSV EMA, context at $t_{\text{lost}}$};
+        \node[inp, below=1.1cm of lost] (cand) {\textbf{Candidates ($1\dots M$)}\\ \scriptsize unmatched detections,\\ visible-crop HSV, context at $t_{\text{conf}}$};
+        \node[box, right=1.0cm of lost] (mot) {\textbf{1. Motion encoder}\\ \scriptsize 2-layer GRU ($d=128$)\\ + gap embedding};
+        \node[box, right=1.0cm of cand] (ctx) {\textbf{2. Context encoder}\\ \scriptsize DeepSets,\\ max + mean pooling};
+        \node[box, fill=green!8, draw=green!55!black, right=1.0cm of mot] (pred) {\textbf{3. Gaussian predictor}\\ \scriptsize CV anchor + residual\\ $\rightarrow (\mu_i, \ln\sigma_i^2)$};
+        \node[box, fill=purple!8, draw=purple!60!black, right=1.0cm of ctx] (scor) {\textbf{4. Pairwise \& dustbin}\\ \scriptsize logits $S_{ij}$, track $z^t_i$,\\ candidate $z^c_j$};
+        \node[outb, right=1.0cm of $(pred.east)!0.5!(scor.east)$] (sink) {\textbf{5. Log-Sinkhorn ($T=20$)}\\ \scriptsize $(N+1)\times(M+1)$ matrix $P$\\ Hungarian + gate $\tau$\\ $\rightarrow$ re-link or wait};
+        \draw[arr] (lost) -- (mot); \draw[arr] (cand) -- (ctx); \draw[arr] (lost.south east) -- (ctx.north west);
+        \draw[arr] (mot) -- (pred); \draw[arr] (ctx) -- (scor); \draw[arr] (ctx.north east) -- (pred.south west);
+        \draw[arr] (mot.south east) -- (scor.north west); \draw[arr] (pred) -- (scor);
+        \draw[arr] (pred.east) -- (sink.west |- pred.east); \draw[arr] (scor.east) -- (sink.west |- scor.east);
     \end{tikzpicture}%
     }
-    \caption{Vector Architecture Diagram of GapLink-Lite ($327{,}979$ Parameters) and Stage-2 Optimal Transport Re-Association}
-    \label{fig:system_design}
+    \caption{Architecture of GapLink-Lite ($327{,}979$ parameters) used in Stage 2}
+    \label{fig:model_arch}
 \end{figure}

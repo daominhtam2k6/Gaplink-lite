@@ -1,0 +1,151 @@
+{
+ "scenario": "relink",
+ "title": "Identity recovery after occlusion",
+ "zones": [
+  {
+   "zone_id": "Z_A",
+   "name": "Restricted Origin A",
+   "role": "entry",
+   "points": [
+    [
+     0.1015,
+     0.0
+    ],
+    [
+     0.3211,
+     0.0
+    ],
+    [
+     0.3083,
+     0.2198
+    ],
+    [
+     0.0886,
+     0.1821
+    ]
+   ]
+  },
+  {
+   "zone_id": "Z_C",
+   "name": "Permitted Origin C",
+   "role": "entry",
+   "points": [
+    [
+     0.0886,
+     0.1821
+    ],
+    [
+     0.3083,
+     0.2198
+    ],
+    [
+     0.2865,
+     0.6193
+    ],
+    [
+     0.0669,
+     0.5815
+    ]
+   ]
+  },
+  {
+   "zone_id": "Z_B",
+   "name": "Checkpoint Zone B",
+   "role": "restricted",
+   "points": [
+    [
+     0.5941,
+     0.0299
+    ],
+    [
+     0.9902,
+     0.098
+    ],
+    [
+     0.9556,
+     0.7342
+    ],
+    [
+     0.5595,
+     0.6662
+    ]
+   ]
+  },
+  {
+   "zone_id": "Z_DWELL",
+   "name": "No-Stopping Security Zone",
+   "role": "dwell",
+   "points": [
+    [
+     0.1,
+     0.2
+    ],
+    [
+     0.9,
+     0.2
+    ],
+    [
+     0.9,
+     0.88
+    ],
+    [
+     0.1,
+     0.88
+    ]
+   ]
+  }
+ ],
+ "forbidden_routes": [
+  [
+   "Z_A",
+   "Z_B"
+  ]
+ ],
+ "max_dwell_sec": 5.0,
+ "key_moments": [
+  {
+   "frame": 48,
+   "cx": 0.1667,
+   "cy": 0.2678,
+   "label": "baseline missed"
+  },
+  {
+   "frame": 101,
+   "cx": 0.4895,
+   "cy": 0.1354,
+   "label": "baseline missed"
+  },
+  {
+   "frame": 151,
+   "cx": 0.5935,
+   "cy": 0.1317,
+   "label": "baseline wrong"
+  },
+  {
+   "frame": 211,
+   "cx": 0.759,
+   "cy": 0.1565,
+   "label": "GapLink re-link"
+  }
+ ],
+ "lock": [],
+ "source": {
+  "seq": "MVI_40864",
+  "f0": 1,
+  "f1": 250,
+  "candidates": "runs/demo_mining/relink_candidates_C-3.json",
+  "rank": 0
+ },
+ "expected": {
+  "gaplink": {
+   "ok": 8,
+   "wrong": 0,
+   "missed": 6
+  },
+  "baseline": {
+   "ok": 8,
+   "wrong": 16,
+   "missed": 6
+  }
+ }
+}

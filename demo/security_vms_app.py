@@ -10,6 +10,7 @@ import argparse
 import asyncio
 import base64
 import json
+import os
 from pathlib import Path
 import sys
 import threading
@@ -36,6 +37,9 @@ from demo.render_security_demo import (
     load_clip_gt_meta,
     match_frame_dets_to_gt,
 )
+from demo.clip_meta import load_clip_meta, slow_windows, zones_from_meta
+from demo.render_security_demo import _window_state, _zoom_at
+from demo.relink_viz import attach_relink, event_json, relink_summary
 from demo.vms_profile import BASELINE_INFO, DEFAULT_BASELINE, load_profile, make_baseline, make_gaplink, resolve_root
 from src.live_detector import LiveVehicleDetector
 from src.security_analytics import (
@@ -52,7 +56,7 @@ UPLOAD_DIR = ROOT / "demo" / "uploads"
 SAMPLE_DIR.mkdir(parents=True, exist_ok=True)
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-PRESET_CATALOG = [
+PRESET_CATALOG_LEGACY = [
     {
         "id": "detrac_MVI_39361_wrong_lane.mp4",
         "label": "[Tình huống 1: Đi sai làn / Cắt vạch chữ V] MVI_39361 — Làn rẽ phải cắt vạch đi thẳng qua điểm khuất",
@@ -112,6 +116,27 @@ PRESET_CATALOG = [
 ]
 
 
+SCENARIO_LABEL = {"route": "Tuyến cấm Z_A → Z_B qua vật che", "dwell": "Xe dừng đỗ bị xe khác che khuất",
+                  "lock": "Khóa & bám xe đang chạy qua vật che",
+                  "relink": "Khôi phục danh tính sau che khuất"}
+
+
+def _showcase_presets() -> list[dict]:
+    out = []
+    for i, vp in enumerate(sorted(SAMPLE_DIR.glob("showcase_*.mp4")), 1):
+        m = load_clip_meta(vp)
+        if not m:
+            continue
+        km = m.get("key_moments") or [{"frame": 60}]
+        out.append({"id": vp.name, "key": vp.stem, "scenario": m["scenario"], "climax_frame": int(km[0]["frame"]),
+                    "label": f"[Tình huống {i}] {SCENARIO_LABEL.get(m['scenario'], m['scenario'])} — {m.get('source', {}).get('seq', '')}",
+                    "showcase": True})
+    return out
+
+
+PRESET_CATALOG = _showcase_presets() + PRESET_CATALOG_LEGACY
+
+
 def _frame_signature(frame_bgr: np.ndarray | None) -> np.ndarray | None:
     if frame_bgr is None or frame_bgr.size == 0:
         return None
@@ -158,8 +183,20 @@ class LiveVMSSession:
 
         # all operating points come from frozen release files (demo/vms_profile.py)
         self.profile = load_profile(ROOT)
-        self.gl_assoc = make_gaplink(self.profile, self.device)
+        # GapLink is tiny (<1M params): on some GPUs per-call launch overhead makes CPU faster.
+        # Choose with env GAPLINK_GL_DEVICE=cpu|cuda (measure with scripts/bench_vms_fps.py).
+        # measured on RTX 3050 laptop (scripts/bench_vms_fps.py): GapLink step 16-23 ms on CPU vs 30-41 ms on CUDA
+        self.gl_device = os.environ.get("GAPLINK_GL_DEVICE", "cpu")
+        if self.gl_device == "cpu":
+            torch.set_num_threads(int(os.environ.get("GAPLINK_GL_THREADS", "1")))
+        self.gl_assoc = make_gaplink(self.profile, self.gl_device)
+        print(f"[VMS] YOLO device={self.device}  GapLink device={self.gl_device}", flush=True)
         self.baseline_name = DEFAULT_BASELINE
+        self.clip_meta: dict | None = None
+        self.speed: float = 1.0          # user playback speed (0.25 / 0.5 / 1.0)
+        self.show_ids: bool = True       # tracker-ID tags on every vehicle (toggle: checkbox / key I)
+        self.auto_slow: bool = True      # 0.25x + zoom automatically around key moments
+        self.in_key_window: bool = False
         self.det_from_cache = False
         self.detector_4w = LiveVehicleDetector(imgsz=640, include_motorcycles=False)
         self.detector_all = LiveVehicleDetector(imgsz=640, include_motorcycles=True)
@@ -245,6 +282,9 @@ class LiveVMSSession:
                 pts = [(float(p[0]), float(p[1])) for p in zs["points"]]
                 zones.append(PolygonZone(zid, zs.get("name", zid), pts, role=role, normalized=True, color_bgr=col))
             return zones, [("Z_A", "Z_B")]
+        if self.clip_meta and self.clip_meta.get("zones"):
+            zones, forb, _ = zones_from_meta(self.clip_meta)
+            return zones, forb
         zones, forb, _ = default_preset_zones(self.preset_key, self.W, self.H)
         return zones, forb
 
@@ -266,13 +306,33 @@ class LiveVMSSession:
             max_dwell_sec=self.max_dwell_sec,
             fps=self.fps,
         )
+        attach_relink(self.vms_c3)
+        attach_relink(self.vms_gl)
         self.last_res_c3 = None
         self.last_res_gl = None
         self.alert_feed = []
         self.user_manual_lock = False
-        if not self.auto_lock_schedule or self.preset_key != "custom_auto":
+        if self.clip_meta and self.clip_meta.get("lock"):
+            self.auto_lock_schedule = [tuple(x) for x in self.clip_meta["lock"]]
+        elif not self.auto_lock_schedule or self.preset_key != "custom_auto":
             self.auto_lock_schedule = default_lock_schedule(self.preset_key)
         self.auto_lock_idx = 0
+
+    def effective_speed(self) -> float:
+        return 0.25 if (self.auto_slow and self.in_key_window) else self.speed
+
+    def next_key_moment(self, replay: bool = False) -> int | None:
+        kms = [int(k["frame"]) for k in (self.clip_meta or {}).get("key_moments", [])]
+        if not kms:
+            return None
+        if replay:
+            past = [k for k in kms if k <= self.frame_idx + 40]
+            k = past[-1] if past else kms[0]
+        else:
+            nxt = [k for k in kms if k > self.frame_idx + 40]
+            k = nxt[0] if nxt else kms[0]
+        self.seek_to_frame(max(1, k - 45), pause_after=False)
+        return k
 
     @property
     def bl_label(self) -> str:
@@ -378,10 +438,11 @@ class LiveVMSSession:
                 self.cap.release()
             self.video_path = path
             self.preset_key = preset_key
-            if scenario_mode in ("route", "dwell", "lock", "all"):
+            if scenario_mode in ("relink", "route", "dwell", "lock", "all"):
                 self.scenario_mode = scenario_mode
 
             self.gt_meta = load_clip_gt_meta(path)
+            self.clip_meta = load_clip_meta(path)
             pre_dets = load_clip_dets_cache(path)
             self.det_cache = pre_dets if pre_dets is not None else {}
 
@@ -410,10 +471,15 @@ class LiveVMSSession:
                     self.climax_frame = int(p.get("climax_frame", 120))
                     break
 
+            if self.clip_meta and self.clip_meta.get("key_moments"):
+                self.climax_frame = int(self.clip_meta["key_moments"][0]["frame"])
             if reset_zones:
                 self.custom_zones_spec = None
-                _, _, def_dw = default_preset_zones(self.preset_key, 960, 540)
-                self.max_dwell_sec = def_dw
+                if self.clip_meta:
+                    self.max_dwell_sec = float(self.clip_meta.get("max_dwell_sec", 5.0))
+                else:
+                    _, _, def_dw = default_preset_zones(self.preset_key, 960, 540)
+                    self.max_dwell_sec = def_dw
 
             if auto_calibrate:
                 self._run_auto_calibration_unlocked()
@@ -511,6 +577,8 @@ class LiveVMSSession:
                 prev_gl_ev_cnt = len(self.vms_gl.target_lock.events)
                 res_c3 = self.vms_c3.step(self.frame_idx, d["boxes"], d["hists"], det_gt_tids=gt_tids, frame_bgr=fbgr)
                 res_gl = self.vms_gl.step(self.frame_idx, d["boxes"], d["hists"], det_gt_tids=gt_tids, frame_bgr=fbgr)
+                self.vms_c3.relink.update(self.vms_c3.tracker, res_c3, self.frame_idx)
+                self.vms_gl.relink.update(self.vms_gl.tracker, res_gl, self.frame_idx)
 
                 if (
                     self.scenario_mode in ("lock", "all")
@@ -622,6 +690,8 @@ class LiveVMSSession:
                 prev_gl_ev_cnt = len(self.vms_gl.target_lock.events)
                 res_c3 = self.vms_c3.step(self.frame_idx, d["boxes"], d["hists"], det_gt_tids=gt_tids, frame_bgr=frm)
                 res_gl = self.vms_gl.step(self.frame_idx, d["boxes"], d["hists"], det_gt_tids=gt_tids, frame_bgr=frm)
+                self.vms_c3.relink.update(self.vms_c3.tracker, res_c3, self.frame_idx)
+                self.vms_gl.relink.update(self.vms_gl.tracker, res_gl, self.frame_idx)
 
                 if (
                     self.scenario_mode in ("lock", "all")
@@ -644,23 +714,26 @@ class LiveVMSSession:
             if frm is None or res_c3 is None or res_gl is None:
                 return None
 
+            wins = slow_windows(self.clip_meta)
+            slow, z, zcx, zcy = _window_state(self.frame_idx, wins) if self.auto_slow else (False, 1.0, 0.5, 0.5)
+            self.in_key_window = slow
             if self.view_mode == "side_by_side":
-                vis_l = draw_vms_overlay(frm, self.vms_c3, res_c3, f"YOLOv8n + {self.bl_label}", scenario_mode=self.scenario_mode)
-                vis_r = draw_vms_overlay(frm, self.vms_gl, res_gl, f"YOLOv8n + {self.profile.gaplink_label}", scenario_mode=self.scenario_mode)
+                vis_l = _zoom_at(draw_vms_overlay(frm, self.vms_c3, res_c3, f"YOLOv8n + {self.bl_label}", scenario_mode=self.scenario_mode, show_ids=self.show_ids, show_cands=self.paused), zcx, zcy, z)
+                vis_r = _zoom_at(draw_vms_overlay(frm, self.vms_gl, res_gl, f"YOLOv8n + {self.profile.gaplink_label}", scenario_mode=self.scenario_mode, show_ids=self.show_ids, show_cands=self.paused), zcx, zcy, z)
                 pw, ph = 720, 405
                 out_img = np.concatenate([cv2.resize(vis_l, (pw, ph)), cv2.resize(vis_r, (pw, ph))], axis=1)
             elif self.view_mode == "side_zoom":
-                vis_l = draw_vms_overlay(frm, self.vms_c3, res_c3, f"{self.baseline_name} [ZOOM ROI]", scenario_mode=self.scenario_mode)
-                vis_r = draw_vms_overlay(frm, self.vms_gl, res_gl, f"GapLink-Lite {self.profile.version} [ZOOM ROI]", scenario_mode=self.scenario_mode)
+                vis_l = draw_vms_overlay(frm, self.vms_c3, res_c3, f"{self.baseline_name} [ZOOM ROI]", scenario_mode=self.scenario_mode, show_ids=self.show_ids, show_cands=self.paused)
+                vis_r = draw_vms_overlay(frm, self.vms_gl, res_gl, f"GapLink-Lite {self.profile.version} [ZOOM ROI]", scenario_mode=self.scenario_mode, show_ids=self.show_ids, show_cands=self.paused)
                 zl = _crop_focus_roi(vis_l, self.preset_key, self.scenario_mode)
                 zr = _crop_focus_roi(vis_r, self.preset_key, self.scenario_mode)
                 pw, ph = 640, 450
                 out_img = np.concatenate([cv2.resize(zl, (pw, ph)), cv2.resize(zr, (pw, ph))], axis=1)
             elif self.view_mode == "single_c3":
-                vis_l = draw_vms_overlay(frm, self.vms_c3, res_c3, f"YOLOv8n + {self.bl_label}", scenario_mode=self.scenario_mode)
+                vis_l = draw_vms_overlay(frm, self.vms_c3, res_c3, f"YOLOv8n + {self.bl_label}", scenario_mode=self.scenario_mode, show_ids=self.show_ids, show_cands=self.paused)
                 out_img = cv2.resize(vis_l, (960, 540))
             else:
-                vis_r = draw_vms_overlay(frm, self.vms_gl, res_gl, f"YOLOv8n + {self.profile.gaplink_label}", scenario_mode=self.scenario_mode)
+                vis_r = draw_vms_overlay(frm, self.vms_gl, res_gl, f"YOLOv8n + {self.profile.gaplink_label}", scenario_mode=self.scenario_mode, show_ids=self.show_ids, show_cands=self.paused)
                 out_img = cv2.resize(vis_r, (960, 540))
 
             dt_ms = (time.perf_counter() - t0) * 1000.0
@@ -670,7 +743,7 @@ class LiveVMSSession:
                 self.ema_fps = inst_fps if self.ema_fps is None else 0.85 * self.ema_fps + 0.15 * inst_fps
             live_fps = round(float(self.ema_fps or 0.0), 1)
 
-            _, jpg = cv2.imencode(".jpg", out_img, [int(cv2.IMWRITE_JPEG_QUALITY), 86])
+            _, jpg = cv2.imencode(".jpg", out_img, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
             b64_frame = base64.b64encode(jpg.tobytes()).decode("ascii")
 
             od_gl = {f"{k[0]}->{k[1]}": v for k, v in self.vms_gl.route_mon.od_counts.items()}
@@ -683,6 +756,11 @@ class LiveVMSSession:
                 "fps": live_fps,
                 "proc_ms": round(dt_ms, 1),
                 "dets_cached": bool(self.det_from_cache),
+                "speed": self.effective_speed(),
+                "user_speed": self.speed,
+                "auto_slow": self.auto_slow,
+                "in_key_window": self.in_key_window,
+                "key_moments": [int(k["frame"]) for k in (self.clip_meta or {}).get("key_moments", [])],
                 "labels": {"baseline": self.bl_label, "baseline_short": self.baseline_name,
                            "gaplink": self.profile.gaplink_label},
                 "paused": self.paused,
@@ -704,6 +782,12 @@ class LiveVMSSession:
                     "reacquired": self.vms_gl.target_lock.reacquire_count,
                     "hijacked": self.vms_gl.target_lock.hijack_count,
                     "dustbin_holds": self.vms_gl.target_lock.dustbin_holds,
+                },
+                "relink": {
+                    "gl": relink_summary(getattr(self.vms_gl, "relink", None)),
+                    "bl": relink_summary(getattr(self.vms_c3, "relink", None)),
+                    "ev_gl": event_json(getattr(self.vms_gl, "relink", None)),
+                    "ev_bl": event_json(getattr(self.vms_c3, "relink", None)),
                 },
                 "c3": {
                     "active": len(res_c3["tracks"]),
@@ -739,6 +823,8 @@ class ActionReq(BaseModel):
     action: str
     preset_id: str | None = None
     baseline: str | None = None
+    speed: float | None = None
+    flag: bool | None = None
     view_mode: str | None = None
     scenario_mode: str | None = None
     target_frame: int | None = None
@@ -753,6 +839,8 @@ class ActionReq(BaseModel):
 
 @app.get("/api/presets")
 def api_presets():
+    global PRESET_CATALOG
+    PRESET_CATALOG = _showcase_presets() + PRESET_CATALOG_LEGACY  # pick up newly exported showcase clips
     avail = []
     for p in PRESET_CATALOG:
         if (SAMPLE_DIR / p["id"]).exists():
@@ -830,10 +918,22 @@ def api_action(req: ActionReq):
                     reset_zones=True,
                 )
                 return {"ok": True, "max_dwell_sec": sess.max_dwell_sec, "scenario_mode": sess.scenario_mode, "preset_id": p["id"]}
+    elif act == "set_speed" and req.speed is not None:
+        sess.speed = float(min(1.0, max(0.25, req.speed)))
+        return {"ok": True, "speed": sess.speed}
+    elif act == "set_show_ids" and req.flag is not None:
+        sess.show_ids = bool(req.flag)
+        return {"ok": True, "show_ids": sess.show_ids}
+    elif act == "set_auto_slow" and req.flag is not None:
+        sess.auto_slow = bool(req.flag)
+        return {"ok": True, "auto_slow": sess.auto_slow}
+    elif act in ("next_key", "replay_key"):
+        k = sess.next_key_moment(replay=(act == "replay_key"))
+        return {"ok": k is not None, "key_frame": k}
     elif act == "set_baseline" and req.baseline in BASELINE_INFO:
         sess.set_baseline(req.baseline)
         return {"ok": True, "baseline": sess.baseline_name, "label": sess.bl_label}
-    elif act == "set_scenario" and req.scenario_mode in ("route", "dwell", "lock", "all"):
+    elif act == "set_scenario" and req.scenario_mode in ("relink", "route", "dwell", "lock", "all"):
         with sess.lock:
             sess.scenario_mode = req.scenario_mode
             if req.scenario_mode == "lock" and sess.vms_gl and sess.vms_gl.target_lock.locked_track_id is None:
@@ -905,7 +1005,8 @@ async def api_stream():
             if pkt is not None:
                 yield f"data: {json.dumps(pkt)}\n\n"
             dt = time.perf_counter() - t_loop
-            wait_s = max(0.004, 0.028 - dt) if not sess.paused else 0.14
+            frame_period = 1.0 / max(1.0, float(sess.fps or 25.0))
+            wait_s = max(0.004, frame_period / max(0.05, sess.effective_speed()) - dt) if not sess.paused else 0.14
             await asyncio.sleep(wait_s)
 
     return StreamingResponse(event_gen(), media_type="text/event-stream")
@@ -988,7 +1089,12 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     display: flex; flex-direction: column; gap: 6px;
   }
   .timeline-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
-  .timeline-row input[type="range"] { flex: 1; accent-color: #ef4444; cursor: pointer; }
+  .timeline-row input[type="range"] { width: 100%; accent-color: #ef4444; cursor: pointer; }
+  .tl-wrap { position: relative; flex: 1; }
+  #kmMarks { position: absolute; left: 0; right: 0; top: -6px; height: 6px; pointer-events: none; }
+  .km { position: absolute; width: 4px; height: 10px; background: #fbbf24; border-radius: 2px; transform: translateX(-2px); box-shadow: 0 0 6px #fbbf24; }
+  .slow-badge { background: #fbbf24; color: #111; font-weight: 800; padding: 2px 10px; border-radius: 999px; letter-spacing: .5px; }
+  .spd.primary { background: #2563eb; }
   .ctrl-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
   .ctrl-group { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
   .ctrl-group button { width: auto; padding: 5px 10px; font-size: 11.5px; }
@@ -1032,20 +1138,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
   <!-- Compact Left Controls Sidebar -->
   <div class="card left-sidebar">
     <div class="card-title">1. Kịch Bản Demo Chuẩn Ngữ Cảnh (1-Click)</div>
-    <div class="quick-cards">
-      <button id="qc_1" class="qcard active" style="border-left-color:#ef4444;" onclick="launchQuickScenario('detrac_MVI_39361_wrong_lane.mp4', 'route', 'qc_1')">
-        <span class="qcard-title">🚨 1. Đi sai làn / Cắt vạch chữ V</span>
-        <span class="qcard-sub">MVI_39361 • Làn rẽ phải cắt vạch chữ V sang làn đi thẳng qua điểm khuất</span>
-      </button>
-      <button id="qc_2" class="qcard" style="border-left-color:#a855f7;" onclick="launchQuickScenario('detrac_MVI_40864_rain_buses.mp4', 'dwell', 'qc_2')">
-        <span class="qcard-title">⏱️ 2. Đỗ xe quá giờ bị xe buýt che</span>
-        <span class="qcard-sub">MVI_40864 • Chỉ bắt xe đỗ đứng yên (v=0) bị xe buýt che rồi lộ diện lại</span>
-      </button>
-      <button id="qc_3" class="qcard" style="border-left-color:#10b981;" onclick="launchQuickScenario('detrac_MVI_40701_moving_pursuit.mp4', 'lock', 'qc_3')">
-        <span class="qcard-title">🎯 3. Truy vết xe ĐANG DI CHUYỂN</span>
-        <span class="qcard-sub">MVI_40701 • Xe chạy xuyên sau xe buýt dài 55f (di chuyển 240px) rồi phóng ra</span>
-      </button>
-    </div>
+    <div class="quick-cards" id="quickCards"><span class="hint">Đang tải tình huống...</span></div>
 
     <label class="hint">Baseline đối chứng (màn hình trái) — ngưỡng chọn trên tập val:</label>
     <select id="baselineSelect" onchange="setBaseline()">
@@ -1062,6 +1155,9 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     </div>
 
     <div class="card-title">2. Chế Độ Tình Huống (Focus Mode)</div>
+    <div class="btn-row">
+      <button id="sc_relink" class="scen-btn" onclick="setScenario('relink')" title="Trọng tâm của mô hình: xe bị che rồi xuất hiện lại có được nhận đúng ID cũ không">🔁 0. Khôi phục danh tính</button>
+    </div>
     <div class="btn-row">
       <button id="sc_route" class="scen-btn active" onclick="setScenario('route')">🛣️ 1. Sai làn</button>
       <button id="sc_dwell" class="scen-btn" onclick="setScenario('dwell')">⏱️ 2. Đỗ quá giờ</button>
@@ -1104,7 +1200,8 @@ DASHBOARD_HTML = """<!DOCTYPE html>
       <div class="player-bar">
         <div class="timeline-row">
           <span>Khung hình: <b id="stFrame">0 / 0</b></span>
-          <input type="range" id="timeSlider" min="1" max="380" value="1" oninput="onSliderInput(this.value)" onchange="onSliderSeek(this.value)"/>
+          <div class="tl-wrap"><input type="range" id="timeSlider" min="1" max="380" value="1" oninput="onSliderInput(this.value)" onchange="onSliderSeek(this.value)"/><div id="kmMarks"></div></div>
+          <span id="slowBadge" class="slow-badge" style="display:none;">SLOW ×0.25</span>
           <span title="Thời gian thực đo được mỗi bước (2 tracker + vẽ khung), không ép khoảng">Tốc độ đo thực: <b id="stFps" style="color:#34d399;">– FPS</b></span>
         </div>
         <div class="ctrl-row">
@@ -1113,7 +1210,16 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             <button onclick="postAct({action:'step_frame_delta', step_delta:-1})">◀ -1f</button>
             <button onclick="postAct({action:'toggle_pause'})" id="btnPause" class="primary">⏸ Tạm dừng</button>
             <button onclick="postAct({action:'step_frame_delta', step_delta:1})">▶ +1f</button>
-            <button onclick="postAct({action:'jump_climax'})" class="amber-btn">⚡ Tới Đoạn Cao Trào</button>
+            <button onclick="postAct({action:'replay_key'})" class="amber-btn" title="Phím R">⏪ Xem lại chậm khoảnh khắc</button>
+            <button onclick="postAct({action:'next_key'})" title="Phím N">⏭ Khoảnh khắc tiếp</button>
+          </div>
+          <div class="ctrl-group">
+            <span class="hint">Tốc độ:</span>
+            <button id="sp100" class="spd primary" onclick="setSpeed(1)">1×</button>
+            <button id="sp050" class="spd" onclick="setSpeed(0.5)">0.5×</button>
+            <button id="sp025" class="spd" onclick="setSpeed(0.25)">0.25×</button>
+            <label class="hint" title="Hiện ID của mọi xe (phím I). SWITCH = ID nhảy sang xe khác; (was #x) = xe bị cấp ID mới"><input type="checkbox" id="chkIds" checked onchange="postAct({action:'set_show_ids', flag:this.checked})"/> Hiện ID</label>
+            <label class="hint" title="Tự động chậm 0.25× và phóng to tại khoảnh khắc then chốt"><input type="checkbox" id="chkAutoSlow" checked onchange="postAct({action:'set_auto_slow', flag:this.checked})"/> Tự chậm + phóng to</label>
           </div>
           <div class="ctrl-group">
             <button id="btnViewSide" class="primary" onclick="setView('side_by_side')" title="Hiển thị song song baseline và GapLink-Lite">🔀 Song song Toàn cảnh</button>
@@ -1134,6 +1240,9 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             <tr><th>Chỉ số trên video này</th><th id="thBaseline">Baseline</th><th id="thGapLink">GapLink-Lite</th></tr>
           </thead>
           <tbody>
+            <tr><td>🔁 Ghép lại ĐÚNG xe sau che khuất (gap ≥3 frame)</td><td id="m_c3_rl_ok" class="val-c3">0</td><td id="m_gl_rl_ok" class="val-gl">0</td></tr>
+            <tr><td>✘ Ghép NHẦM sang xe khác</td><td id="m_c3_rl_wr" class="val-amber">0</td><td id="m_gl_rl_wr" class="val-gl">0</td></tr>
+            <tr><td>○ Bỏ lỡ → xe bị cấp ID mới</td><td id="m_c3_rl_ms" class="val-amber">0</td><td id="m_gl_rl_ms" class="val-gl">0</td></tr>
             <tr><td>🚨 Vi phạm Sai làn / Lộ trình (Đỏ)</td><td id="m_c3_rt_tp" class="val-c3">0</td><td id="m_gl_rt_tp" class="val-red">0</td></tr>
             <tr><td>⚠️ Sai làn BÁO GIẢ (Nhảy ID)</td><td id="m_c3_rt_fp" class="val-amber">0</td><td id="m_gl_rt_fp" class="val-gl">0</td></tr>
             <tr><td>🚨 Xe đỗ đứng yên quá giờ (Đỏ)</td><td id="m_c3_dw_tp" class="val-c3">0</td><td id="m_gl_dw_tp" class="val-red">0</td></tr>
@@ -1146,6 +1255,14 @@ DASHBOARD_HTML = """<!DOCTYPE html>
           <span>Khóa <span id="lblLockBl">baseline</span>: <b id="stLockC3" class="val-c3">IDLE</b></span>
           <span>Khóa GapLink: <b id="stLockGL" class="val-gl">IDLE</b></span>
           <span id="odBox" style="color:#38bdf8;font-family:monospace;">OD: --</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Quyết Định Ghép Lại (dừng video để đọc; c1, c2… = ứng viên trên hình)</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div><div class="hint" id="decBlTitle">Baseline</div><div id="decBl" class="hint">Chưa có sự kiện.</div></div>
+          <div><div class="hint" id="decGlTitle">GapLink-Lite</div><div id="decGl" class="hint">Chưa có sự kiện.</div></div>
         </div>
       </div>
 
@@ -1194,17 +1311,14 @@ function toggleTheater() {
 
 function highlightScenarioBtn(sc) {
   currentScenario = sc;
-  ['route','dwell','lock','all'].forEach(k => {
+  ['relink','route','dwell','lock','all'].forEach(k => {
     const el = document.getElementById('sc_' + k);
     if (el) el.classList.toggle('active', k === sc);
   });
 }
 
 function highlightQuickCard(qId) {
-  ['qc_1','qc_2','qc_3'].forEach(k => {
-    const el = document.getElementById(k);
-    if (el) el.classList.toggle('active', k === qId);
-  });
+  document.querySelectorAll('#quickCards .qcard').forEach(el => el.classList.toggle('active', el.id === qId));
 }
 
 async function launchQuickScenario(presetId, scMode, qId) {
@@ -1225,14 +1339,94 @@ async function setBaseline() {
   await postAct({action:'set_baseline', baseline: b});
 }
 
+function renderDecision(ev, elId, curFrame) {
+  const el = document.getElementById(elId);
+  if (!ev || !ev.score) { el.innerHTML = 'Chưa có sự kiện ghép lại.'; return; }
+  const N = ev.tids.length, M = ev.cand.length, gl = ev.kind === 'gaplink';
+  const when = ev.frame === curFrame ? '<b style="color:#facc15">khung hiện tại</b>' : `gần nhất, frame ${ev.frame}`;
+  let h = `<div style="margin-bottom:4px">${when} · ngưỡng ${gl ? 'τ' : 'θ'} = ${ev.thr}</div>`;
+  h += '<table class="cmp-table" style="font-size:11px"><tr><th>ID mất (gap)</th>';
+  for (let j = 0; j < M; j++) h += `<th>c${j + 1}</th>`;
+  if (gl) h += '<th>chờ</th>';
+  h += '<th>→</th></tr>';
+  for (let i = 0; i < N; i++) {
+    h += `<tr><td>#${ev.tids[i]} (${ev.gaps[i]}f)</td>`;
+    const row = ev.score[i] || [];
+    for (let j = 0; j < M + (gl ? 1 : 0); j++) {
+      const v = row[j];
+      if (v === undefined) { h += '<td>-</td>'; continue; }
+      const chosen = (j < M && ev.dec[i] === j) || (gl && j === M && ev.dec[i] < 0);
+      const a = gl ? Math.min(1, v) : Math.max(0, 1 - Math.min(v, 10) / 10);
+      const bg = `rgba(${gl ? '34,197,94' : '249,115,22'},${(0.15 + 0.6 * a).toFixed(2)})`;
+      h += `<td style="background:${bg};${chosen ? 'outline:2px solid #facc15;font-weight:700;' : ''}">${gl ? v.toFixed(2) : v.toFixed(1)}</td>`;
+    }
+    h += `<td>${ev.dec[i] >= 0 ? 'c' + (ev.dec[i] + 1) : (gl ? 'chờ' : 'không')}</td></tr>`;
+  }
+  el.innerHTML = h + '</table>';
+}
+
 async function setScenario(sc) {
   highlightScenarioBtn(sc);
   await postAct({action:'set_scenario', scenario_mode: sc});
 }
 
+async function setSpeed(v) {
+  await postAct({action:'set_speed', speed: v});
+  ['sp100','sp050','sp025'].forEach(id => document.getElementById(id).classList.remove('primary'));
+  document.getElementById(v === 1 ? 'sp100' : (v === 0.5 ? 'sp050' : 'sp025')).classList.add('primary');
+}
+
+const SC_STYLE = {relink: ['🔁', '#38bdf8'], route: ['🚨', '#ef4444'], dwell: ['⏱️', '#a855f7'], lock: ['🎯', '#10b981']};
+function renderQuickCards(presets) {
+  const box = document.getElementById('quickCards');
+  const sc = presets.filter(p => p.showcase);
+  if (!sc.length) { box.innerHTML = '<span class="hint">Chưa có clip showcase.</span>'; return; }
+  box.innerHTML = '';
+  sc.forEach((p, i) => {
+    const [ico, col] = SC_STYLE[p.scenario] || ['▶', '#3b82f6'];
+    const b = document.createElement('button');
+    b.className = 'qcard' + (i === 0 ? ' active' : ''); b.id = 'qc_' + (i + 1);
+    b.style.borderLeftColor = col;
+    b.onclick = () => launchQuickScenario(p.id, p.scenario, b.id);
+    b.innerHTML = `<span class="qcard-title">${ico} ${p.label.split(']')[0]}]</span><span class="qcard-sub">${p.label.split(']').slice(1).join(']').trim()} · phím ${i + 1}</span>`;
+    box.appendChild(b);
+  });
+  window._showcase = sc;
+}
+
+let _kmKey = '';
+function drawKeyMarks(d) {
+  const key = (d.key_moments || []).join(',') + '/' + d.total_frames;
+  if (key === _kmKey) return;
+  _kmKey = key;
+  const box = document.getElementById('kmMarks'); box.innerHTML = '';
+  (d.key_moments || []).forEach(k => {
+    const m = document.createElement('div'); m.className = 'km';
+    m.style.left = (100 * (k - 1) / Math.max(1, d.total_frames - 1)) + '%';
+    box.appendChild(m);
+  });
+}
+
+document.addEventListener('keydown', (e) => {
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+  const k = e.key.toLowerCase();
+  if (k === ' ') { e.preventDefault(); postAct({action:'toggle_pause'}); }
+  else if (k === 'arrowleft') postAct({action:'step_frame_delta', step_delta:-1});
+  else if (k === 'arrowright') postAct({action:'step_frame_delta', step_delta:1});
+  else if (k === 'r') postAct({action:'replay_key'});
+  else if (k === 'n') postAct({action:'next_key'});
+  else if (k === 's') { const cur = window._spd || 1; const nx = cur === 1 ? 0.5 : (cur === 0.5 ? 0.25 : 1); window._spd = nx; setSpeed(nx); }
+  else if (k === 'f') toggleTheater();
+  else if (k === 'i') { const c = document.getElementById('chkIds'); c.checked = !c.checked; postAct({action:'set_show_ids', flag:c.checked}); }
+  else if (['1','2','3','4','5'].includes(k) && window._showcase && window._showcase[+k - 1]) {
+    const p = window._showcase[+k - 1]; launchQuickScenario(p.id, p.scenario, 'qc_' + k);
+  }
+});
+
 async function initPresets() {
   const r = await fetch('/api/presets');
   const d = await r.json();
+  renderQuickCards(d.presets);
   const sel = document.getElementById('presetSelect');
   sel.innerHTML = '';
   d.presets.forEach(p => {
@@ -1245,12 +1439,8 @@ async function initPresets() {
 async function onSelectPreset() {
   const pid = document.getElementById('presetSelect').value;
   drawPts = [];
-  const qMap = {
-    'detrac_MVI_39361_wrong_lane.mp4': 'qc_1',
-    'detrac_MVI_40864_rain_buses.mp4': 'qc_2',
-    'detrac_MVI_40701_moving_pursuit.mp4': 'qc_3'
-  };
-  highlightQuickCard(qMap[pid] || '');
+  const idx = (window._showcase || []).findIndex(p => p.id === pid);
+  highlightQuickCard(idx >= 0 ? 'qc_' + (idx + 1) : '');
   const res = await postAct({action:'select_preset', preset_id: pid});
   if (res.max_dwell_sec) {
     document.getElementById('rngDwell').value = res.max_dwell_sec;
@@ -1386,6 +1576,10 @@ es.onmessage = (ev) => {
     document.getElementById('lblLockBl').innerText = d.labels.baseline_short;
     document.getElementById('cmpTitle').innerText = `Đối chiếu trực tiếp: ${d.labels.baseline_short} vs GapLink-Lite`;
   }
+  drawKeyMarks(d);
+  const sb = document.getElementById('slowBadge');
+  if (sb) sb.style.display = (d.speed < 1) ? 'inline-block' : 'none';
+  if (sb) sb.innerText = 'SLOW ×' + d.speed;
   const sl = document.getElementById('timeSlider');
   if (sl && !sliderDragging) {
     sl.max = Math.max(1, d.total_frames);
@@ -1411,6 +1605,24 @@ es.onmessage = (ev) => {
   document.getElementById('m_gl_re').innerText = d.gl.reacquired;
   document.getElementById('m_c3_hj').innerText = d.c3.hijacked;
   document.getElementById('m_gl_hj').innerText = d.gl.hijacked;
+  if (d.relink) {
+    const R = d.relink;
+    document.getElementById('m_gl_rl_ok').innerText = R.gl.ok;
+    document.getElementById('m_gl_rl_wr').innerText = R.gl.wrong;
+    document.getElementById('m_gl_rl_ms').innerText = R.gl.missed;
+    document.getElementById('m_c3_rl_ok').innerText = R.bl.ok;
+    document.getElementById('m_c3_rl_wr').innerText = R.bl.wrong;
+    document.getElementById('m_c3_rl_ms').innerText = R.bl.missed;
+    if (d.paused || !window._decTick || (d.frame % 10 === 0)) {
+      window._decTick = true;
+      renderDecision(R.ev_gl, 'decGl', d.frame);
+      renderDecision(R.ev_bl, 'decBl', d.frame);
+    }
+    if (d.labels) {
+      document.getElementById('decBlTitle').innerText = d.labels.baseline_short + ' — khoảng cách Mahalanobis d² (chọn nếu ≤ θ, nhỏ nhất)';
+      document.getElementById('decGlTitle').innerText = 'GapLink-Lite — xác suất Sinkhorn P (ghép nếu ≥ τ và > dustbin)';
+    }
+  }
 
   const odEntries = Object.entries(d.gl.od || {});
   document.getElementById('odBox').innerHTML = odEntries.length
