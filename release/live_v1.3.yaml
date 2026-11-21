@@ -1,0 +1,13 @@
+version: 1.3-live
+selected_on: val (13 videos, 4 locations), YOLOv8n imgsz640 conf0.28
+rule: 'PREREG §3 via docs/PREREG_live_v1.3.md: max Nat-IRR s.t. Nat-WLR <= 0.05; else
+  min Nat-WLR'
+final_sha256: 844fc391deafe951b429e3e4f2b9f1983647ce7ff1dbfa048eadb6f4c0741bfd
+v13_ckpt: release\live_v1.3.pt
+v13_sha256: da2a3b14bcc14f4dce23d6841d304c1fef6f9488f8bfeb4b1a8df7d5b7dc637f
+val_select_sha256: 46ddf35af8515dcc82e6228bc2c5be038516151dea328db69487821ac55266f6
+gaplink_kind_live: GapLink-v13
+gaplink_tau_live: 0.65
+c2_theta_live: 1.2
+c3_theta_live: 1.0
+c4_theta_live: 1.2
