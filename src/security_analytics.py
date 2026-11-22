@@ -469,6 +469,7 @@ class TargetLockManager:
                     "trail": list(self.trail),
                     "now_gt_tid": now_gt,
                     "origin_gt_tid": int(self.locked_initial_gt_tid),
+                    "reason": "wrong_car" if self.state == "HIJACKED_WRONG" else None,
                 }
 
         # 2. Check if locked target is in tracker.lost_tracks (occluded)
@@ -494,6 +495,9 @@ class TargetLockManager:
                         "trail": list(self.trail),
                         "now_gt_tid": int(o["track_id"]),
                         "origin_gt_tid": int(self.locked_initial_gt_tid),
+                        # the locked vehicle is back but under another track ID: an ID switch, not a wrong car
+                        "reason": "new_id",
+                        "new_track_id": int(o["track_id"]),
                     }
 
         lost_obj = None

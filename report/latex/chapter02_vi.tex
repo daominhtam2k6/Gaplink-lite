@@ -275,7 +275,7 @@ Tầng~1 ghép track đang hoạt động với detection có IoU $\ge 0.30$. Tr
 
 \textbf{Lộ trình cấm.} Một track có vùng đầu tiên là $Z_A$ và sau đó đi vào $Z_B$ sẽ phát cảnh báo vi phạm. Theo ground truth, mỗi vi phạm được chấm là \emph{đúng ID} (cùng một xe ở $Z_A$ và $Z_B$), \emph{sai ID} (xe đúng là đến từ $Z_A$ nhưng ID của cảnh báo bắt đầu trên một xe khác) hoặc \emph{giả} (xe chưa từng ở $Z_A$).
 
-\textbf{Khóa mục tiêu.} Người vận hành click vào một xe và bảng điều khiển bám theo ID của xe đó. Khi mục tiêu bị che, vị trí dự đoán ($\mu$ của GapLink-Lite hoặc dự đoán Kalman) được vẽ thành box và đường đi nét đứt; khi một xe xuất hiện lại, mục tiêu được \emph{bắt lại} nếu là cùng xe và \emph{sai xe} nếu ngược lại.
+\textbf{Khóa mục tiêu.} Người vận hành click vào một xe và bảng điều khiển bám theo ID của xe đó. Khi mục tiêu bị che, vị trí dự đoán ($\mu$ của GapLink-Lite hoặc dự đoán Kalman) được vẽ thành box và đường đi nét đứt; khi xe xuất hiện lại, mục tiêu được \emph{bắt lại} nếu quay lại với đúng ID cũ, bị \emph{mất} nếu quay lại với ID mới (đổi ID), và là \emph{sai xe} nếu ID của nó chuyển sang một xe khác.
 
 \textbf{Lịch sử sự cố.} Chỉ những sự kiện người vận hành cần kiểm tra mới được ghi: liên kết sai, xe bị gán ID mới, vi phạm lộ trình và mục tiêu sai hoặc bị mất. Mỗi mục lưu ảnh cắt của xe trước và sau sự kiện, để người xem nhận ra ngay hai ảnh có cùng một xe hay không.
 

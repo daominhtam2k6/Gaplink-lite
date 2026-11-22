@@ -247,7 +247,7 @@ Table~\ref{tab:eval_vs_target} compares the final results with the targets fixed
 \begin{itemize}
     \item \textbf{Identity recovery} ($250$ frames of a busy intersection at night with a city bus). GapLink-Lite re-links all $48$ occluded vehicles correctly, including the bus, while the Kalman tracker re-links $21$ of $51$, links $12$ to the wrong vehicle and gives $18$ a new ID; already at frame $98$ the count was $5/21$ correct for C-3 against $27/27$ for GapLink-Lite.
     \item \textbf{Forbidden route} ($250$ frames of a city street at night; $Z_A$ and $Z_B$ on the far carriageway). C-3 raises six alerts: three correct, one with a wrong ID and two false --- at frame $129$ track \#42 reaches $Z_B$ although its vehicle was never in $Z_A$. GapLink-Lite raises two alerts, both correct. The clip shows precision, not recall; on the $40$ test videos C-3 catches more occluded violations ($47.53\%$ vs.\ $42.59\%$) at more than three times the false-alarm rate.
-    \item \textbf{Target following} ($156$ frames of a rainy arterial road). The locked van is hidden behind an articulated bus for $58$ frames; both trackers re-acquire it at frame $96$, but six frames later, after a further three-frame gap at the edge of the bus, C-3 hands the target ID to another vehicle, while GapLink-Lite keeps the van to the end of the clip ($4$ re-acquisitions, no wrong car).
+    \item \textbf{Target following} ($156$ frames of a rainy arterial road). The locked van is hidden behind an articulated bus for $58$ frames; both trackers re-acquire it at frame $96$, but six frames later, after a further three-frame gap at the edge of the bus, C-3 lets the van come back under a new ID (\#10 becomes \#58), so the lock loses its target, while GapLink-Lite keeps the van under \#10 to the end of the clip ($4$ re-acquisitions, no lost target).
 \end{itemize}
 
 \begin{table}[H]
@@ -268,7 +268,7 @@ Table~\ref{tab:eval_vs_target} compares the final results with the targets fixed
          & False violations & $2$ & $\mathbf{0}$ \\
         \midrule
         3. Target following & Target re-acquired & $1$ & $\mathbf{4}$ \\
-        (MVI\_40864, 156 frames) & Wrong car / target lost & $1$ (frame 102) & $\mathbf{0}$ \\
+        (MVI\_40864, 156 frames) & Target lost (new ID) & $1$ (frame 102) & $\mathbf{0}$ \\
         \bottomrule
     \end{tabularx}
 \end{table}

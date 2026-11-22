@@ -247,7 +247,7 @@ Bảng~\ref{tab:eval_vs_target} so sánh kết quả cuối cùng với các m�
 \begin{itemize}
     \item \textbf{Khôi phục danh tính} ($250$ khung hình một nút giao đông về đêm có xe buýt). GapLink-Lite tái liên kết đúng cả $48$ xe bị che, kể cả xe buýt, trong khi tracker Kalman tái liên kết đúng $21$ trên $51$, liên kết $12$ xe với xe sai và gán ID mới cho $18$ xe; ngay ở khung $98$, C-3 mới đúng $5/21$ so với $27/27$ của GapLink-Lite.
     \item \textbf{Lộ trình cấm} ($250$ khung hình một đường phố về đêm; $Z_A$ và $Z_B$ trên làn đường phía xa). C-3 phát sáu cảnh báo: ba đúng, một sai ID và hai giả --- ở khung $129$, track \#42 tới $Z_B$ dù xe của nó chưa từng ở $Z_A$. GapLink-Lite phát hai cảnh báo, cả hai đều đúng. Clip này thể hiện độ chính xác chứ không phải recall; trên $40$ video test, C-3 bắt được nhiều vi phạm bị che hơn ($47.53\%$ so với $42.59\%$) với tỉ lệ báo động giả cao hơn ba lần.
-    \item \textbf{Bám theo mục tiêu} ($156$ khung hình một trục đường mưa). Xe van đang khóa bị che sau xe buýt khớp nối trong $58$ khung hình; cả hai tracker đều bắt lại nó ở khung $96$, nhưng sáu khung sau, sau thêm một khoảng trống ba khung ở mép xe buýt, C-3 chuyển ID mục tiêu sang xe khác, còn GapLink-Lite giữ xe van đến hết clip ($4$ lần bắt lại, không có sai xe).
+    \item \textbf{Bám theo mục tiêu} ($156$ khung hình một trục đường mưa). Xe van đang khóa bị che sau xe buýt khớp nối trong $58$ khung hình; cả hai tracker đều bắt lại nó ở khung $96$, nhưng sáu khung sau, sau thêm một khoảng trống ba khung ở mép xe buýt, C-3 để xe van quay lại với ID mới (\#10 thành \#58), nên khóa mất mục tiêu, còn GapLink-Lite giữ xe van với \#10 đến hết clip ($4$ lần bắt lại, không mất mục tiêu).
 \end{itemize}
 
 \begin{table}[H]
@@ -268,7 +268,7 @@ Bảng~\ref{tab:eval_vs_target} so sánh kết quả cuối cùng với các m�
          & Vi phạm giả & $2$ & $\mathbf{0}$ \\
         \midrule
         3. Bám theo mục tiêu & Số lần bắt lại mục tiêu & $1$ & $\mathbf{4}$ \\
-        (MVI\_40864, 156 khung) & Sai xe / mất mục tiêu & $1$ (khung 102) & $\mathbf{0}$ \\
+        (MVI\_40864, 156 khung) & Mất mục tiêu (đổi ID) & $1$ (khung 102) & $\mathbf{0}$ \\
         \bottomrule
     \end{tabularx}
 \end{table}

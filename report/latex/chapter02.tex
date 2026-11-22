@@ -275,7 +275,7 @@ Stage~1 matches active tracks to detections with IoU $\ge 0.30$. Unmatched confi
 
 \textbf{Forbidden route.} A track whose first zone is $Z_A$ and that later enters $Z_B$ raises a violation. Against ground truth each violation is judged \emph{correct ID} (the same vehicle at $Z_A$ and $Z_B$), \emph{wrong ID} (the vehicle did come from $Z_A$ but the alert's ID started on another vehicle) or \emph{false} (the vehicle never was in $Z_A$).
 
-\textbf{Target lock.} The operator clicks a vehicle and the console follows its ID. While the target is hidden, the predicted position (GapLink-Lite's $\mu$ or the Kalman prediction) is drawn as a dashed box and path; when a vehicle re-appears, the target is \emph{re-acquired} if it is the same vehicle and \emph{wrong car} otherwise.
+\textbf{Target lock.} The operator clicks a vehicle and the console follows its ID. While the target is hidden, the predicted position (GapLink-Lite's $\mu$ or the Kalman prediction) is drawn as a dashed box and path; when the vehicle re-appears, the target is \emph{re-acquired} if it comes back under its own ID, \emph{lost} if it comes back under a new ID (an ID switch), and a \emph{wrong car} if its ID moves to another vehicle.
 
 \textbf{Incident history.} Only the events an operator must check are logged: wrong links, vehicles that received a new ID, route violations and a wrong or lost target. Each entry stores crops of the vehicle before and after the event, so a reviewer can see at a glance whether they show the same vehicle.
 

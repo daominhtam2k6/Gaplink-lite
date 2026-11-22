@@ -149,10 +149,15 @@ class Pane:
                 self.lock_flash = ("ok", f)
         if st in ("HIJACKED_WRONG", "LOST_EXPIRED") and not self._lock_bad_logged:
             self._lock_bad_logged = True
-            self.lock_flash = ("wrong" if st == "HIJACKED_WRONG" else "lost", f)
+            if st == "LOST_EXPIRED":
+                kind = "lost"
+            else:
+                kind = "newid" if lk.get("reason") == "new_id" else "wrong"
+            self.lock_flash = (kind, f)
             tl = self.vms.target_lock
-            self.history.append({"kind": "lock_" + ("wrong" if st == "HIJACKED_WRONG" else "lost"), "frame": f,
-                                 "tid": int(lk.get("track_id") or -1), "was": int(lk.get("track_id") or -1),
+            was = int(lk.get("track_id") or -1)
+            self.history.append({"kind": "lock_" + kind, "frame": f,
+                                 "tid": int(lk.get("new_track_id") or was), "was": was,
                                  "gap": int(lk.get("gap_frames", 0)), "before": _b64(tl.lock_crop_img),
                                  "after": _b64(_crop(frame, lk.get("box")))})
         self._prev_lock_state = st
@@ -174,7 +179,7 @@ class Pane:
             return dict(self.route)
         tl = self.vms.target_lock
         lk = (self.last or {}).get("lock") or {}
-        return {"state": lk.get("state", "IDLE"), "gap": int(lk.get("gap_frames", 0) or 0),
+        return {"state": lk.get("state", "IDLE"), "reason": lk.get("reason"), "gap": int(lk.get("gap_frames", 0) or 0),
                 "reacquired": tl.reacquire_count, "wrong": tl.hijack_count}
 
     # ---------------------------------------------------------------- draw
@@ -194,7 +199,9 @@ class Pane:
                 c = pts.mean(axis=0).astype(int)
                 _tag(img, z.zone_id, int(c[0]) - 14, int(c[1]), z.color_bgr, (15, 15, 15), 0.6, 2)
 
-        locked = (res.get("lock") or {}).get("track_id") if mode == "lock" else None
+        lk_res = (res.get("lock") or {}) if mode == "lock" else {}
+        locked = lk_res.get("track_id") if mode == "lock" else None
+        new_tid = lk_res.get("new_track_id") if lk_res.get("reason") == "new_id" else None
         for o in tracks:
             tid = int(o["track_id"])
             x1, y1, x2, y2 = _xyxy(o["box"])
@@ -214,6 +221,9 @@ class Pane:
                     thick = 3
                     lbl = {"ok": f"#{tid} VIOLATION", "wrong_id": f"#{tid} VIOLATION, WRONG ID",
                            "false": f"#{tid} FALSE VIOLATION"}.get(v, f"#{tid} violation (no GT)")
+            elif mode == "lock" and new_tid is not None and tid == int(new_tid):
+                col, thick = C_NEW, 3
+                lbl = f"#{tid} NEW ID (target was #{locked})"
             elif mode == "lock" and locked is not None and tid == int(locked):
                 st = (res.get("lock") or {}).get("state", "LOCKED")
                 bad = st == "HIJACKED_WRONG"
@@ -270,7 +280,7 @@ class Pane:
             items = [(f"Violation, correct ID {m['ok']}", C_ROUTE_OK), (f"Wrong ID {m['wrong_id']}", C_ROUTE_WID),
                      (f"False {m['false']}", C_ROUTE_FALSE)]
         else:
-            items = [(f"Re-acquired {m['reacquired']}", C_OK), (f"Wrong car / lost {m['wrong']}", C_WRONG)]
+            items = [(f"Re-acquired {m['reacquired']}", C_OK), (f"Target lost {m['wrong']}", C_WRONG)]
         x = W - 8
         for txt, col in reversed(items):
             (tw, th), _ = cv2.getTextSize(txt, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)

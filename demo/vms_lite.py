@@ -367,17 +367,17 @@ function overlay(){ if(!drawZone||!pts.length)return; ctx.strokeStyle=drawZone==
 function rows(sc,m){const b=m.bl,g=m.gl;
  if(sc==='relink')return [['Khôi phục đúng ID / tổng xe bị che',`${b.ok} / ${b.total}`,`${g.ok} / ${g.total}`],['Ghép nhầm sang xe khác',b.wrong,g.wrong],['Bị gán ID mới',b.missed,g.missed]];
  if(sc==='route')return [['Vi phạm, đúng ID',b.ok,g.ok],['Vi phạm, sai ID',b.wrong_id,g.wrong_id],['Vi phạm giả (không vi phạm)',b.false,g.false]];
- const st=x=>({IDLE:'chưa khóa',LOCKED:'đang theo',REACQUIRED:'đã khôi phục',OCCLUDED_SEARCHING:`bị che ${x.gap}f`,AMBIGUOUS_HOLD:`bị che ${x.gap}f`,HIJACKED_WRONG:'nhầm xe',LOST_EXPIRED:'mất dấu'}[x.state]||x.state);
- return [['Trạng thái mục tiêu',st(b),st(g)],['Khôi phục đúng xe',b.reacquired,g.reacquired],['Nhầm xe / mất dấu',b.wrong,g.wrong]];}
+ const st=x=>({IDLE:'chưa khóa',LOCKED:'đang theo',REACQUIRED:'đã khôi phục',OCCLUDED_SEARCHING:`bị che ${x.gap}f`,AMBIGUOUS_HOLD:`bị che ${x.gap}f`,HIJACKED_WRONG:(x.reason==='new_id'?'đổi ID':'nhầm xe'),LOST_EXPIRED:'mất dấu'}[x.state]||x.state);
+ return [['Trạng thái mục tiêu',st(b),st(g)],['Khôi phục đúng xe',b.reacquired,g.reacquired],['Mất mục tiêu (đổi ID / nhầm xe)',b.wrong,g.wrong]];}
 const TITLE={relink:'Khôi phục danh tính sau che khuất',route:'Lộ trình cấm Z_A → Z_B',lock:'Truy vết xe bị che khuất'};
 const TIP={relink:'Xanh: khôi phục đúng ID · Đỏ: ghép nhầm sang xe khác · Tím: xe bị gán ID mới. Chấm điểm theo nhãn GT của UA-DETRAC (khoảng che ≥ 3 frame).',
  route:'Đỏ: vi phạm đúng ID · Cam: vi phạm nhưng sai ID · Tím: vi phạm giả. Vẽ lại vùng nếu cần (khung bên phải).',
  lock:'Click chọn xe khi video dừng. Nét đứt xanh lơ: đường đi dự đoán khi xe bị che.'};
-const HK={wrong:['Ghép nhầm','#eb2828'],missed:['Gán ID mới','#c83cc8'],route_ok:['Vi phạm, đúng ID','#e61e1e'],route_wrong_id:['Vi phạm, sai ID','#ffbe00'],route_false:['Vi phạm giả','#c83cc8'],route_unk:['Vi phạm (không có GT)','#888'],lock_wrong:['Nhầm xe mục tiêu','#eb2828'],lock_lost:['Mất dấu mục tiêu','#888']};
+const HK={wrong:['Ghép nhầm','#eb2828'],missed:['Gán ID mới','#c83cc8'],route_ok:['Vi phạm, đúng ID','#e61e1e'],route_wrong_id:['Vi phạm, sai ID','#ffbe00'],route_false:['Vi phạm giả','#c83cc8'],route_unk:['Vi phạm (không có GT)','#888'],lock_wrong:['Nhầm xe mục tiêu','#eb2828'],lock_newid:['Mục tiêu bị đổi ID','#c83cc8'],lock_lost:['Mất dấu mục tiêu','#888']};
 async function loadHist(){const d=await (await fetch('/api/history')).json();histVer=d.ver;const el=document.getElementById('hist');
  if(!d.items.length){el.innerHTML='Chưa có sự cố.';return;}
  el.innerHTML=d.items.map(h=>{const k=HK[h.kind]||[h.kind,'#888'];const who=h.side==='gl'?'<b style="color:#7ee787">GapLink</b>':'<b style="color:#8ea2ff">'+(S.labels?S.labels.bl.split(' ')[0]:'Baseline')+'</b>';
-  const id=h.kind==='missed'?`#${h.was} → #${h.tid}`:`#${h.tid}`;const t=(h.frame/25).toFixed(1);
+  const id=(h.kind==='missed'||h.kind==='lock_newid')?`#${h.was} → #${h.tid}`:`#${h.tid}`;const t=(h.frame/25).toFixed(1);
   return `<div class="hi" style="border-left-color:${k[1]}"><img src="${h.before||''}"/>→<img src="${h.after||''}"/><div class="t">${who}<br/><b style="color:${k[1]}">${k[0]}</b> ${id}<br/>frame ${h.frame} (${t}s)</div></div>`;}).join('');}
 const es=new EventSource('/api/stream');
 es.onmessage=ev=>{const d=JSON.parse(ev.data);S=d;img.onload=()=>{if(cv.width!==img.width){cv.width=img.width;cv.height=img.height;}ctx.drawImage(img,0,0);overlay();};img.src='data:image/jpeg;base64,'+d.img;
