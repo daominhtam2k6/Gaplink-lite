@@ -1,22 +1,44 @@
-.venv/
-data/
-runs/
-release/*.pt
+# Python
 __pycache__/
 *.pyc
+.pytest_cache/
+.venv/
+.venv*/
+
+# Data and experiment outputs (regenerated locally; see README)
+data/
+runs/*
+!runs/vms_lite_check/
+!runs/vms_lite_check/metrics.json
 *.npy
 *.pkl
-*.mp4
 *.log
 
-# scratch clips from demo experiments
+# Large binaries: only the two frozen checkpoints are force-added
+release/*.pt
+*.mp4
+
+# Generated figures and outputs (the report uses report/latex/figures)
+report/figures/
+report/failure_cases/
+
+# Demo outputs and scratch clips
+demo/out/
 demo/sample_videos/zz_test_*
 demo/sample_videos/relink_test*
+
+# Local working notes (not part of the published project)
+docs/internal/
+
+# LaTeX build files
 report/latex/*.aux
+report/latex/*.bbl
 report/latex/*.bcf
 report/latex/*.blg
-report/latex/*.run.xml
-report/latex/*.toc
 report/latex/*.lof
 report/latex/*.lot
 report/latex/*.out
+report/latex/*.run.xml
+report/latex/*.toc
+report/latex/*.log
+report/latex/*.synctex.gz

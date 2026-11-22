@@ -12,7 +12,7 @@ Traffic cameras are now installed at most major intersections, expressways and p
 \subsection{Current Practice in Vehicle Tracking}
 \label{sec:bg_practice}
 
-Most deployed trackers follow the tracking-by-detection scheme of SORT \cite{bewley2016sort}, DeepSORT \cite{wojke2017deepsort}, ByteTrack \cite{zhang2022bytetrack} and OC-SORT \cite{cao2023ocsort}: a detector produces boxes in every frame, a Kalman filter \cite{kalman1960} predicts where each track should be, and the Hungarian algorithm \cite{kuhn1955hungarian} matches predictions to detections, often after gating with the Mahalanobis distance \cite{mahalanobis1936}. Appearance embeddings (DeepSORT) require a separately trained re-identification network, which is costly at the low resolution of wide-angle traffic cameras.
+Most deployed trackers follow the tracking-by-detection scheme: a detector produces boxes in every frame, a Kalman filter \cite{kalman1960} predicts where each track should be, and the Hungarian algorithm \cite{kuhn1955hungarian} matches predictions to detections, often after gating with the Mahalanobis distance \cite{mahalanobis1936}. SORT \cite{bewley2016sort} matches by IoU and deletes a track after a few missed frames, so it cannot re-link a vehicle after a real occlusion. DeepSORT \cite{wojke2017deepsort} adds the cosine distance of a re-identification embedding, which needs a separately trained network and is costly at the low resolution of wide-angle traffic cameras. ByteTrack \cite{zhang2022bytetrack} also associates low-confidence detections in a second pass, and OC-SORT \cite{cao2023ocsort} corrects the Kalman state with the observations around the gap. All of them keep a hand-designed motion model and decide each track--detection pair with its own threshold. Learned matching with a ``no match'' option exists in image matching: SuperGlue \cite{sarlin2020superglue} solves keypoint matching with a Sinkhorn layer extended by a dustbin row and column. GapLink-Lite transfers this idea to vehicles after occlusion; no component of these methods is reused, and third-party trackers were excluded by the project rules.
 
 \subsection{Foundational Technologies}
 \label{sec:bg_tech}
@@ -44,7 +44,7 @@ In a surveillance system a wrong link is worse than a missed one. A missed re-li
 
 \begin{enumerate}
     \item \textbf{Model.} Design and train \textbf{GapLink-Lite}, a self-developed re-association network trained from random initialisation with fewer than $1$ million parameters (final: $327{,}979$), on the UA-DETRAC benchmark \cite{wen2020uadetrac}.
-    \item \textbf{Controlled evaluation (Phase~1).} Compare it with classical baselines on ground-truth boxes with controlled occlusions, under hypotheses pre-registered in \texttt{docs/PREREG.md} before any test run, and freeze the result.
+    \item \textbf{Controlled evaluation (Phase~1).} Compare it with classical baselines on ground-truth boxes with controlled occlusions, under hypotheses pre-registered before any test run, and freeze the result.
     \item \textbf{Application (Phase~2).} Deploy the frozen model behind a live YOLOv8n detector and measure, on natural occlusions, whether the advantage survives real detections.
     \item \textbf{Demonstration.} Build a video management console (GapLink-VMS) that shows the difference on three surveillance tasks: identity recovery, forbidden routes and target following.
 \end{enumerate}
@@ -57,12 +57,19 @@ In a surveillance system a wrong link is worse than a missed one. A missed re-li
     \item \textbf{P1} (protocol check, IRR $< 5\%$ without re-association): \textbf{passed}, $0.00\%$.
 \end{itemize}
 
+\subsection{Problem Formulation and Scope}
+\label{sec:problem}
+
+At a confirmation frame $t_{\text{conf}}$ the tracker holds $N \le 6$ lost tracks and $M \le 10$ unmatched detections (candidates). Each lost track $i$ is described by its last $K \le 20$ boxes, its gap $g_i = t_{\text{conf}} - t_{\text{lost},i}$, a colour histogram and up to $8$ neighbouring vehicles; each candidate by its box, the histogram of its visible crop and its neighbours. The label of track $i$ is $y_i \in \{1,\dots,M\} \cup \{\varnothing\}$, where $\varnothing$ means that no candidate is the same vehicle (still hidden, left the view or missed by the detector). The model must output a partial one-to-one assignment that maximises correct decisions, including correct ``no match'' decisions, while keeping \emph{wrong links} ($\hat{y}_i = j \ne y_i$) rare.
+
+The project covers fixed, elevated traffic cameras; cars, vans, buses and trucks; and occlusions of $3$--$90$ frames ($0.12$--$3.6$~s at $25$~fps), using only boxes and colour histograms so that the model can sit behind any detector. Motorcycles and pedestrians (no identity labels in UA-DETRAC), moving cameras, licence-plate or face recognition, multi-camera hand-over and automatic enforcement decisions are out of scope.
+
 \section{Members and Role Assignments}
 \label{sec:members_roles}
 
 This is an individual capstone project (Table~\ref{tab:team_roles}). Table~\ref{tab:contributions} separates the components developed in this project from external data and libraries.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Member and role assignment}
     \label{tab:team_roles}
@@ -75,7 +82,7 @@ This is an individual capstone project (Table~\ref{tab:team_roles}). Table~\ref{
     \end{tabularx}
 \end{table}
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Self-developed components and external resources}
     \label{tab:contributions}
@@ -100,7 +107,7 @@ This is an individual capstone project (Table~\ref{tab:team_roles}). Table~\ref{
 
 The project was executed between 15 and 21 November 2026 as a sequence of verification gates (Table~\ref{tab:milestones}); each gate had to pass before the next one started.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Project timeline and milestones}
     \label{tab:milestones}

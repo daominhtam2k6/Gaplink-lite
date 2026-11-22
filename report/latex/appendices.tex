@@ -2,12 +2,12 @@
 \chapter{Source Code and Implementation Details}
 \label{app:code}
 
-This appendix gives key excerpts of the implementation. The repository is organised as follows: \texttt{src/} (data loading, event construction, model, baselines, tracker, metrics, surveillance rules), \texttt{train.py} (training), \texttt{scripts/} (conversion, splitting, evaluation, freezing, figures, demo mining and export), \texttt{demo/} (GapLink-VMS console), \texttt{release/} (frozen checkpoints, thresholds and results), \texttt{docs/} (pre-registration and deviation log) and \texttt{tests/} (\texttt{pytest} suite).
+This appendix gives key excerpts of the implementation: the training step, the Sinkhorn layer with dustbins, the assignment loss, the acceptance rule of the re-association decision, and the verdicts used by the console to judge its events against ground truth.
 
 \section{Training Loop}
 Each step samples a batch of synthetic occlusion events with a growing share of hard events, and optimises the assignment and Gaussian losses with AdamW, linear warm-up and cosine decay.
 
-\begin{lstlisting}[language=Python, caption={Training step (train.py, simplified)}, label={lst:train}]
+\begin{lstlisting}[language=Python, caption={Training step (simplified)}, label={lst:train}]
 for step in range(1, total_steps + 1):
     hard_prob = hp_start + (hp_end - hp_start) * min(1.0, step / total_steps / 0.6)
     lr = base_lr * step / warmup_steps if step <= warmup_steps else \
@@ -23,7 +23,7 @@ for step in range(1, total_steps + 1):
 \end{lstlisting}
 
 \section{Log-Domain Sinkhorn with Dustbins}
-\begin{lstlisting}[language=Python, caption={Log-Domain Sinkhorn Optimal Transport (src/model/sinkhorn.py)}, label={lst:sinkhorn}]
+\begin{lstlisting}[language=Python, caption={Log-domain Sinkhorn optimal transport}, label={lst:sinkhorn}]
 def log_sinkhorn(S, z_t, z_c, trk_mask, cand_mask, iters=20):
     B, N, M = S.shape
     neg_inf = -1e9
@@ -49,7 +49,7 @@ def log_sinkhorn(S, z_t, z_c, trk_mask, cand_mask, iters=20):
 \end{lstlisting}
 
 \section{Assignment Loss}
-\begin{lstlisting}[language=Python, caption={Negative log-likelihood of the true assignment (src/model/sinkhorn.py)}, label={lst:assign_loss}]
+\begin{lstlisting}[language=Python, caption={Negative log-likelihood of the true assignment}, label={lst:assign_loss}]
 def assignment_loss(logP, label, cand_label, tm, cm):
     B, N1, M1 = logP.shape
     N, M = N1 - 1, M1 - 1
@@ -64,7 +64,7 @@ def assignment_loss(logP, label, cand_label, tm, cm):
 \end{lstlisting}
 
 \section{Re-Association Decision}
-\begin{lstlisting}[language=Python, caption={Accepting a link only if it beats the threshold and the dustbin (src/model/gaplink.py)}, label={lst:decide}]
+\begin{lstlisting}[language=Python, caption={Accepting a link only if it beats the threshold and the dustbin}, label={lst:decide}]
 def decide(self, ev):
     N, M = len(ev["t_lost"]), len(ev["cand"])
     out = np.full((N,), -1, dtype=np.int32)          # -1 = keep waiting (dustbin)
@@ -80,7 +80,7 @@ def decide(self, ev):
 \end{lstlisting}
 
 \section{Judging Console Events Against Ground Truth}
-\begin{lstlisting}[language=Python, caption={Re-link and route verdicts used by the console (demo/relink\_viz.py, demo/vms\_lite\_core.py)}, label={lst:judge}]
+\begin{lstlisting}[language=Python, caption={Re-link and route verdicts used by the console}, label={lst:judge}]
 # re-link after a gap of >= MIN_GAP frames: same real vehicle before and after?
 g0, g1 = lost_info[tid]["gt"], entry["gt_tid_after"]
 verdict = "unk" if (g0 < 0 or g1 < 0) else ("ok" if g0 == g1 else "wrong")
@@ -100,7 +100,7 @@ def judge(alert, zone_a):
 \chapter{Configurations}
 \label{app:hyperparameters}
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Frozen Hyperparameter and Release Settings}
     \label{tab:hyperparameters}
@@ -108,23 +108,22 @@ def judge(alert, zone_a):
         \toprule
         \textbf{Parameter} & \textbf{Frozen Value} & \textbf{Description} \\
         \midrule
-        Random Seeds & \texttt{20260417..20260421} & 5 independent random initializations for main \& ablations \\
+        Random Seeds & 20260417--20260421 & 5 independent random initializations for main \& ablations \\
         Trainable Parameters & $327{,}979$ & Strictly $< 1{,}000{,}000$ budget; 100\% randomly initialized \\
         Optimizer \& Schedule & AdamW, cosine & Warm-up then cosine decay; $2{,}400$ steps (stored in the checkpoint), batch size 64 \\
         Tracker Horizon $a_{\max}$ & $95$ frames & Covers all injected occlusion gaps up to 90 frames \\
         Acceptance Gate $\tau$ & $0.25$ & Selected on validation under WLR $\le 5.0\%$ rule \\
         Calibration $(a, b, c)$ & $(0.413, -0.341, 0.074)$ & Fitted on val half-A; test Cov90 $= 90.22\%$ \\
-        Frozen Model SHA256 & \texttt{844fc391deafe951b429e3e4...} & Stored in \texttt{release/final.sha256} \\
         \midrule
-        Live checkpoint (Phase 2) & \texttt{da2a3b14bcc14f4dce23...} & \texttt{release/live\_v1.3.pt}: fine-tuned from the frozen model, $3{,}000$ steps (best at $1{,}500$), $70/30$ detector/pool events \\
-        Live operating points & $\tau=0.65$ & Selected on $13$ validation videos (C-2 $\theta=1.2$, C-3 $\theta=1.0$, C-4 $\theta=1.2$); \texttt{release/live\_v1.3.yaml} \\
+        Live checkpoint (Phase 2) & v1.3 & Fine-tuned from the frozen model, $3{,}000$ steps (best at $1{,}500$), $70/30$ detector/pool events \\
+        Live operating points & $\tau=0.65$ & Selected on $13$ validation videos (C-2 $\theta=1.2$, C-3 $\theta=1.0$, C-4 $\theta=1.2$) \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
-    \caption{Event sampling and augmentation settings (\texttt{src/events.py}, \texttt{EventCfg})}
+    \caption{Event sampling and augmentation settings}
     \label{tab:event_cfg}
     \begin{tabularx}{\textwidth}{l l X}
         \toprule
@@ -143,15 +142,15 @@ def judge(alert, zone_a):
     \end{tabularx}
 \end{table}
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
-    \caption{GapLink-VMS console configuration (\texttt{demo/vms\_lite.py})}
+    \caption{GapLink-VMS console configuration}
     \label{tab:vms_cfg}
     \begin{tabularx}{\textwidth}{l l X}
         \toprule
         \textbf{Setting} & \textbf{Value} & \textbf{Notes} \\
         \midrule
-        Detector & YOLOv8n, \texttt{imgsz} $640$, conf.\ $0.28$ & Detections cached per clip \\
+        Detector & YOLOv8n, input size $640$, conf.\ $0.28$ & Detections cached per clip \\
         Baseline / model & C-3 ($\theta = 1.0$) / GapLink-Lite v1.3 ($\tau = 0.65$) & Live operating points selected on validation \\
         Track confirmation & $3$ hits & Same for both panes \\
         Re-link judging & gap $\ge 3$ frames, GT IoU $\ge 0.45$ & Post hoc; never used by the trackers \\

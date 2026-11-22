@@ -23,9 +23,9 @@ from src.tracker import OnlineTracker
 
 ROOT = Path(__file__).resolve().parents[1]
 SAMPLE_DIR = ROOT / "demo" / "sample_videos"
-CLIP_SLOTS = [(1, "relink", ["demo1_relink", "showcase_0_relink"]),
-              (2, "route", ["demo2_route", "showcase_1_route"]),
-              (3, "lock", ["demo3_lock", "showcase_3_lock"])]
+CLIP_SLOTS = [(1, "relink", ["demo1_relink"]),
+              (2, "route", ["demo2_route"]),
+              (3, "lock", ["demo3_lock"])]
 
 # BGR colours
 C_GRAY = (175, 175, 175)

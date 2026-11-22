@@ -9,7 +9,7 @@
   "key_moments": [{"frame": 212, "cx": 0.41, "cy": 0.37, "label": "..."}],                 # clip frame index, normalised centre
   "lock": [[frame, x_px, y_px]],
   "source": {"seq": "MVI_40701", "f0": 1201, "f1": 1576},
-  "expected": {...}                                                                        # counts from scripts/mine_demo_moments.py
+  "expected": {...}                                                                        # counts from scripts/mine_demo3.py
 }
 """
 from __future__ import annotations

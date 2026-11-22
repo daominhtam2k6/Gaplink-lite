@@ -1,32 +1,23 @@
 \chapter{Kết quả}
 \label{chap:results}
 
-Việc đánh giá gồm hai giai đoạn. \textbf{Giai đoạn~1} đo bản thân mô hình trên box ground-truth với che khuất có kiểm soát, theo giao thức đăng ký trước (chọn ngưỡng trên validation, chạy test một lần đã khóa). \textbf{Giai đoạn~2} đo xem lợi thế đó còn lại bao nhiêu khi đặt sau detector YOLOv8n trực tiếp trên che khuất tự nhiên. Mọi số liệu được đọc từ các file kết quả đã đóng băng (\texttt{release/FROZEN\_RESULTS.md}); khoảng tin cậy (KTC) 95\% là bootstrap ghép cặp trên $15$ địa điểm camera test ($10\,000$ lần rút).
+Việc đánh giá gồm hai giai đoạn. \textbf{Giai đoạn~1} đo bản thân mô hình trên box ground-truth với che khuất có kiểm soát, theo giao thức đăng ký trước (chọn ngưỡng trên validation, chạy test một lần đã khóa). \textbf{Giai đoạn~2} đo xem lợi thế đó còn lại bao nhiêu khi đặt sau detector YOLOv8n trực tiếp trên che khuất tự nhiên. Mọi số liệu lấy từ các lần chạy test đã đóng băng; khoảng tin cậy (KTC) 95\% là bootstrap ghép cặp trên $15$ địa điểm camera test ($10\,000$ lần rút).
 
 \section{Tiền xử lý Dữ liệu}
 \label{sec:data_preprocessing}
 
-Các vùng \texttt{ignored} tĩnh ($528\,798$ dòng, $407$ đa giác) được tách khỏi chú thích phương tiện, và $72\,714$ box phương tiện ($5.7\%$) có tâm nằm trong các vùng này bị loại, còn lại $1\,201\,341$ box trong $8\,251$ quỹ đạo. Các tập sự kiện cố định được sinh một lần và băm: $6\,000$ sự kiện validation ($11\,389$ track bị mất) và $12\,000$ sự kiện test ($27\,120$ track bị mất). Vì tập test chính thức có chung $7$ trong $15$ địa điểm camera với train/validation, tập test cũng được chấm riêng trên địa điểm dùng chung và địa điểm chưa thấy: GapLink-Lite đạt lần lượt $93.39\%$ và $93.44\%$ Top-1 (C-3: $80.59\%$ và $79.96\%$), nên hiệu năng không phụ thuộc vào việc đã thấy camera hay chưa.
-
-\textbf{Xây dựng sự kiện.} Mỗi sự kiện được tạo bằng cùng hàm dùng khi chạy trực tuyến (\texttt{assemble\_event}): $K \le 20$ box cuối của mỗi track bị mất, khoảng trống, histogram màu của track (trung bình trượt hàm mũ) và của mỗi ứng viên (chỉ vùng nhìn thấy), cùng tối đa $8$ xe lân cận tại $t_{\text{lost}}$ và $t_{\text{conf}}$. Tọa độ box được biểu diễn tương đối theo chiều cao box cuối, nên mô hình độc lập với độ phân giải ảnh và khoảng cách tới camera.
+Sau khi loại $72\,714$ box nằm trong vùng bỏ qua, còn lại $1\,201\,341$ box phương tiện trong $8\,251$ quỹ đạo. Các tập sự kiện cố định được sinh một lần và băm: $6\,000$ sự kiện validation ($11\,389$ track bị mất) và $12\,000$ sự kiện test ($27\,120$ track bị mất). Mỗi sự kiện gồm $K \le 20$ box cuối của mỗi track bị mất, khoảng trống, histogram màu của track (trung bình trượt hàm mũ) và của mỗi ứng viên (chỉ vùng nhìn thấy), cùng tối đa $8$ xe lân cận tại $t_{\text{lost}}$ và $t_{\text{conf}}$. Tọa độ box được biểu diễn tương đối theo chiều cao box cuối, nên mô hình độc lập với độ phân giải ảnh và khoảng cách tới camera. Vì tập test chính thức có chung $7$ trong $15$ địa điểm camera với train/validation, tập test cũng được chấm riêng trên địa điểm dùng chung và địa điểm chưa thấy: GapLink-Lite đạt lần lượt $93.39\%$ và $93.44\%$ Top-1 (C-3: $80.59\%$ và $79.96\%$), nên hiệu năng không phụ thuộc vào việc đã thấy camera hay chưa.
 
 \section{Phân tích Khám phá Dữ liệu (EDA)}
 \label{sec:eda}
 
-Hình~\ref{fig:eda_results} cho thấy phần lớn quỹ đạo ngắn (trung vị $86$ khung hình, $3.4$~s) và giao thông đông (trung bình $8.7$ xe mỗi khung hình; $45\,603$ trong $138\,045$ khung hình có ít nhất mười xe). Giao thông đông đặt các ứng viên trông giống nhau gần xe thật, đây là nguồn chính của liên kết sai. Hình~\ref{fig:location_clusters} thể hiện các cụm camera xác định cách chia theo địa điểm.
+Hình~\ref{fig:eda_results} cho thấy phần lớn quỹ đạo ngắn (trung vị $86$ khung hình, $3.4$~s) và giao thông đông (trung bình $8.7$ xe mỗi khung hình; $45\,603$ trong $138\,045$ khung hình có ít nhất mười xe). Giao thông đông đặt các ứng viên trông giống nhau gần xe thật, đây là nguồn chính của liên kết sai, còn quỹ đạo ngắn để lại ít box lịch sử trước khi bị che.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{figures/fig_class_hist.png}
     \caption{Phân tích khám phá dữ liệu: độ dài quỹ đạo (trái) và số xe mỗi khung hình (phải) trên 100 chuỗi đã làm sạch}
     \label{fig:eda_results}
-\end{figure}
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.8\textwidth]{figures/fig_location_clusters.png}
-    \caption{Nền trung vị của các chuỗi tiêu biểu, gom thành các cụm camera dùng cho cách chia tách rời theo địa điểm}
-    \label{fig:location_clusters}
 \end{figure}
 
 \section{Mô hình hóa}
@@ -35,9 +26,9 @@ Hình~\ref{fig:eda_results} cho thấy phần lớn quỹ đạo ngắn (trung v
 \subsection{Giai đoạn 1: Đánh giá có Kiểm soát trên Box Ground-Truth}
 \label{sec:phase1}
 
-\textbf{Tái liên kết cấp sự kiện.} Bảng~\ref{tab:event_results} so sánh checkpoint đã đóng băng với ba baseline cổ điển tại ngưỡng chọn trên validation. GapLink-Lite đạt $\mathbf{93.41\%}$ Top-1 với $\mathbf{3.01\%}$ liên kết sai (trung bình 5 seed $93.64\% \pm 0.14\%$), so với $80.29\%$ / $19.24\%$ của baseline Kalman C-3 và $83.69\%$ / $15.88\%$ của baseline mạnh nhất C-4. Mức tăng là $+13.12$~pp so với C-3 (KTC 95\% $[12.29, 14.19]$) và $+9.72$~pp so với C-4 ($[8.68, 10.94]$), và lớn nhất ở nơi mô hình chuyển động cổ điển thất bại: với khoảng trống dài ($46$--$90$ khung hình), Top-1 tăng từ $64.24\%$ (C-4) lên $79.58\%$. Hình~\ref{fig:event_gap_bins} phân tích theo độ dài khoảng trống, và Hình~\ref{fig:wlr_curve} cho thấy đây không phải hệ quả của việc chọn ngưỡng: trên toàn dải ngưỡng, đường của GapLink-Lite nằm trên mọi đường baseline.
+\textbf{Tái liên kết cấp sự kiện.} Bảng~\ref{tab:event_results} so sánh checkpoint đã đóng băng với ba baseline cổ điển tại ngưỡng chọn trên validation. GapLink-Lite đạt $\mathbf{93.41\%}$ Top-1 với $\mathbf{3.01\%}$ liên kết sai (trung bình 5 seed $93.64\% \pm 0.14\%$), so với $80.29\%$ / $19.24\%$ của baseline Kalman C-3 và $83.69\%$ / $15.88\%$ của baseline mạnh nhất C-4. Mức tăng là $+13.12$~pp so với C-3 (KTC $[12.29, 14.19]$) và $+9.72$~pp so với C-4 ($[8.68, 10.94]$), và lớn nhất ở nơi mô hình chuyển động cổ điển thất bại: với khoảng trống dài ($46$--$90$ khung hình), Top-1 tăng từ $64.24\%$ (C-4) lên $79.58\%$. Hình~\ref{fig:wlr_curve} cho thấy đây không phải hệ quả của việc chọn ngưỡng: trên toàn dải ngưỡng, đường của GapLink-Lite nằm trên mọi đường baseline.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Giai đoạn 1 --- tái liên kết cấp sự kiện trên tập test đã khóa ($12\,000$ sự kiện, $27\,120$ track bị mất). Mọi ngưỡng chọn trên validation.}
     \label{tab:event_results}
@@ -60,51 +51,18 @@ Hình~\ref{fig:eda_results} cho thấy phần lớn quỹ đạo ngắn (trung v
     \end{tabularx}
 \end{table}
 
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.95\textwidth]{figures/fig_event_gap_bins.png}
-    \caption{Test Giai đoạn 1: độ chính xác Top-1 cấp sự kiện theo độ dài che khuất, trên tập con khó đăng ký trước và trên toàn bộ sự kiện (checkpoint seed 1 đã đóng băng)}
-    \label{fig:event_gap_bins}
-\end{figure}
-
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.86\textwidth]{figures/fig_top1_vs_wlr_curve.png}
     \caption{Top-1 cấp sự kiện theo tỉ lệ liên kết sai trên toàn dải ngưỡng (test). Điểm đánh dấu: điểm vận hành chọn trên validation.}
     \label{fig:wlr_curve}
 \end{figure}
 
-\textbf{Hiệu chuẩn độ bất định (H2).} Tiêu chí đăng ký trước yêu cầu độ phủ 90\% sau hiệu chuẩn nằm trong $[85, 95]\%$ ở cả ba nhóm khoảng trống. Khoảng trống ngắn và trung bình đạt, nhưng nhóm khoảng trống dài phủ hơi quá ($95.14\%$ trên validation, $95.86\%$ trên test), nên \textbf{H2 không được ủng hộ}. Nguyên nhân là hệ số tỉ lệ cho khoảng trống dài chỉ được khớp trên bốn địa điểm validation. Đầu Gaussian thô vốn đã gần hiệu chuẩn (test: $86.42\% / 85.46\% / 88.02\%$) và sắc hơn nhiều so với baseline Kalman, có ellipse phủ quá ở mức $\approx 98\%$ với NLL cao hơn ($9.15$ so với $7.99$ px); chúng tôi báo cáo đây là quan sát hậu kiểm, không phải giả thuyết đạt.
+\textbf{Hiệu chuẩn độ bất định (H2).} Tiêu chí đăng ký trước yêu cầu độ phủ 90\% sau hiệu chuẩn nằm trong $[85, 95]\%$ ở cả ba nhóm khoảng trống. Khoảng trống ngắn và trung bình đạt, nhưng nhóm khoảng trống dài phủ hơi quá ($95.14\%$ trên validation, $95.86\%$ trên test), nên \textbf{H2 không được ủng hộ}; hệ số tỉ lệ cho khoảng trống dài chỉ được khớp trên bốn địa điểm validation. Đầu Gaussian thô vốn đã gần hiệu chuẩn (test: $86.42\% / 85.46\% / 88.02\%$ cho khoảng trống ngắn/trung bình/dài) và sắc hơn nhiều so với baseline Kalman, có ellipse phủ quá ở mức khoảng $98\%$ với NLL cao hơn ($9.15$ so với $7.99$); đây là quan sát hậu kiểm, không phải giả thuyết đạt.
 
-\begin{table}[htbp]
-    \centering
-    \caption{Độ phủ ellipse 90\% thực nghiệm và NLL 2D (dải H2 $[85, 95]\%$; in đậm = ngoài dải)}
-    \label{tab:calib_results}
-    \footnotesize\setlength{\tabcolsep}{3pt}
-    \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X c c c c c}
-        \toprule
-        \textbf{Mô hình (tập)} & \textbf{Tất cả (\%)} & \textbf{Ngắn} & \textbf{Trung bình} & \textbf{Dài} & \textbf{NLL $\downarrow$} \\
-        \midrule
-        C-3 Kalman (test) & 97.79 & 97.68 & 97.72 & 98.23 & 9.15 \\
-        \textbf{GapLink-Lite, đã hiệu chuẩn (val., H2)} & 88.27 & 87.71 & 87.64 & \textbf{95.14} & 8.36 \\
-        \textbf{GapLink-Lite, đã hiệu chuẩn (test)} & 90.22 & 87.87 & 90.26 & \textbf{95.86} & 8.00 \\
-        \midrule
-        GapLink-Lite, thô (test, hậu kiểm) & 86.32 & 86.42 & 85.46 & 88.02 & 7.99 \\
-        GapLink-Lite, thô, 5 seed (hậu kiểm) & $86.83\pm0.50$ & $86.90\pm0.80$ & $85.97\pm0.76$ & $88.64\pm1.24$ & $\mathbf{7.93\pm0.18}$ \\
-        \bottomrule
-    \end{tabularx}
-\end{table}
+\textbf{Tracking trực tuyến (H3, P1).} Trong tracker trực tuyến hai tầng (Bảng~\ref{tab:tracker_results}), GapLink-Lite khôi phục $\mathbf{96.20\%}$ che khuất được chèn với chỉ $\mathbf{0.21\%}$ liên kết sai, so với $85.17\%$ / $4.32\%$ của C-2 và $84.96\%$ / $10.25\%$ của C-3; IDF1 tăng từ $77.60\%$ (C-3) lên $\mathbf{99.11\%}$ và số lần đổi danh tính giảm từ $342$ xuống $98$. Mức tăng IRR so với C-3 là $+11.24$~pp (KTC $[9.10, 14.35]$), và GapLink-Lite vượt cả C-2 lẫn C-3 ở cả ba nhóm khoảng trống, nên \textbf{H3 được ủng hộ}. Khi che khuất một phần và chỉ dùng ngoại hình vùng nhìn thấy, kết quả vẫn giữ ($95.99\%$ IRR, $0.36\%$ WLR). Kiểm tra giao thức \textbf{P1 đạt}: khi không tái liên kết (C-1), IRR là $0.00\%$.
 
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.86\textwidth]{figures/fig_calibration_coverage.png}
-    \caption{Độ phủ ellipse 90\% thực nghiệm theo nhóm khoảng trống; dải tô = mục tiêu H2 $[85, 95]\%$.}
-    \label{fig:calib_plot}
-\end{figure}
-
-\textbf{Tracking trực tuyến (H3, P1).} Trong tracker trực tuyến hai tầng (Bảng~\ref{tab:tracker_results}), GapLink-Lite khôi phục $\mathbf{96.20\%}$ che khuất được chèn với chỉ $\mathbf{0.21\%}$ liên kết sai, so với $85.17\%$ / $4.32\%$ của C-2 và $84.96\%$ / $10.25\%$ của C-3; IDF1 tăng từ $77.60\%$ (C-3) lên $\mathbf{99.11\%}$ và số lần đổi danh tính giảm từ $342$ xuống $98$. Mức tăng IRR so với C-3 là $+11.24$~pp (KTC $[9.10, 14.35]$), và GapLink-Lite vượt cả C-2 lẫn C-3 ở cả ba nhóm khoảng trống, nên \textbf{H3 được ủng hộ}. Khi che khuất một phần và chỉ dùng ngoại hình vùng nhìn thấy, kết quả vẫn giữ ($95.99\%$ IRR, $0.36\%$ WLR). Kiểm tra giao thức \textbf{P1 đạt}: khi không tái liên kết (C-1), IRR là $0.00\%$. Mọi kết quả đăng ký trước được tóm tắt trong Bảng~\ref{tab:eval_vs_target}.
-
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Giai đoạn 1 --- tracker trực tuyến trên $40$ chuỗi test ($1\,922$ khoảng che khuất được chèn, $a_{\max}=95$)}
     \label{tab:tracker_results}
@@ -124,40 +82,14 @@ Hình~\ref{fig:eda_results} cho thấy phần lớn quỹ đạo ngắn (trung v
     }
 \end{table}
 
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.95\textwidth]{figures/fig_tracker_irr_wlr.png}
-    \caption{Tỉ lệ khôi phục danh tính (IRR) và tỉ lệ liên kết sai (WLR) của tracker trực tuyến khi che khuất toàn phần và một phần}
-    \label{fig:tracker_plot}
-\end{figure}
-
 \subsection{Giai đoạn 2: Ứng dụng với Detector YOLOv8n Trực tiếp}
 \label{sec:phase2}
 
-\textbf{Thiết lập.} Mọi phương pháp nhận cùng detection YOLOv8n (\texttt{imgsz}$=640$, ngưỡng tin cậy $0.28$) và dùng chung tracker IoU tầng 1, cửa sổ track bị mất ($a_{\max}=95$) và quy tắc an ninh; chỉ module tái liên kết khác nhau. Ground truth chỉ được dùng sau đó để chấm điểm: \emph{Nat-IRR} là tỉ lệ khoảng trống tự nhiên của detector ($3$--$95$ khung hình) mà sau đó xe giữ được danh tính, và \emph{Nat-WLR} là tỉ lệ phép tái liên kết nối hai xe khác nhau. Với mọi phương pháp, ngưỡng chấp nhận được chọn trên $13$ video validation theo cùng một quy tắc (Nat-IRR cao nhất với điều kiện Nat-WLR $\le 5\%$) và đánh giá một lần trên $40$ video test. Ở giai đoạn này GapLink-Lite dùng checkpoint thích ứng detector (\texttt{release/live\_v1.3.pt}), fine-tune từ mô hình đã đóng băng trên sự kiện YOLOv8n của các chuỗi huấn luyện (Mục~\ref{sec:training_methodology}).
+\textbf{Thiết lập.} Mọi phương pháp nhận cùng detection YOLOv8n (kích thước đầu vào $640$, ngưỡng tin cậy $0.28$) và dùng chung tracker tầng 1, cửa sổ track bị mất ($a_{\max}=95$) và quy tắc an ninh; chỉ module tái liên kết khác nhau. Ground truth chỉ được dùng sau đó để chấm điểm. Với mọi phương pháp, ngưỡng chấp nhận được chọn trên $13$ video validation theo cùng một quy tắc (Nat-IRR cao nhất với điều kiện Nat-WLR $\le 5\%$) và đánh giá một lần trên $40$ video test. GapLink-Lite dùng checkpoint thích ứng detector v1.3 (Mục~\ref{sec:training_process}).
 
-\textbf{Lựa chọn baseline.} Ràng buộc đề tài không cho dùng tracker bên thứ ba, nên mỗi trường phái cổ điển được đại diện bằng một bộ ghép tự cài đặt (Bảng~\ref{tab:baseline_families}).
+\textbf{Kết quả.} Bảng~\ref{tab:live_v13} và Hình~\ref{fig:live_scatter} cho thấy kết quả. So với họ Kalman làm nền cho các tracker công nghiệp, GapLink-Lite tốt hơn trên cả hai trục: Nat-IRR $\mathbf{84.41\%}$ so với $57.63\%$ (C-3) và $61.85\%$ (C-4), Nat-WLR $\mathbf{6.09\%}$ so với $24.70\%$ và $9.94\%$. So với baseline mạnh nhất là vận tốc không đổi (C-2), khả năng khôi phục ngang nhau ($84.41\%$ so với $84.58\%$; $\Delta = -0.17$~pp, KTC $[-1.33, 1.08]$) trong khi \textbf{liên kết sai giảm một nửa} ($6.09\%$ so với $12.92\%$; $\Delta = -6.82$~pp, KTC $[-11.04, -3.18]$). Về số tuyệt đối, GapLink-Lite có $313$ tái liên kết sai trên $5\,137$, so với $676$ trên $5\,234$ của C-2 và $1\,072$ trên $4\,340$ của C-3. Trong bảng điều khiển an ninh, một liên kết sai là một báo động giả, và GapLink-Lite cũng có tỉ lệ báo động giả lộ trình cấm thấp nhất ($9.27\%$, tức $14$ cảnh báo giả so với $18$ của C-2 và $70$ của C-3). Cái giá của sự thận trọng này là recall lộ trình: nó bắt được $69$ trên $162$ vi phạm bị che với đúng ID, so với $77$ của C-3 và $80$ của C-4. Checkpoint thích ứng detector là yếu tố làm điều này khả thi: với checkpoint gốc, tỉ lệ liên kết sai trực tiếp là $10.20\%$, và fine-tune giảm $4.11$~pp (KTC $[1.57, 5.98]$) với cái giá $2.89$~pp khả năng khôi phục. Trên validation, C-2 dẫn $4$~pp Nat-IRR; thứ hạng này không giữ nguyên trên test, cho thấy bốn địa điểm validation khiến việc chọn điểm vận hành có nhiều nhiễu.
 
-\begin{table}[htbp]
-    \centering
-    \caption{Các trường phái tái liên kết cổ điển dùng làm baseline}
-    \label{tab:baseline_families}
-    \small
-    \begin{tabularx}{\textwidth}{l X X}
-        \toprule
-        \textbf{Baseline} & \textbf{Trường phái} & \textbf{Tương ứng trong thực tế} \\
-        \midrule
-        C-1 & Chỉ ghép IoU, không tái liên kết & Cận dưới; SORT sau khi track bị xóa \cite{bewley2016sort} \\
-        C-2 & Ngoại suy vận tốc không đổi + Hungarian & Các tracker chuyển động heuristic \\
-        C-3 & Bộ lọc Kalman + gating Mahalanobis & Mô hình chuyển động của SORT, DeepSORT, ByteTrack, OC-SORT \cite{bewley2016sort,wojke2017deepsort,zhang2022bytetrack,cao2023ocsort} \\
-        C-4 & C-3 + kích thước box + histogram màu & Chuyển động + ngoại hình kiểu DeepSORT (không có mạng ReID) \\
-        \bottomrule
-    \end{tabularx}
-\end{table}
-
-\textbf{Kết quả.} Bảng~\ref{tab:live_v13} và Hình~\ref{fig:live_scatter} cho thấy kết quả. So với họ Kalman làm nền cho các tracker công nghiệp, GapLink-Lite tốt hơn trên cả hai trục: Nat-IRR $\mathbf{84.41\%}$ so với $57.63\%$ (C-3) và $61.85\%$ (C-4), Nat-WLR $\mathbf{6.09\%}$ so với $24.70\%$ và $9.94\%$. So với baseline mạnh nhất là vận tốc không đổi (C-2), khả năng khôi phục ngang nhau ($84.41\%$ so với $84.58\%$; $\Delta = -0.17$~pp, KTC $[-1.33, 1.08]$) trong khi \textbf{liên kết sai giảm một nửa} ($6.09\%$ so với $12.92\%$; $\Delta = -6.82$~pp, KTC $[-11.04, -3.18]$). Trong bảng điều khiển an ninh, một liên kết sai là một báo động giả, và GapLink-Lite cũng có tỉ lệ báo động giả lộ trình cấm thấp nhất ($9.27\%$). Checkpoint thích ứng detector là yếu tố làm điều này khả thi: với checkpoint gốc, tỉ lệ liên kết sai trực tiếp là $10.20\%$, và fine-tune giảm $4.11$~pp (KTC $[1.57, 5.98]$) với cái giá $2.89$~pp khả năng khôi phục.
-
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Giai đoạn 2 --- đánh giá YOLOv8n trực tiếp với điểm vận hành chọn trên validation. Validation: $13$ video; test: $40$ video. Độ đo lộ trình trên các lượt đi $Z_A\!\to\!Z_B$ có che khuất. $^\dagger$không ngưỡng nào đạt Nat-WLR $\le 5\%$ trên validation (dùng quy tắc WLR thấp nhất).}
     \label{tab:live_v13}
@@ -179,19 +111,21 @@ Hình~\ref{fig:eda_results} cho thấy phần lớn quỹ đạo ngắn (trung v
     }
 \end{table}
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.78\textwidth]{figures/fig_live_v13_scatter.png}
     \caption{Giai đoạn 2 --- khôi phục so với liên kết sai trên $40$ video test trực tiếp (điểm vận hành chọn trên validation).}
     \label{fig:live_scatter}
 \end{figure}
 
-\subsection{Phân tích Lỗi và Tính nhất quán}
+\textbf{Thời gian xử lý với detector trực tiếp.} Một phiên bản trước của bảng điều khiển (mô hình chạy trên GPU) đã được profile trên clip nút giao đông nhất với YOLOv8n chạy trực tiếp: $28.95$~ms mỗi khung hình ($34.5$~FPS), gồm $12.53$~ms cho YOLOv8n, $3.26$~ms cho histogram và lọc box, và $13.16$~ms cho tracking, quy tắc và vẽ. Bảng điều khiển cuối dùng detection đã cache và mô hình trên CPU; thời gian của nó với detector trực tiếp chưa được đo lại.
+
+\subsection{Phân tích Lỗi, Ablation và Độ bền}
 \label{sec:error_analysis}
 
-\textbf{Các phương pháp sai như thế nào.} Bảng~\ref{tab:error_taxonomy} phân loại toàn bộ $27\,120$ track bị mất trong tập test (dự đoán đã đóng băng, \texttt{release/results\_v1.1\_extra/failure\_analysis.json}). Hai cách tiếp cận sai theo hai hướng ngược nhau. Baseline Kalman gần như không bao giờ từ chối; lỗi của nó là liên kết với xe sai ($32.2\%$ track khoảng trống dài) hoặc với một xe mới sau khi xe thật đã rời đi ($13.3\%$). Lỗi chủ yếu của GapLink-Lite ở khoảng trống dài là lỗi thận trọng --- từ chối tái liên kết ($10.4\%$), để lại quỹ đạo bị tách nhưng đúng --- trong khi liên kết sai và liên kết giả chỉ ở mức $7.4\%$ và $2.6\%$. Với giám sát, nơi một liên kết sai trở thành báo động giả hoặc mục tiêu bị cướp, kiểu lỗi này an toàn hơn.
+\textbf{Các phương pháp sai như thế nào.} Bảng~\ref{tab:error_taxonomy} phân loại toàn bộ $27\,120$ track bị mất trong tập test. Hai cách tiếp cận sai theo hai hướng ngược nhau. Baseline Kalman gần như không bao giờ từ chối; lỗi của nó là liên kết với xe sai ($32.2\%$ track khoảng trống dài) hoặc với một xe mới sau khi xe thật đã rời đi ($13.3\%$). Lỗi chủ yếu của GapLink-Lite ở khoảng trống dài là lỗi thận trọng --- từ chối tái liên kết ($10.4\%$), để lại quỹ đạo bị tách nhưng đúng --- trong khi liên kết sai và liên kết giả chỉ ở mức $7.4\%$ và $2.6\%$. Với giám sát, nơi một liên kết sai trở thành báo động giả hoặc mục tiêu bị cướp, kiểu lỗi này an toàn hơn. Mười sự kiện test có xác suất thấp nhất cho đáp án đúng thực sự mơ hồ: xe thật xuất hiện lại xa đường ngoại suy sau khi dừng hoặc rẽ, hoặc cạnh một xe trông giống; baseline Kalman sai cả mười ca.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Kết cục của mọi track bị mất trong tập test theo nhóm khoảng trống (\% số track trong nhóm)}
     \label{tab:error_taxonomy}
@@ -211,54 +145,11 @@ Hình~\ref{fig:eda_results} cho thấy phần lớn quỹ đạo ngắn (trung v
     \end{tabular}
 \end{table}
 
-\textbf{Tính nhất quán giữa các camera.} Bảng~\ref{tab:per_location} phân tích kết quả theo địa điểm camera test. GapLink-Lite có Top-1 cấp sự kiện và IRR tracker cao nhất ở \textbf{cả $15$ địa điểm}, kể cả $8$ địa điểm chưa từng thấy khi huấn luyện; điểm thấp nhất theo địa điểm của nó ($89.7\%$ Top-1) vẫn cao hơn điểm cao nhất theo địa điểm của C-3 ($86.8\%$).
+\textbf{Tính nhất quán giữa các camera.} GapLink-Lite có Top-1 cấp sự kiện và IRR tracker cao nhất ở \textbf{cả $15$ địa điểm test}, kể cả $8$ địa điểm chưa từng thấy khi huấn luyện; điểm thấp nhất theo địa điểm của nó ($89.7\%$ Top-1) vẫn cao hơn điểm cao nhất theo địa điểm của C-3 ($86.8\%$).
 
-\begin{table}[htbp]
-    \centering
-    \caption{Kết quả theo địa điểm trên tập test (Giai đoạn 1). Top-1 cấp sự kiện tại ngưỡng chọn trên validation; IRR tracker khi che khuất toàn phần.}
-    \label{tab:per_location}
-    \resizebox{\textwidth}{!}{%
-    \begin{tabular}{@{}l r r rrr r rrr@{}}
-        \toprule
-        & & & \multicolumn{3}{c}{\textbf{Top-1 sự kiện (\%)}} & & \multicolumn{3}{c}{\textbf{Tracker IRR (\%)}} \\
-        \cmidrule(lr){4-6}\cmidrule(lr){8-10}
-        \textbf{Địa điểm} & \textbf{Số chuỗi} & \textbf{Track bị mất} & \textbf{C-3} & \textbf{C-4} & \textbf{GapLink} & \textbf{Khoảng} & \textbf{C-2} & \textbf{C-3} & \textbf{GapLink} \\
-        \midrule
-        T01 & 6 & 4082 & 79.7 & 83.9 & \textbf{91.1} & 268 & 90.3 & 84.3 & \textbf{92.5} \\
-        T02 & 5 & 3665 & 79.9 & 85.4 & \textbf{95.1} & 360 & 89.4 & 88.3 & \textbf{97.8} \\
-        T03 & 5 & 3441 & 77.2 & 81.7 & \textbf{89.7} & 306 & 87.3 & 86.6 & \textbf{95.4} \\
-        T04 & 1 & 692 & 75.6 & 80.2 & \textbf{92.8} & 62 & 79.0 & 83.9 & \textbf{93.5} \\
-        T07 & 6 & 4072 & 82.4 & 84.0 & \textbf{94.9} & 176 & 73.9 & 75.0 & \textbf{96.6} \\
-        T09 & 3 & 1907 & 84.1 & 85.1 & \textbf{95.4} & 112 & 80.4 & 86.6 & \textbf{95.5} \\
-        T10 & 2 & 1201 & 86.8 & 88.6 & \textbf{97.6} & 86 & 91.9 & 89.5 & \textbf{100.0} \\
-        T11 & 1 & 679 & 82.2 & 87.6 & \textbf{96.9} & 89 & 93.3 & 84.3 & \textbf{100.0} \\
-        T14 & 2 & 1380 & 81.6 & 84.2 & \textbf{95.7} & 89 & 77.5 & 84.3 & \textbf{96.6} \\
-        T17 & 1 & 595 & 78.8 & 80.2 & \textbf{94.3} & 35 & 71.4 & 88.6 & \textbf{100.0} \\
-        T19 & 1 & 447 & 74.7 & 75.2 & \textbf{90.8} & 18 & 50.0 & 83.3 & \textbf{94.4} \\
-        T20 & 1 & 690 & 78.0 & 81.2 & \textbf{94.2} & 36 & 77.8 & 83.3 & \textbf{100.0} \\
-        T21 & 2 & 1473 & 75.6 & 78.2 & \textbf{90.7} & 23 & 78.3 & 82.6 & \textbf{100.0} \\
-        T23 & 2 & 1341 & 82.1 & 85.2 & \textbf{94.6} & 96 & 91.7 & 93.8 & \textbf{96.9} \\
-        T24 & 2 & 1455 & 80.3 & 85.6 & \textbf{92.6} & 166 & 83.1 & 78.9 & \textbf{94.6} \\
-        \bottomrule
-    \end{tabular}%
-    }
-\end{table}
+\textbf{Ablation và độ bền.} Bảng~\ref{tab:ablation_results} lần lượt bỏ từng thành phần (mỗi biến thể 5 seed). Điều kiện hóa theo khoảng trống quan trọng nhất ($-3.66 \pm 0.12$~pp tổng thể, $-8.91$~pp với khoảng trống dài), tiếp theo là histogram màu ($-2.20 \pm 0.26$~pp); ngữ cảnh xe lân cận DeepSets không cho mức tăng đáng tin cậy về mặt thống kê trên benchmark này ($-0.50 \pm 0.74$~pp). Khi gây nhiễu tập sự kiện test, GapLink-Lite giữ tỉ lệ liên kết sai dưới $6\%$ khi nhiễu vị trí tới $8\times$ và mất $30\%$ ứng viên đúng, trong những điều kiện mà tỉ lệ liên kết sai của C-3 tăng lên $28$--$35\%$.
 
-\textbf{Các ca khó nhất.} Theo quy tắc đăng ký trước, Hình~\ref{fig:failure_cases} thể hiện $10$ sự kiện test mà GapLink-Lite gán xác suất thấp nhất cho đáp án đúng ($3$ khoảng trống ngắn, $3$ trung bình, $4$ dài). Chúng thực sự mơ hồ: xe thật xuất hiện lại xa đường ngoại suy (khoảng trống dài sau khi dừng hoặc rẽ) hoặc cạnh một xe trông giống trong giao thông đông. Năm ca là bỏ lỡ tái liên kết và năm ca là chọn sai ứng viên; baseline Kalman sai cả mười ca.
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.92\textwidth]{figures/fig_failure_cases.png}
-    \caption{10 sự kiện test có độ tin cậy thấp nhất (chọn theo tiền đăng ký). Đen: lịch sử track bị mất; box xanh lá: ứng viên đúng; box đỏ: lựa chọn của GapLink-Lite; dấu chéo xanh dương: lựa chọn của C-3.}
-    \label{fig:failure_cases}
-\end{figure}
-
-\subsection{Ablation và Độ bền}
-\label{sec:ablation}
-
-\textbf{Nghiên cứu ablation.} Bảng~\ref{tab:ablation_results} lần lượt bỏ từng thành phần (mỗi biến thể 5 seed). Điều kiện hóa theo khoảng trống quan trọng nhất ($-3.66 \pm 0.12$~pp tổng thể, $-8.91$~pp với khoảng trống dài), tiếp theo là histogram màu ($-2.20 \pm 0.26$~pp); ngữ cảnh xe lân cận DeepSets không cho mức tăng đáng tin cậy về mặt thống kê trên benchmark này ($-0.50 \pm 0.74$~pp).
-
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Ablation có kiểm soát 5 seed trên tập test đã khóa ($12\,000$ sự kiện, trung bình $\pm$ độ lệch chuẩn qua 5 seed)}
     \label{tab:ablation_results}
@@ -275,50 +166,21 @@ Hình~\ref{fig:eda_results} cho thấy phần lớn quỹ đạo ngắn (trung v
     \end{tabularx}
 \end{table}
 
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=0.88\textwidth]{figures/fig_ablation_study.png}
-    \caption{Ablation 5 seed trên sự kiện test đã khóa (trung bình $\pm$ độ lệch chuẩn qua 5 seed ngẫu nhiên)}
-    \label{fig:ablation_plot}
-\end{figure}
-
-\textbf{Độ bền.} Bảng~\ref{tab:sensitivity} gây nhiễu tập sự kiện test. GapLink-Lite giữ tỉ lệ liên kết sai dưới $6\%$ khi nhiễu vị trí tới $8\times$ và mất $30\%$ ứng viên đúng, trong những điều kiện mà tỉ lệ liên kết sai của C-3 tăng lên $28$--$35\%$.
-
-\begin{table}[htbp]
-    \centering
-    \caption{Phân tích độ nhạy mở rộng trên tập test đã khóa ($12\,000$ sự kiện, seed 1 so với C-3)}
-    \label{tab:sensitivity}
-    \small
-    \begin{tabularx}{\textwidth}{X c c c c}
-        \toprule
-        \textbf{Nhiễu loạn} & \textbf{GapLink Top-1} & \textbf{GapLink WLR} & \textbf{C-3 Top-1} & \textbf{C-3 WLR} \\
-        \midrule
-        Danh định ($\sigma=0.05$, $M\le 10$) & \textbf{93.41} & \textbf{3.01} & 80.29 & 19.24 \\
-        Nhiễu vị trí ($2\times\sigma=0.10$) & \textbf{93.23} & \textbf{3.04} & 79.97 & 19.48 \\
-        Nhiễu vị trí ($4\times\sigma=0.20$) & \textbf{89.39} & \textbf{3.56} & 77.48 & 20.84 \\
-        Nhiễu cực mạnh ($8\times\sigma=0.40$) & \textbf{69.82} & \textbf{5.63} & 64.66 & 27.86 \\
-        Giảm số ứng viên tối đa ($M\le 5$) & \textbf{94.35} & \textbf{1.57} & 83.99 & 15.18 \\
-        Bỏ ứng viên đúng ($15\%$) & \textbf{92.98} & \textbf{4.02} & 72.12 & 27.16 \\
-        Bỏ ứng viên đúng ($30\%$) & \textbf{92.29} & \textbf{5.25} & 64.21 & 34.96 \\
-        \bottomrule
-    \end{tabularx}
-\end{table}
-
 \section{Giao diện Người dùng}
 \label{sec:user_interface}
 
-\textbf{GapLink-VMS} (\texttt{demo/vms\_lite.py}) là bảng điều khiển web cục bộ phát một clip và hiển thị song song tracker baseline (C-3 Kalman, bên trái) và GapLink-Lite v1.3 (bên phải) trên cùng detection YOLOv8n (Hình~\ref{fig:vms_ui}). Giao diện được chủ động tối giản, chỉ giữ những gì buổi trình diễn cần: ba nút chọn clip, phát/tạm dừng, chạy từng khung hình, thanh tua, tốc độ phát ($1\times$, $0.5\times$, $0.25\times$), công tắc bật/tắt ID, công cụ vẽ vùng (clip lộ trình) và click để khóa (clip mục tiêu). Cột bên phải hiển thị bảng kết quả của clip hiện tại và lịch sử sự cố với ảnh cắt trước/sau.
+\textbf{GapLink-VMS} là bảng điều khiển web cục bộ phát một clip và hiển thị song song tracker baseline (C-3 Kalman, bên trái) và GapLink-Lite v1.3 (bên phải) trên cùng detection YOLOv8n (Hình~\ref{fig:vms_ui}). Giao diện được chủ động tối giản, chỉ giữ những gì buổi trình diễn cần: ba nút chọn clip, phát/tạm dừng, chạy từng khung hình, thanh tua, tốc độ phát ($1\times$, $0.5\times$, $0.25\times$), công tắc bật/tắt ID, công cụ vẽ vùng cho clip lộ trình và click để khóa cho clip mục tiêu. Cột bên phải hiển thị bảng kết quả của clip hiện tại và lịch sử sự cố với ảnh cắt trước/sau.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{figures/fig_vms_lite_ui.png}
     \caption{Dashboard GapLink-VMS (clip khôi phục danh tính, khung hình đầu): C-3 Kalman (khung trái) và GapLink-Lite v1.3 (khung phải), thanh công cụ, bảng kết quả và lịch sử sự cố}
     \label{fig:vms_ui}
 \end{figure}
 
-Mỗi xe có một box và ID tracker của nó. Màu thể hiện điều đã xảy ra với ID đó, được chấm theo ground truth của UA-DETRAC: xanh lá --- được tái liên kết đúng xe sau che khuất; đỏ --- bị liên kết với một xe khác; tím --- xe xuất hiện lại với ID mới. Trong clip lộ trình, $Z_A$ và $Z_B$ được vẽ trên mặt đường và vi phạm được đóng khung đỏ (đúng ID), hổ phách (sai ID) hoặc tím (vi phạm giả). Trong clip mục tiêu, đường đi quan sát được vẽ bằng nét liền và, khi mục tiêu bị che, đường đi dự đoán được vẽ bằng nét đứt (Hình~\ref{fig:vms_clips}).
+Mỗi xe có một box và ID tracker của nó, và màu thể hiện điều đã xảy ra với ID đó, được chấm theo ground truth: xanh lá --- được tái liên kết đúng xe sau che khuất; đỏ --- bị liên kết với một xe khác; tím --- xe xuất hiện lại với ID mới. Trong clip lộ trình, $Z_A$ và $Z_B$ được vẽ trên mặt đường và vi phạm được đóng khung đỏ (đúng ID), hổ phách (sai ID) hoặc tím (vi phạm giả). Trong clip mục tiêu, đường đi quan sát được vẽ bằng nét liền và, khi mục tiêu bị che, box và đường đi dự đoán được vẽ bằng nét đứt. Mỗi khung có bộ đếm riêng, nên có thể so sánh hai phương pháp ở bất kỳ khung hình nào (Hình~\ref{fig:vms_clips}).
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{figures/fig_vms_clips.jpg}
     \caption{Đầu ra của bảng điều khiển trên ba clip (khung trái C-3, khung phải GapLink-Lite v1.3). Từ trên xuống: clip danh tính, khung 123 --- C-3 gán ID mới (tím) cho các xe bị che mà GapLink-Lite tái liên kết được (xanh lá); clip lộ trình, khung 129 --- C-3 báo một vi phạm giả trong $Z_B$; clip mục tiêu, khung 71 và 96 --- xe van đang khóa bị che sau xe buýt khớp nối (box nét đứt: vị trí dự đoán) và được bắt lại.}
@@ -331,38 +193,36 @@ Mỗi xe có một box và ID tracker của nó. Màu thể hiện điều đã 
 \subsection{Kiểm thử Phần mềm}
 \label{sec:software_testing}
 
-Mã nguồn được kiểm tra bằng bộ kiểm thử tự động \texttt{pytest} (Bảng~\ref{tab:tests}). Các test không cần GPU: chúng bao phủ chuẩn hóa Sinkhorn (biên, bất biến với padding, đồng biến hoán vị, ngân sách tham số), sự đồng nhất của việc xây dựng sự kiện giữa huấn luyện và tracking, chèn che khuất, các độ đo kể cả một ca IDF1 kiểm bằng tay, hiệu chuẩn, bootstrap theo địa điểm, gán nhãn sự kiện detector, manifest đóng băng, và logic bảng điều khiển (chấm lộ trình, phán quyết tái liên kết, nhãn ID, metadata clip, một lần chạy đầu-cuối trên clip demo).
+Mã nguồn được kiểm tra bằng bộ kiểm thử tự động gồm 71 test (Bảng~\ref{tab:tests}). Các test không cần GPU: chúng bao phủ chuẩn hóa Sinkhorn (biên, bất biến với padding, đồng biến hoán vị, ngân sách tham số), sự đồng nhất của việc xây dựng sự kiện giữa huấn luyện và tracking, chèn che khuất, các độ đo kể cả một ca IDF1 kiểm bằng tay, hiệu chuẩn, bootstrap theo địa điểm, gán nhãn sự kiện detector, đóng băng kết quả, và logic bảng điều khiển (chấm lộ trình, phán quyết tái liên kết, nhãn ID, một lần chạy đầu-cuối trên clip demo). Mọi số liệu báo cáo đều gắn với checkpoint, tập sự kiện và kết quả đã băm, nên có thể tái lập chính xác.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
-    \caption{Kết quả kiểm thử tự động (\texttt{pytest}, 71 test, $5.3$~s trên laptop của dự án)}
+    \caption{Kết quả kiểm thử tự động (71 test, $5.3$~s trên laptop của dự án)}
     \label{tab:tests}
     \small
     \begin{tabularx}{\textwidth}{X c c c}
         \toprule
         \textbf{Nhóm test (file)} & \textbf{Số test} & \textbf{Đạt} & \textbf{Lỗi} \\
         \midrule
-        Lõi mô hình: lớp Sinkhorn, hiệu chuẩn (\texttt{test\_sinkhorn}, \texttt{test\_calib}) & 7 & 7 & 0 \\
+        Lõi mô hình: lớp Sinkhorn, hiệu chuẩn & 7 & 7 & 0 \\
         Dữ liệu và sự kiện: chuyển đổi, chia tập, lấy mẫu sự kiện, parity, chèn che khuất & 7 & 7 & 0 \\
         Tracking và độ đo: tracker, IDF1, bootstrap theo địa điểm, phân tích lỗi & 10 & 10 & 0 \\
         Đánh giá trực tiếp: sự kiện detector, chọn điểm vận hành, gating & 14 & 14 & 0 \\
-        Tái lập: manifest đóng băng (\texttt{test\_freeze}) & 4 & 4 & 0 \\
-        Bảng điều khiển: quy tắc an ninh, profile, metadata clip, render, nhãn ID, phán quyết tái liên kết, \texttt{vms\_lite} đầu-cuối & 25 & 25 & 0 \\
-        Công cụ thăm dò ngoài miền (\texttt{test\_ood\_visdrone}) & 4 & 4 & 0 \\
+        Tái lập: manifest đóng băng & 4 & 4 & 0 \\
+        Bảng điều khiển: quy tắc an ninh, profile, metadata clip, render, nhãn ID, phán quyết tái liên kết, chạy đầu-cuối & 25 & 25 & 0 \\
+        Công cụ thăm dò ngoài miền & 4 & 4 & 0 \\
         \midrule
         \textbf{Tổng} & \textbf{71} & \textbf{71} & \textbf{0} \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
-\textbf{Khả năng tái lập.} Mọi số liệu báo cáo đều gắn với checkpoint, tập sự kiện và file kết quả có băm SHA-256 (\texttt{release/FREEZE\_MANIFEST*.json}), được kiểm tra bởi \texttt{scripts/freeze\_results.py}; độ đo của bảng điều khiển trên ba clip được sinh lại bằng \texttt{python -m demo.vms\_lite --check}.
-
 \subsection{Đánh giá Thực nghiệm}
 \label{sec:experimental_evaluation}
 
-Bảng~\ref{tab:eval_vs_target} so sánh kết quả cuối cùng với các mục tiêu cố định từ trước (bản tiền đăng ký cho Giai đoạn~1, mục tiêu $5\%$ liên kết sai và tốc độ thời gian thực cho Giai đoạn~2).
+Bảng~\ref{tab:eval_vs_target} so sánh kết quả cuối cùng với các mục tiêu cố định từ trước: các giả thuyết đăng ký trước cho Giai đoạn~1, mục tiêu $5\%$ liên kết sai và tốc độ thời gian thực cho Giai đoạn~2.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Kết quả đánh giá so với mục tiêu}
     \label{tab:eval_vs_target}
@@ -383,9 +243,14 @@ Bảng~\ref{tab:eval_vs_target} so sánh kết quả cuối cùng với các m�
     \end{tabularx}
 \end{table}
 
-\textbf{Các clip trình diễn.} Ba clip được chọn từ video test bởi một script (\texttt{scripts/mine\_demo3.py}) chạy cả hai tracker trên toàn bộ $40$ video test và giữ lại, cho mỗi nhiệm vụ, các cửa sổ mà phán quyết của GapLink-Lite tốt nhất; đây là lựa chọn phục vụ trình diễn, không phải phép đo. Bảng~\ref{tab:demo3} và Hình~\ref{fig:demo3} báo cáo số đếm của bảng điều khiển cuối cùng trên mỗi clip (\texttt{runs/vms\_lite\_check/metrics.json}). Trên clip danh tính, GapLink-Lite tái liên kết đúng cả $48$ xe bị che, trong khi tracker Kalman tái liên kết đúng $21$ trên $51$, liên kết $12$ xe với xe sai và gán ID mới cho $18$ xe. Trên clip lộ trình (vùng $Z_A$, $Z_B$ vẽ trên làn đường phía xa và lưu cùng clip), cả hai phương pháp đều báo các vi phạm thật, nhưng C-3 thêm một vi phạm sai ID và hai vi phạm giả, GapLink-Lite không có. Trên clip mục tiêu, xe van đang khóa bị che sau xe buýt khớp nối trong $58$ khung hình; cả hai tracker đều bắt lại nó ở khung $96$, nhưng sáu khung sau, sau một khoảng trống 3 khung nữa ở mép xe buýt, C-3 chuyển ID mục tiêu sang xe khác, còn GapLink-Lite giữ xe van đến hết clip ($4$ lần bắt lại, không có sai xe).
+\textbf{Các clip trình diễn.} Ba clip được chọn từ video test bằng cách chạy cả hai tracker trên toàn bộ $40$ video test và giữ lại, cho mỗi nhiệm vụ, các cửa sổ mà phán quyết của GapLink-Lite tốt nhất; đây là lựa chọn phục vụ trình diễn, không phải phép đo. Bảng~\ref{tab:demo3} báo cáo số đếm của bảng điều khiển cuối cùng trên mỗi clip.
+\begin{itemize}
+    \item \textbf{Khôi phục danh tính} ($250$ khung hình một nút giao đông về đêm có xe buýt). GapLink-Lite tái liên kết đúng cả $48$ xe bị che, kể cả xe buýt, trong khi tracker Kalman tái liên kết đúng $21$ trên $51$, liên kết $12$ xe với xe sai và gán ID mới cho $18$ xe; ngay ở khung $98$, C-3 mới đúng $5/21$ so với $27/27$ của GapLink-Lite.
+    \item \textbf{Lộ trình cấm} ($250$ khung hình một đường phố về đêm; $Z_A$ và $Z_B$ trên làn đường phía xa). C-3 phát sáu cảnh báo: ba đúng, một sai ID và hai giả --- ở khung $129$, track \#42 tới $Z_B$ dù xe của nó chưa từng ở $Z_A$. GapLink-Lite phát hai cảnh báo, cả hai đều đúng. Clip này thể hiện độ chính xác chứ không phải recall; trên $40$ video test, C-3 bắt được nhiều vi phạm bị che hơn ($47.53\%$ so với $42.59\%$) với tỉ lệ báo động giả cao hơn ba lần.
+    \item \textbf{Bám theo mục tiêu} ($156$ khung hình một trục đường mưa). Xe van đang khóa bị che sau xe buýt khớp nối trong $58$ khung hình; cả hai tracker đều bắt lại nó ở khung $96$, nhưng sáu khung sau, sau thêm một khoảng trống ba khung ở mép xe buýt, C-3 chuyển ID mục tiêu sang xe khác, còn GapLink-Lite giữ xe van đến hết clip ($4$ lần bắt lại, không có sai xe).
+\end{itemize}
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Kết quả trên ba clip trình diễn (bảng điều khiển cuối, C-3 so với GapLink-Lite v1.3)}
     \label{tab:demo3}
@@ -408,22 +273,15 @@ Bảng~\ref{tab:eval_vs_target} so sánh kết quả cuối cùng với các m�
     \end{tabularx}
 \end{table}
 
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\textwidth]{figures/fig_demo3_results.png}
-    \caption{Số đếm trên ba clip trình diễn (\texttt{python -m demo.vms\_lite --check})}
-    \label{fig:demo3}
-\end{figure}
-
-\textbf{Các cải tiến qua từng vòng.} Ba thay đổi định hình hệ thống cuối cùng. (i) Kiểm tra lại lần chạy test đã khóa đầu tiên phát hiện một lỗi chuyển đổi dữ liệu (vùng bỏ qua bị gộp thành một track giả) và cửa sổ track bị mất ngắn hơn khoảng trống dài nhất; cả hai đều được sửa và mô hình được huấn luyện và đóng băng lại (\texttt{844fc391\ldots}). (ii) Giai đoạn~2 cho thấy mô hình chỉ huấn luyện trên box ground-truth liên kết quá vội trên box detector; fine-tune theo detector (v1.3) giảm một nửa tỉ lệ liên kết sai trực tiếp so với baseline mạnh nhất. (iii) Bảng điều khiển trình diễn được xây lại quanh ba nhiệm vụ và được profile; chạy mô hình nhỏ trên CPU và đơn giản hóa phần vẽ đã nâng tốc độ từ $12$--$14.5$ lên $36$--$46$~FPS. Nhật ký thay đổi đầy đủ, kể cả các biến thể bị loại trên validation, được lưu trong \texttt{docs/DEVIATIONS.md}.
+\textbf{Các cải tiến qua từng vòng.} Ba thay đổi định hình hệ thống cuối cùng. (i) Kiểm tra lại lần chạy test đã khóa đầu tiên phát hiện một lỗi chuyển đổi dữ liệu (vùng bỏ qua bị gộp thành một track giả) và cửa sổ track bị mất ngắn hơn khoảng trống dài nhất; cả hai đều được sửa và mô hình được huấn luyện và đóng băng lại. (ii) Giai đoạn~2 cho thấy mô hình chỉ huấn luyện trên box ground-truth liên kết quá vội trên box detector; fine-tune theo detector (v1.3) giảm một nửa tỉ lệ liên kết sai trực tiếp so với baseline mạnh nhất. (iii) Bảng điều khiển trình diễn được xây lại quanh ba nhiệm vụ và được profile; chạy mô hình nhỏ trên CPU và đơn giản hóa phần vẽ đã nâng tốc độ từ $12$--$14.5$ lên $36$--$46$~FPS.
 
 \subsection{Hạn chế}
 \label{sec:limitations}
 
 \begin{itemize}
     \item \textbf{Hiệu chuẩn với khoảng trống dài.} H2 không đạt vì hệ số hiệu chuẩn cho khoảng trống dài, khớp trên bốn địa điểm validation, phủ quá ($95.86\%$ trên test).
-    \item \textbf{Liên kết sai khi chạy trực tiếp.} Không phương pháp nào, kể cả GapLink-Lite ($6.09\%$), giữ được tỉ lệ liên kết sai trực tiếp dưới mục tiêu $5\%$ trên test, và so với baseline vận tốc không đổi, lợi thế chỉ nằm ở liên kết sai chứ không ở khả năng khôi phục.
-    \item \textbf{Lịch sử đánh giá.} Tập test Giai đoạn~1 được đánh giá lần thứ hai sau khi sửa lỗi chuyển đổi dữ liệu, và video test trực tiếp được chấm cho cả checkpoint gốc lẫn checkpoint thích ứng detector; mọi lần chạy được liệt kê trong \texttt{docs/DEVIATIONS.md}.
+    \item \textbf{Liên kết sai khi chạy trực tiếp.} Không phương pháp nào, kể cả GapLink-Lite ($6.09\%$), giữ được tỉ lệ liên kết sai trực tiếp dưới mục tiêu $5\%$ trên test, và so với baseline vận tốc không đổi, lợi thế nằm ở liên kết sai và báo động giả chứ không ở khả năng khôi phục hay recall lộ trình.
+    \item \textbf{Lịch sử đánh giá.} Tập test Giai đoạn~1 được đánh giá lần thứ hai sau khi sửa lỗi chuyển đổi dữ liệu, và video test trực tiếp được chấm cho cả checkpoint gốc lẫn checkpoint thích ứng detector; cả hai lần chạy lại đều được báo cáo công khai thay vì thay thế.
     \item \textbf{Phạm vi dữ liệu.} Không có lớp xe máy, camera cố định đặt cao tại các thành phố Trung Quốc, bốn địa điểm validation, $7$ trong $15$ địa điểm test dùng chung với huấn luyện (không có ảnh hưởng đo được: $93.39\%$ so với $93.44\%$ Top-1), và chỉ một seed cho lần fine-tune trực tiếp.
     \item \textbf{Clip trình diễn.} Các clip được chọn trên video test để thể hiện rõ sự khác biệt; số đếm của chúng minh họa hành vi và không phải ước lượng không chệch (bảng Giai đoạn~2 đã đóng băng mới là ước lượng đó).
 \end{itemize}

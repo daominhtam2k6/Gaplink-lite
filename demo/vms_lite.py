@@ -4,7 +4,7 @@
   .venv\\Scripts\\python.exe -m demo.vms_lite --check         # print the metrics of the 3 clips (no UI)
   .venv\\Scripts\\python.exe -m demo.vms_lite --render        # render the 3 clips to demo/out/vms_lite/*.mp4
 
-GapLink runs on CPU with 1 thread by default (fastest on the RTX 3050 laptop, scripts/bench_vms_fps.py);
+GapLink runs on CPU with 1 thread by default (fastest on the RTX 3050 laptop: kernel-launch overhead dominates on the GPU);
 override with GAPLINK_GL_DEVICE / GAPLINK_GL_THREADS.
 """
 from __future__ import annotations

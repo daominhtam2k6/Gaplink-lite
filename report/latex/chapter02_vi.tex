@@ -7,28 +7,26 @@
 \subsection{Nguồn Dữ liệu}
 \label{sec:data_sources}
 
-Dự án dùng một benchmark công khai, \textbf{UA-DETRAC} \cite{wen2020uadetrac}: $100$ video giao thông thật quay ở $25$~fps, độ phân giải $960 \times 540$ bởi các camera cố định đặt trên cao tại đường phố và nút giao, có chú thích box và danh tính cho mọi phương tiện. Đây là benchmark chuẩn cho bài toán theo dõi nhiều phương tiện từ góc nhìn giám sát, đúng bối cảnh của đồ án. Cách chia chính thức ($60$ chuỗi huấn luyện và $40$ chuỗi test) được giữ nguyên: $40$ chuỗi test chỉ dùng cho các lần chạy test đã khóa.
-
-Hai sản phẩm dữ liệu khác được sinh từ cùng các video: (i) \emph{sự kiện che khuất} lấy mẫu từ quỹ đạo ground-truth (Giai đoạn~1, Mục~\ref{sec:data_augmentation}), và (ii) \emph{sự kiện detector} tạo ra bằng cách chạy YOLOv8n \cite{jocher2023yolov8} và tracker trực tuyến trên các video \emph{huấn luyện} (fine-tune Giai đoạn~2, Mục~\ref{sec:training_process}).
+Dự án dùng một benchmark công khai, \textbf{UA-DETRAC} \cite{wen2020uadetrac}: $100$ video giao thông thật quay ở $25$~fps, độ phân giải $960 \times 540$ bởi các camera cố định đặt trên cao tại đường phố và nút giao, có chú thích box và danh tính cho mọi phương tiện. Đây là benchmark chuẩn cho bài toán theo dõi nhiều phương tiện từ góc nhìn giám sát, đúng bối cảnh của đồ án. Cách chia chính thức ($60$ chuỗi huấn luyện và $40$ chuỗi test) được giữ nguyên, và $40$ chuỗi test chỉ dùng cho các lần chạy test đã khóa. Hai sản phẩm dữ liệu khác được sinh từ cùng các video: \emph{sự kiện che khuất} lấy mẫu từ quỹ đạo ground-truth (Giai đoạn~1), và \emph{sự kiện detector} tạo ra bằng cách chạy YOLOv8n \cite{jocher2023yolov8} và tracker trực tuyến trên các video huấn luyện (fine-tune Giai đoạn~2).
 
 \subsection{Thu thập Dữ liệu}
 \label{sec:data_collection}
 
-Chú thích gốc được chuyển sang định dạng văn bản MOT bằng \texttt{scripts/convert\_detrac.py}. Bản mirror nguồn lưu các \emph{vùng bỏ qua} tĩnh (vùng người chú thích không gán nhãn, như bãi đỗ xe ở xa) dưới dạng các dòng của một track giả ($528\,798$ dòng có \texttt{target\_id}$=-1$). Chúng được tách thành $407$ đa giác bỏ qua, và $72\,714$ box phương tiện ($5.7\%$) có tâm nằm trong các vùng này bị loại, để mô hình không bao giờ phải tái liên kết một xe mà người chú thích đã bỏ qua.
+Chú thích gốc được chuyển sang định dạng văn bản MOT. Bản mirror nguồn lưu các \emph{vùng bỏ qua} tĩnh (vùng người chú thích không gán nhãn, như bãi đỗ xe ở xa) dưới dạng các dòng của một track giả ($528\,798$ dòng). Chúng được tách thành $407$ đa giác bỏ qua, và $72\,714$ box phương tiện ($5.7\%$) có tâm nằm trong các vùng này bị loại, để mô hình không bao giờ phải tái liên kết một xe mà người chú thích đã bỏ qua.
 
 \subsection{Gán nhãn Dữ liệu}
 \label{sec:data_annotation}
 
-Không cần gán nhãn thủ công: mọi box phương tiện trong UA-DETRAC đều mang danh tính quỹ đạo. Các danh tính này cung cấp nhãn huấn luyện cho mọi sự kiện che khuất (ứng viên nào, nếu có, là cùng xe với mỗi track bị mất) và ground truth cho mọi phép đánh giá. Với sự kiện detector (Giai đoạn~2) và các clip trình diễn, mỗi box YOLOv8n được ghép \emph{hậu kiểm} với một box ground-truth bằng thuật toán Hungarian với IoU $\ge 0.45$; nhãn hậu kiểm này chỉ dùng để chấm điểm và fine-tune, không bao giờ đi vào tracker.
+Không cần gán nhãn thủ công: mọi box phương tiện trong UA-DETRAC đều mang danh tính quỹ đạo, cho nhãn của mọi sự kiện che khuất (ứng viên nào, nếu có, là cùng xe với mỗi track bị mất) và ground truth của mọi phép đánh giá. Với sự kiện detector và các clip trình diễn, mỗi box YOLOv8n được ghép \emph{hậu kiểm} với một box ground-truth bằng thuật toán Hungarian với IoU $\ge 0.45$; nhãn này chỉ dùng để chấm điểm và fine-tune, không bao giờ đi vào tracker.
 
 \subsection{Thống kê Bộ dữ liệu}
 \label{sec:dataset_stats}
 
-Bảng~\ref{tab:dataset_stats} tóm tắt bộ dữ liệu sau làm sạch; các giá trị được tính lại từ các file đã chuyển đổi cho báo cáo này.
+Bảng~\ref{tab:dataset_stats} tóm tắt bộ dữ liệu sau làm sạch. Quỹ đạo ngắn (trung vị $86$ khung hình, $3.4$~s) và giao thông đông: trung bình $8.7$ xe mỗi khung hình, và một phần ba số khung hình có ít nhất mười xe.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
-    \caption{Thống kê UA-DETRAC sau làm sạch (\texttt{data/mot}, \texttt{data/stats.json})}
+    \caption{Thống kê UA-DETRAC sau làm sạch}
     \label{tab:dataset_stats}
     \begin{tabularx}{\textwidth}{l r X}
         \toprule
@@ -49,17 +47,17 @@ Bảng~\ref{tab:dataset_stats} tóm tắt bộ dữ liệu sau làm sạch; các
 \subsection{Chia Dữ liệu}
 \label{sec:data_splitting}
 
-Các video từ cùng một camera trông gần như giống hệt nhau, nên chia ngẫu nhiên theo video sẽ làm rò rỉ khung cảnh sang tập validation. Vì vậy \texttt{scripts/group\_locations.py} tính nền trung vị $64 \times 36$ cho mỗi chuỗi và gom các chuỗi bằng phân cụm agglomerative ($1-r \le 0.65$) thành $25$ cụm camera, gần với $\sim\!24$ địa điểm vật lý của UA-DETRAC. $60$ chuỗi huấn luyện được chia \emph{theo cụm} thành $47$ chuỗi huấn luyện ($13$ cụm) và $13$ chuỗi validation ($4$ cụm). $40$ chuỗi test chính thức được giữ nguyên; chúng thuộc $15$ cụm, trong đó $7$ cụm cũng có trong huấn luyện hoặc validation và $8$ cụm chưa từng thấy. Hai tập con được báo cáo riêng (Mục~\ref{sec:data_preprocessing}). Không dùng lật ngang hay bản sao phản chiếu ở bất kỳ đâu, vì lật ảnh sẽ tạo ra hướng lưu thông không thể có.
+Các video từ cùng một camera trông gần như giống hệt nhau, nên chia ngẫu nhiên theo video sẽ làm rò rỉ khung cảnh sang tập validation. Vì vậy mỗi chuỗi được tính một nền trung vị $64 \times 36$, và các chuỗi được gom bằng phân cụm agglomerative ($1-r \le 0.65$) thành $25$ cụm camera, gần với $\sim\!24$ địa điểm vật lý của UA-DETRAC. $60$ chuỗi huấn luyện được chia \emph{theo cụm} thành $47$ chuỗi huấn luyện ($13$ cụm) và $13$ chuỗi validation ($4$ cụm). $40$ chuỗi test chính thức thuộc $15$ cụm, trong đó $7$ cụm cũng có trong huấn luyện hoặc validation và $8$ cụm chưa từng thấy; hai tập con được báo cáo riêng. Không dùng lật ngang ở bất kỳ đâu, vì lật ảnh sẽ tạo ra hướng lưu thông không thể có.
 
 \subsection{Đạo đức và Quyền riêng tư}
 \label{sec:ethics}
 
-UA-DETRAC là benchmark nghiên cứu công khai. Hệ thống chỉ xử lý box phương tiện và histogram màu thô: không đọc biển số, không phát hiện khuôn mặt hay nhận dạng người, và detector trực tiếp được giới hạn ở các lớp phương tiện. Bảng điều khiển chỉ nêu các sự kiện \emph{có thể} xảy ra (lộ trình cấm, mất mục tiêu) để người vận hành xem xét; nó không đưa ra quyết định xử phạt. Các clip trình diễn là đoạn trích ngắn từ video test và chỉ dùng cho buổi trình bày.
+UA-DETRAC là benchmark nghiên cứu công khai. Hệ thống chỉ xử lý box phương tiện và histogram màu thô: không đọc biển số, không phát hiện khuôn mặt hay nhận dạng người, và detector trực tiếp được giới hạn ở các lớp phương tiện. Bảng điều khiển chỉ nêu các sự kiện \emph{có thể} xảy ra để người vận hành xem xét; nó không đưa ra quyết định xử phạt.
 
 \subsection{Hạn chế của Dữ liệu}
 \label{sec:data_limitations}
 
-UA-DETRAC gồm ô tô con, xe van, xe buýt và các xe lớn khác quay tại các thành phố Trung Quốc; bộ dữ liệu không có lớp xe máy, nên mô hình được huấn luyện và đánh giá mà không có xe máy. Mọi camera đều cố định và đặt trên cao, tập validation chỉ gồm bốn địa điểm camera, và tập test chính thức có chung $7$ trong $15$ địa điểm với tập huấn luyện. Các giới hạn này xác định phạm vi của kết luận (Mục~\ref{sec:limitations}).
+UA-DETRAC gồm ô tô con, xe van, xe buýt và các xe lớn khác quay tại các thành phố Trung Quốc và không có lớp xe máy. Mọi camera đều cố định và đặt trên cao, tập validation chỉ gồm bốn địa điểm camera, và tập test chính thức có chung $7$ trong $15$ địa điểm với tập huấn luyện. Các giới hạn này xác định phạm vi của kết luận (Mục~\ref{sec:limitations}).
 
 \section{Phương pháp Huấn luyện}
 \label{sec:training_methodology}
@@ -67,9 +65,9 @@ UA-DETRAC gồm ô tô con, xe van, xe buýt và các xe lớn khác quay tại 
 \subsection{Tổng quan Thành phần Được và Không được Huấn luyện}
 \label{sec:trained_components}
 
-Chỉ mạng tái liên kết được huấn luyện (Bảng~\ref{tab:trained_components}); phát hiện, các tầng tracking và quy tắc giám sát là thuật toán cố định hoặc mô hình bên ngoài.
+Chỉ mạng tái liên kết được huấn luyện (Bảng~\ref{tab:trained_components}); phát hiện, tầng tracking thứ nhất và quy tắc giám sát là thuật toán cố định hoặc mô hình bên ngoài.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Các thành phần được và không được huấn luyện}
     \label{tab:trained_components}
@@ -91,25 +89,51 @@ Chỉ mạng tái liên kết được huấn luyện (Bảng~\ref{tab:trained_c
 \subsection{Lựa chọn Mô hình}
 \label{sec:model_selection}
 
-Cho $N \le 6$ track bị mất và $M \le 10$ detection ứng viên tại khung xác nhận $t_{\text{conf}}$, GapLink-Lite xuất ra một phép gán ngẫu nhiên kép (doubly stochastic) trên ma trận mở rộng $(N+1)\times(M+1)$, trong đó hàng và cột thêm vào (các \emph{dustbin}) hấp thụ track và ứng viên không được ghép. Năm module của mô hình (Hình~\ref{fig:model_arch}) được chọn để giải quyết ba thách thức ở Mục~\ref{sec:bg_challenges}:
+Cho $N \le 6$ track bị mất và $M \le 10$ ứng viên, GapLink-Lite xuất ra một phép gán ngẫu nhiên kép (doubly stochastic) trên ma trận mở rộng $(N+1)\times(M+1)$, trong đó hàng và cột thêm vào (các \emph{dustbin}) hấp thụ track và ứng viên không được ghép. Năm module của mô hình (Hình~\ref{fig:model_arch}) giải quyết ba thách thức ở Mục~\ref{sec:bg_challenges}:
 \begin{enumerate}
-    \item \textbf{Bộ mã hóa chuyển động.} Mỗi bước lịch sử của track bị mất được mô tả bằng đặc trưng bất biến tỉ lệ, chuẩn hóa theo chiều cao box cuối $h_l$ (độ dịch chuyển, vận tốc, log tỉ lệ kích thước). GRU 2 lớp \cite{cho2014gru} ($d=128$) mã hóa lịch sử, và khoảng trống $g_i = t_{\text{conf}} - t_{\text{lost},i}$ được embedding riêng để mô hình có thể mở rộng độ bất định khi khoảng trống dài.
+    \item \textbf{Bộ mã hóa chuyển động.} Mỗi bước lịch sử được mô tả bằng sáu giá trị bất biến tỉ lệ, chuẩn hóa theo chiều cao box cuối $h_l$ (độ dịch chuyển, log tỉ lệ kích thước, vận tốc). GRU 2 lớp \cite{cho2014gru} ($d=128$) mã hóa lịch sử, và khoảng trống $g_i$ được embedding riêng bằng các đặc trưng sin/cos của $\ln(1+g_i)$, để mô hình có thể mở rộng độ bất định khi khoảng trống dài.
     \item \textbf{Bộ mã hóa ngữ cảnh.} Tối đa $8$ xe lân cận tại $t_{\text{lost}}$ và $t_{\text{conf}}$ được mã hóa bằng MLP dùng chung và pooling max cộng mean bất biến hoán vị (DeepSets \cite{zaheer2017deepsets}).
-    \item \textbf{Bộ dự đoán Gaussian.} Điểm neo vận tốc không đổi cộng phần dư học được cho vị trí dự đoán và log-phương sai đường chéo:
+    \item \textbf{Bộ dự đoán Gaussian.} Điểm neo vận tốc không đổi cộng phần dư học được cho một Gaussian 4 chiều trên vị trí và log kích thước đã chuẩn hóa của xe tại $t_{\text{conf}}$:
     \begin{equation}
         \mu_i = \hat{\mu}^{\text{CV}}_i + f_{\mu}(h_i, c_i, g_i), \qquad \ln \sigma_i^2 = \operatorname{clamp}\big(f_{\sigma}(h_i, c_i, g_i), -6, 4\big).
     \end{equation}
-    \item \textbf{Bộ chấm điểm theo cặp và dustbin.} Với mỗi cặp track--ứng viên, log-mật độ Gaussian của ứng viên theo $(\mu_i, \sigma_i)$ được kết hợp với độ chồng lấn box, tỉ lệ kích thước và độ tương đồng cosine của histogram HSV vùng nhìn thấy thành logit $S_{ij}$. Logit dustbin của track và ứng viên nhận thêm độ gần biên ảnh và thống kê cạnh tranh, để mô hình có thể nói ``track này đã rời đi'' hoặc ``ứng viên này là xe mới'' \cite{sarlin2020superglue}.
+    \item \textbf{Bộ chấm điểm theo cặp và dustbin.} Với mỗi cặp, chín giá trị --- log-mật độ Gaussian $m_{ij}$ của ứng viên, khoảng cách Mahalanobis và Euclid tới vị trí dự đoán, chênh lệch kích thước, IoU với box dự đoán và độ tương đồng cosine của histogram HSV 128 bin --- được đưa vào một MLP, đầu ra cộng vào $m_{ij}$ thành logit $S_{ij}$. Logit dustbin của track và ứng viên nhận thêm độ gần biên ảnh và thống kê cạnh tranh, để mô hình có thể nói ``track này đã rời đi'' hoặc ``ứng viên này là xe mới'' \cite{sarlin2020superglue}.
     \item \textbf{Sinkhorn miền log.} $T=20$ lần chuẩn hóa xen kẽ hàng/cột \cite{sinkhorn1967,cuturi2013sinkhorn} với biên $\mathbf{r}=[1,\dots,1,M]$ và $\mathbf{c}=[1,\dots,1,N]$ cho ra $\log P$.
 \end{enumerate}
-Không cần mô hình lớn hơn: kiểm tra overfit trên 64 sự kiện đạt $100\%$ Top-1, và mô hình đầy đủ huấn luyện mất khoảng $100$~s mỗi lần chạy, cho phép chạy năm seed và ba ablation trong lịch trình.
+Không cần mô hình lớn hơn: kiểm tra overfit trên 64 sự kiện đạt $100\%$ Top-1, và mô hình đầy đủ huấn luyện mất khoảng $100$~s mỗi lần chạy, cho phép chạy năm seed và ba ablation trong lịch trình. Bảng~\ref{tab:param_breakdown} cho thấy $327\,979$ tham số phân bố ra sao; hai phần ba nằm ở bộ mã hóa chuyển động.
+
+\begin{table}[H]
+    \centering
+    \caption{Ngân sách tham số của GapLink-Lite (checkpoint đã đóng băng)}
+    \label{tab:param_breakdown}
+    \small
+    \begin{tabularx}{\textwidth}{l X r r}
+        \toprule
+        \textbf{Module} & \textbf{Các lớp (số tham số)} & \textbf{Tham số} & \textbf{Tỉ lệ} \\
+        \midrule
+        Mã hóa chuyển động & Chiếu đầu vào $6\!\to\!64$ ($576$); GRU 2 lớp, $d=128$ ($173\,568$); embedding khoảng trống ($1\,632$); chiếu đầu ra ($21\,376$) & $197\,152$ & $60.1\%$ \\
+        Mã hóa ngữ cảnh & MLP token $6\!\to\!64\!\to\!64$ ($4\,736$); chiếu đầu ra $128\!\to\!128$ ($16\,768$) & $21\,504$ & $6.6\%$ \\
+        Dự đoán Gaussian & MLP $256\!\to\!128\!\to\!8$ ($34\,184$) & $34\,184$ & $10.4\%$ \\
+        Chấm điểm theo cặp và dustbin & MLP theo cặp ($47\,233$); MLP dustbin track ($19\,137$); MLP dustbin ứng viên ($8\,769$) & $75\,139$ & $22.9\%$ \\
+        Log-Sinkhorn & Không có tham số huấn luyện & $0$ & $0\%$ \\
+        \midrule
+        \textbf{Tổng} & & $\mathbf{327\,979}$ & $100\%$ \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\textbf{Các baseline.} Các baseline nhận đúng các sự kiện như GapLink-Lite và dùng cùng phép ghép Hungarian; chỉ hàm chi phí và ngưỡng chấp nhận $\theta$ khác nhau. \emph{C-2} ngoại suy tâm bằng vận tốc trung bình của năm box cuối, $\hat{\mathbf{p}}_i = \mathbf{p}_{i,\text{last}} + g_i \mathbf{v}_i$, và dùng khoảng cách tới vị trí đó theo đơn vị chiều cao box cộng một phạt log kích thước. \emph{C-3} lọc lịch sử bằng bộ lọc Kalman vận tốc không đổi 8 trạng thái (nhiễu quá trình từ thang gia tốc $\sigma_a = 0.5$, nhiễu quan sát $3\%$ kích thước box), ngoại suy qua khoảng trống và dùng bình phương khoảng cách Mahalanobis của tâm,
+\begin{equation}
+    d^2_{ij} = \frac{(c^x_j - \mu_{i,x})^2}{\sigma^2_{i,x}} + \frac{(c^y_j - \mu_{i,y})^2}{\sigma^2_{i,y}},
+\end{equation}
+đây là mô hình chuyển động bên trong SORT, DeepSORT, ByteTrack và OC-SORT. \emph{C-4} thêm phạt kích thước ($\lambda_s = 0.5$) và thành phần màu $\lambda_c(1-\cos)$ ($\lambda_c = 2.0$) vào C-3. \emph{C-1} không tái liên kết và đóng vai trò cận dưới.
 
 \subsection{Môi trường Huấn luyện}
 \label{sec:training_env}
 
-Mọi thí nghiệm chạy cục bộ trên laptop có GPU NVIDIA GeForce RTX~3050 Laptop (6~GB VRAM), trong môi trường ảo Python~3.12 với PyTorch 2.11.0 (CUDA 12.8). Bảng~\ref{tab:train_hparams} liệt kê cấu hình huấn luyện được lưu trong checkpoint.
+Mọi thí nghiệm chạy cục bộ trên laptop có GPU NVIDIA GeForce RTX~3050 Laptop (6~GB VRAM), trong môi trường ảo Python~3.12 với PyTorch 2.11.0 (CUDA 12.8). Bảng~\ref{tab:train_hparams} liệt kê cấu hình huấn luyện. Learning rate của lần chạy Giai đoạn~1 đã đóng băng không được ghi lại nên không được báo cáo.
 
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Siêu tham số huấn luyện}
     \label{tab:train_hparams}
@@ -118,9 +142,10 @@ Mọi thí nghiệm chạy cục bộ trên laptop có GPU NVIDIA GeForce RTX~30
         \textbf{Tham số} & \textbf{Mô hình Giai đoạn 1} & \textbf{Fine-tune thích ứng detector (v1.3)} \\
         \midrule
         Trọng số ban đầu & Ngẫu nhiên (seed 20260417--21) & Checkpoint Giai đoạn~1 đã đóng băng \\
-        Bộ tối ưu & AdamW \cite{loshchilov2019adamw}, lịch cosine có khởi động & AdamW \\
+        Bộ tối ưu & AdamW \cite{loshchilov2019adamw}, lịch cosine có khởi động & AdamW, lr $2\times10^{-4}$, weight decay $10^{-4}$, khởi động 100 bước, cosine \\
         Số bước / batch & $2\,400$ / $64$ sự kiện & $3\,000$ (tốt nhất ở $1\,500$) / $64$ \\
         Cắt gradient & $1.0$ & $1.0$ \\
+        Kiểm tra validation & Mỗi $600$ bước, sự kiện GT & Mỗi $250$ bước, sự kiện detector ($\tau=0.5$) \\
         Mất mát & $\mathcal{L}_{\text{assign}} + 0.5\,\mathcal{L}_{\text{NLL}}$ & như trên \\
         Dữ liệu huấn luyện & $120\,038$ sự kiện GT & Trộn $70/30$ giữa $7\,746$ sự kiện detector và sự kiện GT \\
         Số lần chạy & 5 seed mô hình đầy đủ + 3 ablation $\times$ 5 seed & 1 seed (20261121) \\
@@ -131,54 +156,57 @@ Mọi thí nghiệm chạy cục bộ trên laptop có GPU NVIDIA GeForce RTX~30
 \subsection{Tăng cường Dữ liệu}
 \label{sec:data_augmentation}
 
-Sự kiện huấn luyện được tổng hợp trực tiếp từ quỹ đạo ground-truth bởi \texttt{src/events.py}, đóng vai trò pipeline tăng cường dữ liệu:
+Sự kiện huấn luyện được tổng hợp trực tiếp từ quỹ đạo ground-truth, đóng vai trò pipeline tăng cường dữ liệu:
 \begin{itemize}
     \item \textbf{Độ dài che khuất.} Khoảng trống được lấy từ ba nhóm $3$--$15$, $16$--$45$ và $46$--$90$ khung hình với xác suất $0.4/0.4/0.2$.
-    \item \textbf{Loại sự kiện.} Một track bị mất hoặc bị che rồi xuất hiện lại, hoặc bị detector bỏ sót, hoặc vắng mặt tại $t_{\text{conf}}$ vì đã rời khung hình hay vẫn còn bị che ($0.4/0.4/0.1/0.1$), để các dustbin được huấn luyện.
+    \item \textbf{Loại sự kiện.} Track bị mất bị che rồi xuất hiện lại, bị detector bỏ sót, đã rời khung hình hoặc vẫn còn bị che ($0.4/0.4/0.1/0.1$), để các dustbin được huấn luyện.
     \item \textbf{Nhiễu box.} Nhiễu vị trí Gaussian $3\%$ (lịch sử) và $5\%$ (ứng viên) kích thước box cùng dao động kích thước $\pm10\%$ mô phỏng box của detector; $5\%$ ứng viên đúng bị loại bỏ.
-    \item \textbf{Che khuất một phần.} Với xác suất $0.4$, histogram màu của ứng viên chỉ lấy từ box con nhìn thấy (một trong bốn góc nhìn một phần tính sẵn), nên điểm ảnh bị che không bao giờ rò rỉ.
-    \item \textbf{Curriculum.} Tỉ lệ sự kiện khó (có xe gây nhiễu gần hơn ứng viên đúng) tăng từ $0.40$ lên $0.75$ trong quá trình huấn luyện.
+    \item \textbf{Che khuất một phần.} Với xác suất $0.4$, histogram màu của ứng viên chỉ lấy từ box con nhìn thấy, nên điểm ảnh bị che không bao giờ rò rỉ.
+    \item \textbf{Curriculum.} Mỗi batch trộn sự kiện ``dễ'' và ``khó'' (có ứng viên khác nằm trong $1.15$ lần kích thước box của cặp đúng); tỉ lệ sự kiện khó tăng dần trong quá trình huấn luyện.
 \end{itemize}
-Không dùng phản chiếu và các biến đổi hình học khác của khung cảnh (Mục~\ref{sec:data_splitting}).
 
 \subsection{Hàm Mất mát và Độ đo}
 \label{sec:loss_metrics}
 
-Mất mát gán là negative log-probability của phép gán đúng theo $P$, gồm cả các ô dustbin; mất mát dự đoán là Gaussian negative log-likelihood của vị trí xuất hiện lại thật. Đánh giá dùng các độ đo:
+Với $y_i = M+1$ khi track $i$ không có ứng viên đúng, $\mathcal{U}$ là các ứng viên không tiếp nối track bị mất nào, và $\mathbf{t}_i$ là box xuất hiện lại thật đã chuẩn hóa, mô hình tối thiểu hóa $\mathcal{L}_{\text{assign}} + 0.5\,\mathcal{L}_{\text{NLL}}$:
+\begin{align}
+    \mathcal{L}_{\text{assign}} &= -\frac{1}{N + |\mathcal{U}|}\Big(\sum_{i=1}^{N} \log P_{i,y_i} + \sum_{j \in \mathcal{U}} \log P_{N+1,j}\Big), \\
+    \mathcal{L}_{\text{NLL}} &= \frac{1}{|\mathcal{V}|}\sum_{i \in \mathcal{V}} \sum_{k=1}^{4} \frac{1}{2}\Big(\ln\sigma^2_{i,k} + \frac{(t_{i,k}-\mu_{i,k})^2}{\sigma^2_{i,k}} + \ln 2\pi\Big),
+\end{align}
+trong đó $\mathcal{V}$ là các track bị mất có box thật tại $t_{\text{conf}}$. Đánh giá dùng các độ đo:
 \begin{itemize}
     \item \textbf{Top-1 cấp sự kiện}: tỉ lệ track bị mất được gán đúng ứng viên hoặc được gán đúng vào dustbin; \textbf{WLR} (tỉ lệ liên kết sai): tỉ lệ được liên kết với ứng viên sai.
     \item \textbf{Độ phủ 90\%} và NLL 2D của ellipse dự đoán (hiệu chuẩn).
-    \item \textbf{IRR} (tỉ lệ khôi phục danh tính): tỉ lệ khoảng che khuất mà sau đó xe giữ được ID trong tracker trực tuyến; \textbf{WLR}, \textbf{IDF1}, \textbf{MOTA} và \textbf{IDSW} ở cấp tracker.
-    \item \textbf{Nat-IRR / Nat-WLR}: các độ đo tương tự trên khoảng trống tự nhiên của detector dài $3$--$95$ khung hình ở Giai đoạn~2.
+    \item \textbf{IRR} (tỉ lệ khôi phục danh tính) và \textbf{WLR} của tracker trực tuyến: tỉ lệ khoảng che khuất được chèn mà sau đó xe giữ được ID, hoặc kết thúc bằng một tái liên kết sai. Các khoảng được ẩn trong ground truth (một hoặc hai khoảng mỗi quỹ đạo, ít nhất $8$ khung nhìn thấy trước và $5$ khung sau, tối đa $18\%$ số box của một khung hình), che toàn phần hoặc chỉ còn box con nhìn thấy (một phần). Báo cáo thêm \textbf{IDF1}, \textbf{MOTA} và \textbf{IDSW}.
+    \item \textbf{Nat-IRR / Nat-WLR} ở Giai đoạn~2: khoảng trống tự nhiên là khoảng $3$--$95$ khung hình giữa hai detection của cùng một xe thật; Nat-IRR là tỉ lệ khoảng trống mà sau đó ID không đổi, Nat-WLR là tỉ lệ tái liên kết nối hai xe khác nhau. Với lộ trình cấm, recall đếm các lượt đi $Z_A\!\to\!Z_B$ có che khuất được báo với đúng ID, và FAR $= \text{FP}/(\text{TP}+\text{FP})$.
 \end{itemize}
 Khoảng tin cậy là bootstrap ghép cặp \cite{efron1994bootstrap} với đơn vị lấy mẫu lại là địa điểm camera ($15$ địa điểm test, $10\,000$ lần rút).
 
 \subsection{Quá trình Huấn luyện và Chọn Mô hình}
 \label{sec:training_process}
 
-Top-1 trên validation được đánh giá mỗi $600$ bước (Hình~\ref{fig:training_curves}); mất mát gán đã làm mượt giảm đến bước $1\,800$ và Top-1 validation đạt $93.2\%$ ở lần đánh giá cuối (bước $2\,400$), không có dấu hiệu overfit trên các địa điểm validation. Seed~1 được đóng băng thành \texttt{release/final.pt} (SHA-256 \texttt{844fc391\ldots}); bốn seed còn lại dùng cho trung bình $\pm$ độ lệch chuẩn và ablation.
+Top-1 trên validation được đánh giá mỗi $600$ bước (Hình~\ref{fig:training_curves}); mất mát gán đã làm mượt giảm đến bước $1\,800$ và Top-1 validation đạt $93.2\%$ ở lần đánh giá cuối (bước $2\,400$), không có dấu hiệu overfit trên các địa điểm validation. Seed~1 được đóng băng làm checkpoint cuối cùng; bốn seed còn lại dùng cho trung bình $\pm$ độ lệch chuẩn và ablation.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{figures/fig_training_curves.png}
     \caption{Huấn luyện mô hình đã đóng băng: mất mát gán đã làm mượt (trái) và độ chính xác Top-1 trên validation (phải), đánh giá mỗi 600 bước}
     \label{fig:training_curves}
 \end{figure}
 
-\textbf{Fine-tune theo detector.} Mô hình huấn luyện trên box ground-truth không bao giờ thấy độ rung của detector, hiện tượng chập chờn 2--5 khung hình hay ứng viên dương tính giả. Cho Giai đoạn~2, các sự kiện do tracker trực tuyến sinh ra trên detection YOLOv8n của các video \emph{huấn luyện} ($7\,746$ sự kiện) được gán nhãn hậu kiểm và dùng để fine-tune mô hình đã đóng băng. Checkpoint (\texttt{release/live\_v1.3.pt}, cùng kiến trúc) được chọn trên sự kiện detector của các video validation; video test không được dùng.
+\textbf{Fine-tune theo detector.} Mô hình huấn luyện trên box ground-truth không bao giờ thấy độ rung của detector, hiện tượng chập chờn 2--5 khung hình hay ứng viên dương tính giả. Cho Giai đoạn~2, tracker được chạy cùng YOLOv8n trên các video huấn luyện để thu $7\,746$ sự kiện detector, gán nhãn hậu kiểm, và mô hình đã đóng băng được fine-tune trên hỗn hợp $70/30$ sự kiện detector và ground truth trong $3\,000$ bước (AdamW, learning rate $2\times10^{-4}$, cosine). Checkpoint ở bước $1\,500$ (Top-1 validation trên sự kiện detector $99.11\%$, so với $98.45\%$ trước fine-tune) được giữ lại làm \textbf{v1.3}; video test không được dùng. Hai cách sửa đơn giản hơn đã bị loại trên validation trước đó: chỉ nâng $\tau$ chỉ đạt Nat-WLR $\le 5\%$ khi $\tau \ge 0.85$ với khả năng khôi phục thấp hơn C-2, còn lọc ứng viên bằng Gaussian học được làm khả năng khôi phục giảm mạnh, vì độ bất định học trên box sạch quá hẹp so với nhiễu detector.
 
 \subsection{Tinh chỉnh các Module Dựa trên Quy tắc}
 \label{sec:rule_tuning}
 
-Mọi ngưỡng đều được chọn trên dữ liệu validation và đóng băng trong \texttt{release/tracker.yaml} và \texttt{release/live\_v1.3.yaml}:
+Mọi ngưỡng đều được chọn trên dữ liệu validation rồi đóng băng:
 \begin{itemize}
-    \item \textbf{Ngưỡng chấp nhận.} Liên kết $(i,j)$ của GapLink-Lite được chấp nhận khi và chỉ khi $P_{ij} \ge \tau$ và $P_{ij} > P_{i,\text{dustbin}}$. Giai đoạn~1: $\tau = 0.25$; Giai đoạn~2: $\tau = 0.65$ (Nat-IRR validation cao nhất với điều kiện Nat-WLR $\le 5\%$). Ngưỡng gating của baseline được chọn theo cùng quy tắc (trực tiếp: C-2 $\theta=1.2$, C-3 $\theta=1.0$, C-4 $\theta=1.2$).
-    \item \textbf{Tracker.} Ngưỡng IoU tầng 1 là $0.30$; một track được xác nhận sau $3$ lần khớp; track bị mất được giữ $a_{\max} = 95$ khung hình, dài hơn khoảng trống dài nhất được chèn.
-    \item \textbf{Hiệu chuẩn.} $\sigma' = \sigma \exp(a + b\ln(1+g) + c\ln^2(1+g))$ với $(a,b,c) = (0.413, -0.341, 0.074)$, khớp trên nửa~A của validation.
-    \item \textbf{Chấm điểm demo.} Tái liên kết chỉ được chấm sau khoảng trống $\ge 3$ khung hình (cận dưới của các nhóm khoảng trống); box detector được ghép với ground truth ở IoU $\ge 0.45$.
+    \item \textbf{Ngưỡng chấp nhận.} Liên kết $(i,j)$ của GapLink-Lite được chấp nhận khi và chỉ khi $P_{ij} \ge \tau$ và $P_{ij} > P_{i,\text{dustbin}}$. Giai đoạn~1: $\tau = 0.25$; Giai đoạn~2: $\tau = 0.65$ (Nat-IRR validation cao nhất với điều kiện Nat-WLR $\le 5\%$). Ngưỡng của baseline theo cùng quy tắc (tracker Giai đoạn~1: C-2 $\theta=3.0$, C-3 $25.0$, C-4 $29.0$; trực tiếp: C-2 $1.2$, C-3 $1.0$, C-4 $1.2$).
+    \item \textbf{Tracker.} Ngưỡng IoU tầng 1 là $0.30$; một track được xác nhận sau $3$ lần khớp trong hệ thống trực tiếp; track bị mất được giữ $a_{\max} = 95$ khung hình, dài hơn khoảng trống dài nhất được chèn.
+    \item \textbf{Hiệu chuẩn.} $\sigma' = \sigma \exp(a + b\ell + c\ell^2)$ với $\ell = \ln(1+g)$ và $(a,b,c) = (0.413, -0.341, 0.074)$, khớp trên nửa~A của sự kiện validation để ellipse 90\% ($d^2 \le \chi^2_2(0.90) = 4.605$) phủ 90\% vị trí thật ở mỗi nhóm khoảng trống; nửa~B được giữ để kiểm định H2.
 \end{itemize}
 
-\textbf{Tối ưu sau huấn luyện.} Bảng điều khiển được profile theo từng công đoạn trên ba clip với detection đã cache (script \texttt{bench\_vms\_fps.py}). Vì mô hình rất nhỏ, chạy trên GPU bị chi phối bởi overhead khởi chạy kernel: GapLink-Lite mất $17$--$23$~ms mỗi khung hình trên CUDA nhưng chỉ $8$--$9.5$~ms trên CPU với một luồng. Cùng với phép zoom rẻ hơn (cắt + resize tuyến tính thay cho affine warp bicubic) và chất lượng JPEG $80$, chi phí mỗi khung hình của bảng điều khiển giảm từ $69$--$83$~ms ($12$--$14.5$~FPS) xuống $22$--$28$~ms ($36$--$46$~FPS), cao hơn $25$~fps của video.
+\textbf{Tối ưu sau huấn luyện.} Bảng điều khiển được profile theo từng công đoạn trên ba clip trình diễn. Vì mô hình rất nhỏ, chạy trên GPU bị chi phối bởi overhead khởi chạy kernel: GapLink-Lite mất $17$--$23$~ms mỗi khung hình trên CUDA nhưng chỉ $8$--$9.5$~ms trên CPU với một luồng. Cùng với phép zoom rẻ hơn và chất lượng JPEG $80$, chi phí mỗi khung hình của bảng điều khiển giảm từ $69$--$83$~ms ($12$--$14.5$~FPS) xuống $22$--$28$~ms ($36$--$46$~FPS), cao hơn $25$~fps của video.
 
 \section{Quy trình Hoạt động}
 \label{sec:workflow}
@@ -186,9 +214,9 @@ Mọi ngưỡng đều được chọn trên dữ liệu validation và đóng b
 \subsection{Tổng quan Hệ thống}
 \label{sec:system_overview}
 
-Hệ thống xử lý luồng video theo từng khung hình và giữ trạng thái giữa các khung (track đang hoạt động và bị mất, lịch sử vùng, mục tiêu đang khóa). Hình~\ref{fig:pipeline} thể hiện pipeline xử lý. Hai tracker chạy trên cùng detection, một với baseline và một với GapLink-Lite, nên mọi khác biệt trên màn hình chỉ đến từ module tái liên kết.
+Hệ thống xử lý luồng video theo từng khung hình và giữ trạng thái giữa các khung (track đang hoạt động và bị mất, lịch sử vùng, mục tiêu đang khóa). Hình~\ref{fig:pipeline} thể hiện pipeline. Hai tracker chạy trên cùng detection, một với baseline và một với GapLink-Lite, nên mọi khác biệt trên màn hình chỉ đến từ module tái liên kết.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \begin{tikzpicture}[
         node distance=0.42cm,
@@ -217,50 +245,56 @@ Hệ thống xử lý luồng video theo từng khung hình và giữ trạng th
 \subsection{Tracking Trực tuyến Hai Tầng}
 \label{sec:two_stage}
 
-Tầng~1 ghép track đang hoạt động với detection có IoU $\ge 0.30$. Track không được ghép trở thành \emph{bị mất} và chờ tối đa $a_{\max} = 95$ khung hình. Tầng~2 chỉ chạy khi có track bị mất với tuổi $2$--$95$ khung hình và có detection chưa được ghép; nó tạo một sự kiện cho mỗi nhóm gồm tối đa $6$ track bị mất và $10$ ứng viên rồi gọi bộ ghép (associator) đã chọn. Detection chưa ghép khởi tạo track mới. Huấn luyện và tracking tạo sự kiện bằng cùng một hàm (\texttt{assemble\_event}, được kiểm tra bởi \texttt{tests/test\_parity.py}), nên không có sai lệch train--test trong định dạng sự kiện.
+Tầng~1 ghép track đang hoạt động với detection có IoU $\ge 0.30$. Track đã xác nhận không được ghép trở thành \emph{bị mất} và chờ tối đa $a_{\max} = 95$ khung hình. Tầng~2 chỉ chạy khi có track bị mất với tuổi $2$--$95$ khung hình và có detection chưa được ghép; nó tạo một sự kiện cho mỗi nhóm gồm tối đa $6$ track bị mất và $10$ ứng viên rồi gọi bộ ghép. Với GapLink-Lite, phép ghép Hungarian trên $-P_{1:N,1:M}$ đề xuất các cặp, và một cặp chỉ được chấp nhận nếu $P_{ij} \ge \tau$ và $P_{ij} > P_{i,M+1}$, tức là khi liên kết có khả năng cao hơn ``chưa liên kết''; ngược lại track tiếp tục chờ. Detection còn lại khởi tạo track mới. Huấn luyện và tracking tạo sự kiện bằng cùng một hàm, nên không có sai lệch train--test trong định dạng sự kiện. Thuật toán~\ref{alg:tracker} tóm tắt một khung hình.
 
-\subsection{Quyết định Tái liên kết}
-\label{sec:reassoc_decision}
+\begin{algorithm}[H]
+\caption{Một khung hình của tracker trực tuyến hai tầng}
+\label{alg:tracker}
+\begin{algorithmic}[1]
+\Require detection $D_t$ (box, histogram HSV); track đang hoạt động $\mathcal{A}$; track bị mất $\mathcal{L}$; bộ ghép $\Phi$ (GapLink-Lite, C-2\dots C-4, hoặc không có với C-1)
+\State Ghép Hungarian $\mathcal{A}$ với $D_t$ theo IoU; giữ cặp có IoU $\ge 0.30$ và cập nhật (EMA màu, $\alpha = 0.8$)
+\State Chuyển các track đã xác nhận chưa được ghép từ $\mathcal{A}$ sang $\mathcal{L}$; lưu xe lân cận làm ngữ cảnh tại $t_{\text{lost}}$
+\State $\mathcal{L}' \gets \{\ell \in \mathcal{L} : 2 \le t - t_{\text{lost}}(\ell) \le a_{\max}\}$, sắp theo tuổi; \ $U \gets$ $10$ detection đầu tiên chưa được ghép ở Tầng~1
+\If{$\Phi$ khác rỗng \textbf{và} $\mathcal{L}' \neq \emptyset$ \textbf{và} $U \neq \emptyset$}
+    \ForAll{nhóm liên tiếp $G$ gồm $\le 6$ track của $\mathcal{L}'$}
+        \State $ev \gets \textsc{AssembleEvent}(G, U_{\text{free}}, t)$ \Comment{cùng hàm như khi huấn luyện}
+        \State $\hat{y} \gets \Phi.\textsc{Decide}(ev)$ \Comment{$\hat{y}_i = -1$: tiếp tục chờ (dustbin)}
+        \For{mỗi $i$ có $\hat{y}_i \ge 0$}
+            \State Khôi phục track $i$ với detection $\hat{y}_i$ dưới ID cũ; ghi lại phép tái liên kết; bỏ $\hat{y}_i$ khỏi $U_{\text{free}}$
+        \EndFor
+    \EndFor
+\EndIf
+\State Bỏ các track bị mất lâu hơn $a_{\max} = 95$ khung hình
+\State Tạo track mới (ID mới) cho mọi detection chưa được dùng
+\State \Return các track có ít nhất số lần khớp yêu cầu (đầu vào của quy tắc giám sát)
+\end{algorithmic}
+\end{algorithm}
 
-Với GapLink-Lite, phép ghép Hungarian trên $-P_{1:N,1:M}$ đề xuất các cặp, và một cặp chỉ được chấp nhận nếu
-\begin{equation}
-    P_{ij} \ge \tau \quad\text{và}\quad P_{ij} > P_{i,M+1},
-\end{equation}
-tức là khi liên kết có khả năng cao hơn ``chưa liên kết''. Ngược lại, track tiếp tục chờ (dustbin). Các baseline Kalman chấp nhận một cặp khi khoảng cách Mahalanobis $d^2_{ij} = \sum_{k\in\{x,y\}} (c_{jk} - \mu_{ik})^2 / \sigma_{ik}^2$ nhỏ hơn ngưỡng $\theta$ của chúng (cộng thêm thành phần kích thước và màu với C-4).
-
-\subsection{Quy tắc Giám sát}
+\subsection{Quy tắc Giám sát và Lịch sử Sự cố}
 \label{sec:surveillance_rules}
 
-\textbf{Lộ trình cấm.} Một track có vùng đầu tiên là $Z_A$ và sau đó đi vào $Z_B$ sẽ phát cảnh báo vi phạm. Với ground truth, mỗi vi phạm được chấm là \emph{đúng ID} (cùng một xe ở $Z_A$ và $Z_B$), \emph{sai ID} (xe ở $Z_B$ đúng là đến từ $Z_A$ nhưng ID của cảnh báo bắt đầu trên một xe khác) hoặc \emph{giả} (xe ở $Z_B$ chưa từng ở $Z_A$).
+\textbf{Lộ trình cấm.} Một track có vùng đầu tiên là $Z_A$ và sau đó đi vào $Z_B$ sẽ phát cảnh báo vi phạm. Theo ground truth, mỗi vi phạm được chấm là \emph{đúng ID} (cùng một xe ở $Z_A$ và $Z_B$), \emph{sai ID} (xe đúng là đến từ $Z_A$ nhưng ID của cảnh báo bắt đầu trên một xe khác) hoặc \emph{giả} (xe chưa từng ở $Z_A$).
 
-\textbf{Khóa mục tiêu.} Người vận hành click vào một xe; bảng điều khiển bám theo ID của xe đó. Khi mục tiêu bị che, vị trí dự đoán ($\mu$ của GapLink-Lite hoặc dự đoán Kalman) được vẽ thành đường nét đứt; khi một xe xuất hiện lại, mục tiêu được \emph{bắt lại} nếu là cùng xe và \emph{sai xe} nếu ngược lại.
+\textbf{Khóa mục tiêu.} Người vận hành click vào một xe và bảng điều khiển bám theo ID của xe đó. Khi mục tiêu bị che, vị trí dự đoán ($\mu$ của GapLink-Lite hoặc dự đoán Kalman) được vẽ thành box và đường đi nét đứt; khi một xe xuất hiện lại, mục tiêu được \emph{bắt lại} nếu là cùng xe và \emph{sai xe} nếu ngược lại.
 
-\subsection{Lịch sử Sự cố}
-\label{sec:incident_history}
+\textbf{Lịch sử sự cố.} Chỉ những sự kiện người vận hành cần kiểm tra mới được ghi: liên kết sai, xe bị gán ID mới, vi phạm lộ trình và mục tiêu sai hoặc bị mất. Mỗi mục lưu ảnh cắt của xe trước và sau sự kiện, để người xem nhận ra ngay hai ảnh có cùng một xe hay không.
 
-Chỉ những sự kiện người vận hành cần kiểm tra mới được ghi: liên kết sai, xe bị gán ID mới, vi phạm lộ trình và mục tiêu bị mất hoặc sai. Mỗi mục lưu ảnh cắt của xe trước và sau sự kiện, phương pháp, ID và thời điểm, để người xem có thể nhận ra ngay hai ảnh có cùng một xe hay không.
-
-\subsection{Giao thức Đánh giá và Đóng băng Kết quả}
+\subsection{Giao thức Đánh giá}
 \label{sec:eval_protocol}
 
-Giả thuyết và giao thức được đăng ký trong \texttt{docs/PREREG.md} trước mọi lần chạy test. Ngưỡng chỉ được chọn trên validation; sự kiện test và video test được đánh giá một lần từ các checkpoint có băm SHA-256; kết quả được sao chép vào \texttt{release/results\_v1.1} và \texttt{release/results\_v1.3} kèm manifest đóng băng được kiểm tra bởi \texttt{scripts/freeze\_results.py}. Mọi sai lệch so với kế hoạch (gồm một lần chạy lại test Giai đoạn~1 sau khi sửa lỗi chuyển đổi dữ liệu) được ghi trong \texttt{docs/DEVIATIONS.md}.
+Giả thuyết, quy tắc chọn ngưỡng và giao thức test được đăng ký trước mọi lần chạy test. Ngưỡng chỉ được chọn trên validation, và sự kiện test cùng video test được đánh giá một lần từ các checkpoint đã đóng băng và băm. Có một sai lệch: test Giai đoạn~1 được chạy lần thứ hai sau khi phát hiện và sửa một lỗi chuyển đổi dữ liệu; điều này được nêu ở Mục~\ref{sec:limitations}.
 
 \subsection{Quy trình Người dùng}
 \label{sec:user_workflow}
 
-Người vận hành chọn một trong ba clip, phát hoặc chạy từng khung hình, và đọc hai khung song song. Với nhiệm vụ lộ trình, các vùng $Z_A$ và $Z_B$ có thể được vẽ lại trên khung hình và lưu cùng clip; với nhiệm vụ mục tiêu, người vận hành tạm dừng và click vào một xe. Bảng kết quả và lịch sử sự cố cập nhật trực tiếp.
-
-\subsection{Chế độ Hoạt động}
-\label{sec:operating_modes}
-
-Bảng điều khiển (\texttt{demo/vms\_lite.py}) có ba chế độ: dashboard web tương tác; \texttt{--check}, chạy ba clip không có giao diện và ghi độ đo vào \texttt{runs/vms\_lite\_check/metrics.json}; và \texttt{--render}, ghi các file MP4 song song có quay chậm ở những thời điểm then chốt làm phương án dự phòng cho buổi trình bày.
+Người vận hành chọn một trong ba clip, phát hoặc chạy từng khung hình và đọc hai khung song song. Với nhiệm vụ lộ trình, các vùng $Z_A$ và $Z_B$ có thể được vẽ lại trên khung hình và lưu lại; với nhiệm vụ mục tiêu, người vận hành tạm dừng và click vào một xe. Bảng kết quả và lịch sử sự cố cập nhật trực tiếp. Ngoài dashboard tương tác, bảng điều khiển có thể chạy ba clip không có giao diện để tính lại số đếm, và có thể xuất video song song có quay chậm ở các thời điểm then chốt làm phương án dự phòng cho buổi trình bày.
 
 \section{Thiết kế Hệ thống}
 \label{sec:system_design}
 
-Hình~\ref{fig:sys_arch} thể hiện kiến trúc tổng thể của bảng điều khiển và Hình~\ref{fig:model_arch} thể hiện cấu trúc bên trong của GapLink-Lite.
+Hình~\ref{fig:sys_arch} thể hiện kiến trúc tổng thể của bảng điều khiển và Hình~\ref{fig:model_arch} thể hiện cấu trúc bên trong của GapLink-Lite. Trình duyệt giao tiếp với một máy chủ FastAPI cục bộ: mỗi nhịp đẩy cả hai tracker thêm một khung hình và gửi một khung JPEG cùng bộ đếm dưới dạng server-sent event; thao tác của người dùng (phát, tua, vùng mới, click vào xe) là các yêu cầu JSON nhỏ, và tua lùi hoặc vẽ vùng mới sẽ chạy lại cả hai tracker từ khung đầu, nên điều được hiển thị luôn là kết quả của một lần chạy trực tuyến liên tục.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \resizebox{\textwidth}{!}{%
     \begin{tikzpicture}[
@@ -269,12 +303,12 @@ Hình~\ref{fig:sys_arch} thể hiện kiến trúc tổng thể của bảng đi
         ext/.style={draw=gray!60!black, rounded corners=4pt, fill=gray!8, text width=2.7cm, align=center, minimum height=1.2cm, font=\small},
         arr/.style={-{Stealth[length=2.3mm]}, thick}
     ]
-        \node[ext] (vid) at (0,0) {Clip video\\ \scriptsize\texttt{demo/sample\_videos}};
-        \node[ext] (det) at (3.4,0) {YOLOv8n boxes + HSV\\ \scriptsize cache \texttt{\_dets.npz}};
+        \node[ext] (vid) at (0,0) {Clip video\\ \scriptsize 3 đoạn trích test};
+        \node[ext] (det) at (3.4,0) {YOLOv8n boxes + HSV\\ \scriptsize cache theo clip};
         \node[box] (t1) at (7.2,1.0) {Tracker A\\ \scriptsize Stage 1 + C-3 Kalman};
         \node[gl] (t2) at (7.2,-1.0) {Tracker B\\ \scriptsize Stage 1 + GapLink-Lite};
         \node[box] (j) at (11.0,0) {Bộ chấm\\ \scriptsize tái liên kết, lộ trình, khóa};
-        \node[ext] (gt) at (11.0,-2.4) {Ground truth\\ \scriptsize \texttt{\_gt.npz} (chỉ để chấm)};
+        \node[ext] (gt) at (11.0,-2.4) {Ground truth\\ \scriptsize (chỉ để chấm)};
         \node[box] (srv) at (14.6,0) {FastAPI server\\ \scriptsize luồng SSE, thao tác};
         \node[ext] (ui) at (18.0,0) {Trình duyệt web\\ \scriptsize khung hình, bảng, lịch sử};
         \draw[arr] (vid) -- (det); \draw[arr] (det) -- (t1); \draw[arr] (det) -- (t2);
@@ -287,7 +321,7 @@ Hình~\ref{fig:sys_arch} thể hiện kiến trúc tổng thể của bảng đi
     \label{fig:sys_arch}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[H]
     \centering
     \resizebox{\textwidth}{!}{%
     \begin{tikzpicture}[
