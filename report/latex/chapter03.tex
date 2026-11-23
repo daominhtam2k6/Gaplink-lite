@@ -53,7 +53,7 @@ Figure~\ref{fig:eda_results} shows that most trajectories are short (median $86$
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.86\textwidth]{figures/fig_top1_vs_wlr_curve.png}
+    \includegraphics[width=0.7\textwidth]{figures/fig_top1_vs_wlr_curve.png}
     \caption{Event Top-1 accuracy vs.\ wrong-link rate over the full threshold range (test). Markers: validation-selected operating points.}
     \label{fig:wlr_curve}
 \end{figure}
@@ -94,7 +94,7 @@ Figure~\ref{fig:eda_results} shows that most trajectories are short (median $86$
 
 \textbf{Setup.} All methods receive the same YOLOv8n detections (input size $640$, confidence $0.28$) and share the same Stage-1 tracker, lost-track window ($a_{\max}=95$) and security rules; only the re-association module differs. Ground truth is used solely afterwards for scoring. For every method the acceptance threshold was selected on the $13$ validation videos with the same rule (highest Nat-IRR subject to Nat-WLR $\le 5\%$) and evaluated once on the $40$ test videos. GapLink-Lite is the version tuned for YOLOv8n (Section~\ref{sec:training_process}), labelled \emph{v1.3} in the figures and in the console; the main model before tuning is labelled \emph{v1.1}.
 
-\textbf{Results.} Table~\ref{tab:live_v13} and Figure~\ref{fig:live} show the outcome. Against the Kalman family that underlies industrial trackers, GapLink-Lite is better on both axes: Nat-IRR $\mathbf{84.41\%}$ vs.\ $57.63\%$ (C-3) and $61.85\%$ (C-4), Nat-WLR $\mathbf{6.09\%}$ vs.\ $24.70\%$ and $9.94\%$. Against the strongest baseline, constant velocity (C-2), recovery is equal ($84.41\%$ vs.\ $84.58\%$; $\Delta = -0.17$~pp, CI $[-1.33, 1.08]$) while \textbf{wrong links are halved} ($6.09\%$ vs.\ $12.92\%$; $\Delta = -6.82$~pp, CI $[-11.04, -3.18]$). In absolute terms, GapLink-Lite made $313$ wrong re-associations out of $5{,}137$, against $676$ of $5{,}234$ for C-2 and $1{,}072$ of $4{,}340$ for C-3. In a security console a wrong link is a false alarm, and GapLink-Lite also has the lowest forbidden-route false-alarm rate ($9.27\%$, i.e.\ $14$ false alerts against $18$ for C-2 and $70$ for C-3). The price of this caution is route recall: it catches $69$ of the $162$ occluded violations with the correct ID, against $77$ for C-3 and $80$ for C-4. The tuning for YOLOv8n is what makes the result possible: with the main model the live wrong-link rate is $10.20\%$, and fine-tuning reduces it by $4.11$~pp (CI $[1.57, 5.98]$) at a cost of $2.89$~pp recovery. On validation C-2 was ahead by $4$~pp of Nat-IRR; this ranking did not carry over to test, which shows that four validation locations make the operating-point selection noisy.
+\textbf{Results.} Table~\ref{tab:live_v13} and Figure~\ref{fig:live} show the outcome. Against the Kalman family that underlies industrial trackers, GapLink-Lite is better on both axes: Nat-IRR $\mathbf{84.41\%}$ vs.\ $57.63\%$ (C-3) and $61.85\%$ (C-4), Nat-WLR $\mathbf{6.09\%}$ vs.\ $24.70\%$ and $9.94\%$. Against the strongest baseline, constant velocity (C-2), recovery is equal ($84.41\%$ vs.\ $84.58\%$; $\Delta = -0.17$~pp, CI $[-1.33, 1.08]$) while \textbf{wrong links are halved} ($6.09\%$ vs.\ $12.92\%$; $\Delta = -6.82$~pp, CI $[-11.04, -3.18]$). In absolute terms, GapLink-Lite made $313$ wrong re-associations out of $5{,}137$, against $676$ of $5{,}234$ for C-2 and $1{,}072$ of $4{,}340$ for C-3. In a security console a wrong link is a false alarm, and GapLink-Lite also has the lowest forbidden-route false-alarm rate ($9.27\%$, i.e.\ $14$ false alerts against $18$ for C-2 and $70$ for C-3). The price of this caution is route recall: it catches $69$ of the $162$ occluded violations with the correct ID, against $77$ for C-3 and $80$ for C-4. The tuning for YOLOv8n is what makes the result possible: with the main model the live wrong-link rate is $10.20\%$, and fine-tuning reduces it by $4.11$~pp (CI $[1.57, 5.98]$) at a cost of $2.89$~pp recovery. On validation C-2 was ahead by $4$~pp of Nat-IRR; this ranking did not carry over to test, which shows that four validation locations make the operating-point selection noisy. Figure~\ref{fig:live} makes this visible: on validation the curves of GapLink-Lite and C-2 almost overlap, while on test (diamonds) the point of C-2 moves to more than twice the wrong links of GapLink-Lite.
 
 \begin{table}[H]
     \centering
@@ -120,8 +120,8 @@ Figure~\ref{fig:eda_results} shows that most trajectories are short (median $86$
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{figures/fig_live.png}
-    \caption{Phase 2 on the $40$ test videos with YOLOv8n, at the operating points selected on validation: identity recovery after natural gaps (left), wrong re-links (centre, dashed line: the $5\%$ target) and false forbidden-route alerts (right).}
+    \includegraphics[width=0.82\textwidth]{figures/fig_live_curve.png}
+    \caption{Phase 2 operating curves. Lines: recovery (Nat-IRR) against wrong links (Nat-WLR) of each method over its acceptance thresholds on the $13$ validation videos; stars: the points selected on validation (highest Nat-IRR with Nat-WLR $\le 5\%$; no threshold of C-3 met the limit, so its lowest-WLR point was taken); diamonds: the results of these points on the $40$ test videos.}
     \label{fig:live}
 \end{figure}
 
@@ -195,13 +195,6 @@ Figure~\ref{fig:eda_results} shows that most trajectories are short (median $86$
 
 Every vehicle carries a box and its tracker ID, and the colour encodes what happened to that ID, judged against the ground truth: green --- re-linked to the same vehicle after an occlusion; red --- linked to a different vehicle; purple --- the vehicle came back with a new ID. In the route clip, $Z_A$ and $Z_B$ are drawn on the road and violations are boxed red (correct ID), amber (wrong ID) or purple (false violation). In the target clip, the observed path is drawn as a solid line and, while the target is hidden, its predicted box and path as dashed lines. Each pane shows its own counters, so the two methods can be compared at any frame (Figure~\ref{fig:vms_clips}).
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\textwidth]{figures/fig_vms_clips.jpg}
-    \caption{Console output on the three clips (left pane C-3, right pane GapLink-Lite v1.3). From top: identity clip, frame 123 --- C-3 gives occluded vehicles new IDs (purple) where GapLink-Lite re-links them (green); route clip, frame 129 --- C-3 raises a false violation in $Z_B$; target clip, frames 71 and 96 --- the locked van is hidden behind the articulated bus (dashed box: predicted position) and re-acquired.}
-    \label{fig:vms_clips}
-\end{figure}
-
 \section{Testing and Improvements}
 \label{sec:testing_improvements}
 
@@ -214,6 +207,7 @@ The code base is verified with an automated test suite of 71 tests (Table~\ref{t
     \centering
     \caption{Automated test results (71 tests, $5.3$~s on the project laptop)}
     \label{tab:tests}
+    \small
     \small
     \begin{tabularx}{\textwidth}{X c c c}
         \toprule
@@ -237,6 +231,20 @@ The code base is verified with an automated test suite of 71 tests (Table~\ref{t
 
 Table~\ref{tab:eval_vs_target} compares the final results with the targets fixed in advance: the pre-registered hypotheses for Phase~1, and the $5\%$ wrong-link target and real-time speed for Phase~2.
 
+\textbf{Demonstration clips.} Three clips were selected from the test videos by running both trackers over all $40$ test videos and keeping, for each task, the windows where GapLink-Lite's verdicts were the best; this is a demonstration choice, not a measurement. Table~\ref{tab:demo3} reports the counts of the final console on each clip.
+\begin{itemize}
+    \item \textbf{Identity recovery} ($250$ frames of a busy intersection at night with a city bus). GapLink-Lite re-links all $48$ occluded vehicles correctly, including the bus, while the Kalman tracker re-links $21$ of $51$, links $12$ to the wrong vehicle and gives $18$ a new ID; already at frame $98$ the count was $5/21$ correct for C-3 against $27/27$ for GapLink-Lite.
+    \item \textbf{Forbidden route} ($250$ frames of a city street at night; $Z_A$ and $Z_B$ on the far carriageway). C-3 raises six alerts: three correct, one with a wrong ID and two false --- at frame $129$ track \#42 reaches $Z_B$ although its vehicle was never in $Z_A$. GapLink-Lite raises two alerts, both correct. The clip shows precision, not recall; on the $40$ test videos C-3 catches more occluded violations ($47.53\%$ vs.\ $42.59\%$) at more than three times the false-alarm rate.
+    \item \textbf{Target following} ($156$ frames of a rainy arterial road). The locked van is hidden behind an articulated bus for $58$ frames; both trackers re-acquire it at frame $96$, but six frames later, after a further three-frame gap at the edge of the bus, C-3 lets the van come back under a new ID (\#10 becomes \#58), so the lock loses its target, while GapLink-Lite keeps the van under \#10 to the end of the clip ($4$ re-acquisitions, no lost target).
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.62\textwidth]{figures/fig_vms_clips.jpg}
+    \caption{Console output on the three clips (left: C-3, right: GapLink-Lite v1.3). From top: identity clip (frame 123), route clip (frame 129, a false C-3 violation in $Z_B$), target clip (frames 71 and 96, the locked van hidden and re-acquired).}
+    \label{fig:vms_clips}
+\end{figure}
+
 \begin{table}[H]
     \centering
     \caption{Evaluation results against the targets}
@@ -257,13 +265,6 @@ Table~\ref{tab:eval_vs_target} compares the final results with the targets fixed
         \bottomrule
     \end{tabularx}
 \end{table}
-
-\textbf{Demonstration clips.} Three clips were selected from the test videos by running both trackers over all $40$ test videos and keeping, for each task, the windows where GapLink-Lite's verdicts were the best; this is a demonstration choice, not a measurement. Table~\ref{tab:demo3} reports the counts of the final console on each clip.
-\begin{itemize}
-    \item \textbf{Identity recovery} ($250$ frames of a busy intersection at night with a city bus). GapLink-Lite re-links all $48$ occluded vehicles correctly, including the bus, while the Kalman tracker re-links $21$ of $51$, links $12$ to the wrong vehicle and gives $18$ a new ID; already at frame $98$ the count was $5/21$ correct for C-3 against $27/27$ for GapLink-Lite.
-    \item \textbf{Forbidden route} ($250$ frames of a city street at night; $Z_A$ and $Z_B$ on the far carriageway). C-3 raises six alerts: three correct, one with a wrong ID and two false --- at frame $129$ track \#42 reaches $Z_B$ although its vehicle was never in $Z_A$. GapLink-Lite raises two alerts, both correct. The clip shows precision, not recall; on the $40$ test videos C-3 catches more occluded violations ($47.53\%$ vs.\ $42.59\%$) at more than three times the false-alarm rate.
-    \item \textbf{Target following} ($156$ frames of a rainy arterial road). The locked van is hidden behind an articulated bus for $58$ frames; both trackers re-acquire it at frame $96$, but six frames later, after a further three-frame gap at the edge of the bus, C-3 lets the van come back under a new ID (\#10 becomes \#58), so the lock loses its target, while GapLink-Lite keeps the van under \#10 to the end of the clip ($4$ re-acquisitions, no lost target).
-\end{itemize}
 
 \begin{table}[H]
     \centering

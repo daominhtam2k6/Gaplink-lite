@@ -1,18 +1,22 @@
 \chapter{Nhận xét và Đánh giá của Thành viên}
 \label{chap:team_review}
 
-% Ảnh tác giả (template: ảnh nhóm). Chỉ hiển thị nếu có figures/author_photo.jpg.
-\IfFileExists{figures/author_photo.jpg}{%
-\begin{figure}[htbp]
+% Team photograph (template). Uses figures/team_photo.jpg when it exists, otherwise a placeholder box.
+\begin{figure}[H]
     \centering
-    \includegraphics[width=0.38\textwidth]{figures/author_photo.jpg}
-    \caption{Ảnh tác giả --- \memberOne}
+    \IfFileExists{figures/team_photo.jpg}{%
+        \includegraphics[height=7.5cm]{figures/team_photo.jpg}%
+    }{%
+        \fcolorbox{SamsungGray}{white}{\parbox[c][6.2cm][c]{0.83\textwidth}{\centering
+            {\sffamily\Large\color{SamsungGray}< CHÈN ẢNH THÀNH VIÊN TẠI ĐÂY >}\\[8pt]
+            {\sffamily\small\color{SamsungGray}Lưu ảnh thành figures/team\_photo.jpg rồi build lại báo cáo.}}}%
+    }
+    \caption{Thành viên thực hiện --- \memberOne}
     \label{fig:team_photo}
 \end{figure}
-}{}
 
 \noindent
-\begin{table}[htbp]
+\begin{table}[H]
     \centering
     \caption{Nhận xét và đánh giá của từng thành viên}
     \label{tab:team_member_comments}

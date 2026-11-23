@@ -1,15 +1,19 @@
 \chapter{Team Member Review and Comment}
 \label{chap:team_review}
 
-% Author photograph (template: team picture). Shown only if figures/author_photo.jpg exists.
-\IfFileExists{figures/author_photo.jpg}{%
+% Team photograph (template). Uses figures/team_photo.jpg when it exists, otherwise a placeholder box.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.38\textwidth]{figures/author_photo.jpg}
-    \caption{Author photograph --- \memberOne}
+    \IfFileExists{figures/team_photo.jpg}{%
+        \includegraphics[height=7.5cm]{figures/team_photo.jpg}%
+    }{%
+        \fcolorbox{SamsungGray}{white}{\parbox[c][6.2cm][c]{0.83\textwidth}{\centering
+            {\sffamily\Large\color{SamsungGray}< ATTACH A TEAM PICTURE HERE >}\\[8pt]
+            {\sffamily\small\color{SamsungGray}Save the photo as figures/team\_photo.jpg and rebuild the report.}}}%
+    }
+    \caption{Team member --- \memberOne}
     \label{fig:team_photo}
 \end{figure}
-}{}
 
 \noindent
 \begin{table}[H]

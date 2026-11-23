@@ -53,7 +53,7 @@ Hình~\ref{fig:eda_results} cho thấy phần lớn quỹ đạo ngắn (trung v
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.86\textwidth]{figures/fig_top1_vs_wlr_curve.png}
+    \includegraphics[width=0.7\textwidth]{figures/fig_top1_vs_wlr_curve.png}
     \caption{Top-1 cấp sự kiện theo tỉ lệ liên kết sai trên toàn dải ngưỡng (test). Điểm đánh dấu: điểm vận hành chọn trên validation.}
     \label{fig:wlr_curve}
 \end{figure}
@@ -94,7 +94,7 @@ Hình~\ref{fig:eda_results} cho thấy phần lớn quỹ đạo ngắn (trung v
 
 \textbf{Thiết lập.} Mọi phương pháp nhận cùng detection YOLOv8n (kích thước đầu vào $640$, ngưỡng tin cậy $0.28$) và dùng chung tracker tầng 1, cửa sổ track bị mất ($a_{\max}=95$) và quy tắc an ninh; chỉ module tái liên kết khác nhau. Ground truth chỉ được dùng sau đó để chấm điểm. Với mọi phương pháp, ngưỡng chấp nhận được chọn trên $13$ video validation theo cùng một quy tắc (Nat-IRR cao nhất với điều kiện Nat-WLR $\le 5\%$) và đánh giá một lần trên $40$ video test. GapLink-Lite là phiên bản đã tinh chỉnh cho YOLOv8n (Mục~\ref{sec:training_process}), được ghi là \emph{v1.3} trong các hình và trên bảng điều khiển; mô hình chính trước khi tinh chỉnh được ghi là \emph{v1.1}.
 
-\textbf{Kết quả.} Bảng~\ref{tab:live_v13} và Hình~\ref{fig:live} cho thấy kết quả. So với họ Kalman làm nền cho các tracker công nghiệp, GapLink-Lite tốt hơn trên cả hai trục: Nat-IRR $\mathbf{84.41\%}$ so với $57.63\%$ (C-3) và $61.85\%$ (C-4), Nat-WLR $\mathbf{6.09\%}$ so với $24.70\%$ và $9.94\%$. So với baseline mạnh nhất là vận tốc không đổi (C-2), khả năng khôi phục ngang nhau ($84.41\%$ so với $84.58\%$; $\Delta = -0.17$~pp, KTC $[-1.33, 1.08]$) trong khi \textbf{liên kết sai giảm một nửa} ($6.09\%$ so với $12.92\%$; $\Delta = -6.82$~pp, KTC $[-11.04, -3.18]$). Về số tuyệt đối, GapLink-Lite có $313$ tái liên kết sai trên $5\,137$, so với $676$ trên $5\,234$ của C-2 và $1\,072$ trên $4\,340$ của C-3. Trong bảng điều khiển an ninh, một liên kết sai là một báo động giả, và GapLink-Lite cũng có tỉ lệ báo động giả lộ trình cấm thấp nhất ($9.27\%$, tức $14$ cảnh báo giả so với $18$ của C-2 và $70$ của C-3). Cái giá của sự thận trọng này là recall lộ trình: nó bắt được $69$ trên $162$ vi phạm bị che với đúng ID, so với $77$ của C-3 và $80$ của C-4. Việc tinh chỉnh cho YOLOv8n là yếu tố làm kết quả này khả thi: với mô hình chính, tỉ lệ liên kết sai trực tiếp là $10.20\%$, và tinh chỉnh giảm $4.11$~pp (KTC $[1.57, 5.98]$) với cái giá $2.89$~pp khả năng khôi phục. Trên validation, C-2 dẫn $4$~pp Nat-IRR; thứ hạng này không giữ nguyên trên test, cho thấy bốn địa điểm validation khiến việc chọn điểm vận hành có nhiều nhiễu.
+\textbf{Kết quả.} Bảng~\ref{tab:live_v13} và Hình~\ref{fig:live} cho thấy kết quả. So với họ Kalman làm nền cho các tracker công nghiệp, GapLink-Lite tốt hơn trên cả hai trục: Nat-IRR $\mathbf{84.41\%}$ so với $57.63\%$ (C-3) và $61.85\%$ (C-4), Nat-WLR $\mathbf{6.09\%}$ so với $24.70\%$ và $9.94\%$. So với baseline mạnh nhất là vận tốc không đổi (C-2), khả năng khôi phục ngang nhau ($84.41\%$ so với $84.58\%$; $\Delta = -0.17$~pp, KTC $[-1.33, 1.08]$) trong khi \textbf{liên kết sai giảm một nửa} ($6.09\%$ so với $12.92\%$; $\Delta = -6.82$~pp, KTC $[-11.04, -3.18]$). Về số tuyệt đối, GapLink-Lite có $313$ tái liên kết sai trên $5\,137$, so với $676$ trên $5\,234$ của C-2 và $1\,072$ trên $4\,340$ của C-3. Trong bảng điều khiển an ninh, một liên kết sai là một báo động giả, và GapLink-Lite cũng có tỉ lệ báo động giả lộ trình cấm thấp nhất ($9.27\%$, tức $14$ cảnh báo giả so với $18$ của C-2 và $70$ của C-3). Cái giá của sự thận trọng này là recall lộ trình: nó bắt được $69$ trên $162$ vi phạm bị che với đúng ID, so với $77$ của C-3 và $80$ của C-4. Việc tinh chỉnh cho YOLOv8n là yếu tố làm kết quả này khả thi: với mô hình chính, tỉ lệ liên kết sai trực tiếp là $10.20\%$, và tinh chỉnh giảm $4.11$~pp (KTC $[1.57, 5.98]$) với cái giá $2.89$~pp khả năng khôi phục. Trên validation, C-2 dẫn $4$~pp Nat-IRR; thứ hạng này không giữ nguyên trên test, cho thấy bốn địa điểm validation khiến việc chọn điểm vận hành có nhiều nhiễu. Hình~\ref{fig:live} thể hiện rõ điều này: trên validation, đường của GapLink-Lite và C-2 gần như trùng nhau, còn trên test (hình thoi) điểm của C-2 dịch sang mức liên kết sai cao hơn gấp đôi GapLink-Lite.
 
 \begin{table}[H]
     \centering
@@ -120,8 +120,8 @@ Hình~\ref{fig:eda_results} cho thấy phần lớn quỹ đạo ngắn (trung v
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{figures/fig_live_vi.png}
-    \caption{Giai đoạn 2 trên $40$ video test với YOLOv8n, tại các điểm vận hành chọn trên validation: khôi phục danh tính sau khoảng trống tự nhiên (trái), tái liên kết sai (giữa, nét đứt: mục tiêu $5\%$) và cảnh báo lộ trình cấm giả (phải).}
+    \includegraphics[width=0.82\textwidth]{figures/fig_live_curve_vi.png}
+    \caption{Đường vận hành của Giai đoạn 2. Đường: khả năng khôi phục (Nat-IRR) theo tỉ lệ liên kết sai (Nat-WLR) của mỗi phương pháp khi quét ngưỡng chấp nhận trên $13$ video validation; ngôi sao: điểm chọn trên validation (Nat-IRR cao nhất với Nat-WLR $\le 5\%$; không ngưỡng nào của C-3 đạt giới hạn này nên chọn điểm có WLR thấp nhất); hình thoi: kết quả của các điểm đó trên $40$ video test.}
     \label{fig:live}
 \end{figure}
 
@@ -194,13 +194,6 @@ Hình~\ref{fig:eda_results} cho thấy phần lớn quỹ đạo ngắn (trung v
 
 Mỗi xe có một box và ID tracker của nó, và màu thể hiện điều đã xảy ra với ID đó, được chấm theo ground truth: xanh lá --- được tái liên kết đúng xe sau che khuất; đỏ --- bị liên kết với một xe khác; tím --- xe xuất hiện lại với ID mới. Trong clip lộ trình, $Z_A$ và $Z_B$ được vẽ trên mặt đường và vi phạm được đóng khung đỏ (đúng ID), hổ phách (sai ID) hoặc tím (vi phạm giả). Trong clip mục tiêu, đường đi quan sát được vẽ bằng nét liền và, khi mục tiêu bị che, box và đường đi dự đoán được vẽ bằng nét đứt. Mỗi khung có bộ đếm riêng, nên có thể so sánh hai phương pháp ở bất kỳ khung hình nào (Hình~\ref{fig:vms_clips}).
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\textwidth]{figures/fig_vms_clips.jpg}
-    \caption{Đầu ra của bảng điều khiển trên ba clip (khung trái C-3, khung phải GapLink-Lite v1.3). Từ trên xuống: clip danh tính, khung 123 --- C-3 gán ID mới (tím) cho các xe bị che mà GapLink-Lite tái liên kết được (xanh lá); clip lộ trình, khung 129 --- C-3 báo một vi phạm giả trong $Z_B$; clip mục tiêu, khung 71 và 96 --- xe van đang khóa bị che sau xe buýt khớp nối (box nét đứt: vị trí dự đoán) và được bắt lại.}
-    \label{fig:vms_clips}
-\end{figure}
-
 \section{Kiểm thử và Cải tiến}
 \label{sec:testing_improvements}
 
@@ -213,6 +206,7 @@ Mã nguồn được kiểm tra bằng bộ kiểm thử tự động gồm 71 t
     \centering
     \caption{Kết quả kiểm thử tự động (71 test, $5.3$~s trên laptop của dự án)}
     \label{tab:tests}
+    \small
     \small
     \begin{tabularx}{\textwidth}{X c c c}
         \toprule
@@ -236,12 +230,26 @@ Mã nguồn được kiểm tra bằng bộ kiểm thử tự động gồm 71 t
 
 Bảng~\ref{tab:eval_vs_target} so sánh kết quả cuối cùng với các mục tiêu cố định từ trước: các giả thuyết đăng ký trước cho Giai đoạn~1, mục tiêu $5\%$ liên kết sai và tốc độ thời gian thực cho Giai đoạn~2.
 
+\textbf{Các clip trình diễn.} Ba clip được chọn từ video test bằng cách chạy cả hai tracker trên toàn bộ $40$ video test và giữ lại, cho mỗi nhiệm vụ, các cửa sổ mà phán quyết của GapLink-Lite tốt nhất; đây là lựa chọn phục vụ trình diễn, không phải phép đo. Bảng~\ref{tab:demo3} báo cáo số đếm của bảng điều khiển cuối cùng trên mỗi clip.
+\begin{itemize}
+    \item \textbf{Khôi phục danh tính} ($250$ khung hình một nút giao đông về đêm có xe buýt). GapLink-Lite tái liên kết đúng cả $48$ xe bị che, kể cả xe buýt, trong khi tracker Kalman tái liên kết đúng $21$ trên $51$, liên kết $12$ xe với xe sai và gán ID mới cho $18$ xe; ngay ở khung $98$, C-3 mới đúng $5/21$ so với $27/27$ của GapLink-Lite.
+    \item \textbf{Lộ trình cấm} ($250$ khung hình một đường phố về đêm; $Z_A$ và $Z_B$ trên làn đường phía xa). C-3 phát sáu cảnh báo: ba đúng, một sai ID và hai giả --- ở khung $129$, track \#42 tới $Z_B$ dù xe của nó chưa từng ở $Z_A$. GapLink-Lite phát hai cảnh báo, cả hai đều đúng. Clip này thể hiện độ chính xác chứ không phải recall; trên $40$ video test, C-3 bắt được nhiều vi phạm bị che hơn ($47.53\%$ so với $42.59\%$) với tỉ lệ báo động giả cao hơn ba lần.
+    \item \textbf{Bám theo mục tiêu} ($156$ khung hình một trục đường mưa). Xe van đang khóa bị che sau xe buýt khớp nối trong $58$ khung hình; cả hai tracker đều bắt lại nó ở khung $96$, nhưng sáu khung sau, sau thêm một khoảng trống ba khung ở mép xe buýt, C-3 để xe van quay lại với ID mới (\#10 thành \#58), nên khóa mất mục tiêu, còn GapLink-Lite giữ xe van với \#10 đến hết clip ($4$ lần bắt lại, không mất mục tiêu).
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.62\textwidth]{figures/fig_vms_clips.jpg}
+    \caption{Kết quả bảng điều khiển trên ba clip (trái: C-3, phải: GapLink-Lite v1.3). Từ trên xuống: clip danh tính (khung 123), clip lộ trình (khung 129, C-3 báo vi phạm giả trong $Z_B$), clip mục tiêu (khung 71 và 96, xe van đang khóa bị che rồi được bắt lại).}
+    \label{fig:vms_clips}
+\end{figure}
+
 \begin{table}[H]
     \centering
     \caption{Kết quả đánh giá so với mục tiêu}
     \label{tab:eval_vs_target}
-    \small
-    \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.9cm} >{\raggedright\arraybackslash}X l l}
+    \footnotesize
+    \begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{6.2cm} >{\raggedright\arraybackslash}X l >{\raggedright\arraybackslash}p{2.2cm}}
         \toprule
         \textbf{Tiêu chí} & \textbf{Kết quả} & \textbf{Mục tiêu} & \textbf{Trạng thái} \\
         \midrule
@@ -256,13 +264,6 @@ Bảng~\ref{tab:eval_vs_target} so sánh kết quả cuối cùng với các m�
         \bottomrule
     \end{tabularx}
 \end{table}
-
-\textbf{Các clip trình diễn.} Ba clip được chọn từ video test bằng cách chạy cả hai tracker trên toàn bộ $40$ video test và giữ lại, cho mỗi nhiệm vụ, các cửa sổ mà phán quyết của GapLink-Lite tốt nhất; đây là lựa chọn phục vụ trình diễn, không phải phép đo. Bảng~\ref{tab:demo3} báo cáo số đếm của bảng điều khiển cuối cùng trên mỗi clip.
-\begin{itemize}
-    \item \textbf{Khôi phục danh tính} ($250$ khung hình một nút giao đông về đêm có xe buýt). GapLink-Lite tái liên kết đúng cả $48$ xe bị che, kể cả xe buýt, trong khi tracker Kalman tái liên kết đúng $21$ trên $51$, liên kết $12$ xe với xe sai và gán ID mới cho $18$ xe; ngay ở khung $98$, C-3 mới đúng $5/21$ so với $27/27$ của GapLink-Lite.
-    \item \textbf{Lộ trình cấm} ($250$ khung hình một đường phố về đêm; $Z_A$ và $Z_B$ trên làn đường phía xa). C-3 phát sáu cảnh báo: ba đúng, một sai ID và hai giả --- ở khung $129$, track \#42 tới $Z_B$ dù xe của nó chưa từng ở $Z_A$. GapLink-Lite phát hai cảnh báo, cả hai đều đúng. Clip này thể hiện độ chính xác chứ không phải recall; trên $40$ video test, C-3 bắt được nhiều vi phạm bị che hơn ($47.53\%$ so với $42.59\%$) với tỉ lệ báo động giả cao hơn ba lần.
-    \item \textbf{Bám theo mục tiêu} ($156$ khung hình một trục đường mưa). Xe van đang khóa bị che sau xe buýt khớp nối trong $58$ khung hình; cả hai tracker đều bắt lại nó ở khung $96$, nhưng sáu khung sau, sau thêm một khoảng trống ba khung ở mép xe buýt, C-3 để xe van quay lại với ID mới (\#10 thành \#58), nên khóa mất mục tiêu, còn GapLink-Lite giữ xe van với \#10 đến hết clip ($4$ lần bắt lại, không mất mục tiêu).
-\end{itemize}
 
 \begin{table}[H]
     \centering

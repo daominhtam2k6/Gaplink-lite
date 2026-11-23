@@ -7,11 +7,11 @@
 \subsection{Traffic Surveillance and Vehicle Identity}
 \label{sec:bg_surveillance}
 
-Traffic cameras are now installed at most major intersections, expressways and parking facilities, and many of the tasks they serve depend on following the \emph{same} vehicle over time rather than detecting vehicles frame by frame: checking whether a vehicle drove from one zone into a forbidden one, measuring how long it stayed in a no-stopping area, or following a suspect vehicle across the scene. In multi-object tracking (MOT) this property is called identity (ID) consistency. It breaks most often during occlusion: when a car passes behind a bus or truck for one to three seconds, the tracker loses it, and when the car re-appears the tracker must decide whether it is the old vehicle or a new one. Figure~\ref{fig:problem} shows a typical case from the test videos: a van disappears behind an articulated bus for more than two seconds and comes out again at almost the same place; a tracker that has lost it must now recognise it among the surrounding cars.
+Traffic cameras are now installed at most major intersections, expressways and parking facilities, and many of the tasks they serve depend on following the \emph{same} vehicle over time rather than detecting vehicles frame by frame: checking whether a vehicle drove from one zone into a forbidden one, measuring how long it stayed in a no-stopping area, or following a suspect vehicle across the scene. In multi-object tracking (MOT) this property is called identity (ID) consistency. It breaks most often during occlusion: when a car passes behind a bus or truck for one to three seconds, the tracker loses it, and when the car re-appears the tracker must decide whether it is the old vehicle or a new one. Figure~\ref{fig:problem} illustrates the situation: vehicle \#7 disappears behind a bus, and when the bus has passed, the tracker must decide which of the visible candidates is \#7 --- or whether it is still hidden.
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{figures/fig_problem.png}
-    \caption{Identity through an occlusion (UA-DETRAC test video MVI\_40864): the van is visible (left), is fully hidden behind an articulated bus from frame $39$ to frame $95$ (centre, dashed: its ground-truth position, which the tracker does not see), and re-appears at frame $96$ (right).}
+    \caption{The re-association problem, as seen by an elevated roadside camera: (1) vehicle \#7 is tracked; (2) a bus in the near lane passes in front of it, and only a predicted position is available (green: predicted Gaussian and its 90\% ellipse); (3) at the decision frame the tracker sees several candidates --- \#7 re-appearing (A), a look-alike vehicle (B) and a new vehicle (C) --- and must choose one of them or none.}
     \label{fig:problem}
 \end{figure}
 
@@ -103,6 +103,7 @@ The project was executed between 15 and 21 November 2026 as a sequence of verifi
     \centering
     \caption{Project timeline and milestones}
     \label{tab:milestones}
+    \small
     \begin{tabularx}{\textwidth}{c p{1.6cm} X p{1.9cm}}
         \toprule
         \textbf{Gate} & \textbf{Date} & \textbf{Deliverables} & \textbf{Status} \\

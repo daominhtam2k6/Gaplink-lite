@@ -3,9 +3,10 @@
     python -m scripts.make_report_figures            # writes report/latex/figures/fig_*.png (EN) and fig_*_vi.png (VI)
 
 Figures
-  fig_problem      three frames of demo clip 3 (MVI_40864): a van before, during and after an occlusion by a bus.
-                   The van is the ground-truth track under the operator's lock point; "hidden" frames are those in which
-                   no cached YOLOv8n detection overlaps its ground-truth box (IoU < 0.3).
+  fig_problem      schematic of the re-association problem (vehicle #7 before, during and after an occlusion by a
+                   bus, and the candidates at the decision frame), drawn from coordinates in this script.
+  fig_live_curve   Phase-2 validation sweep of every method (Nat-IRR vs Nat-WLR over its acceptance thresholds,
+                   runs/live_v13_val/select.json), with the selected operating points and their test results.
   fig_dataset      six UA-DETRAC frames with ground-truth vehicle boxes and ignore regions; one sequence per camera
                    location, chosen to span the range of image brightness (day to night).
   fig_split        median background of every training and validation camera location (data/splits.csv).
@@ -40,7 +41,7 @@ LANGS = ("en", "vi")
 
 C_TRUE, C_LAST, C_HIST, C_CAND = "#48d17a", "#63b3ed", "#ffd84d", "#f6ad55"
 C_GL, C_C3 = "#e53e3e", "#b794f4"
-METHOD_COLORS = {"C-2": "#a0aec0", "C-3": "#718096", "C-4": "#4a5568", "GapLink-Lite": "#2b6cb0"}
+METHOD_COLORS = {"C-2": "#a0aec0", "C-3": "#dd6b20", "C-4": "#805ad5", "GapLink-Lite": "#2b6cb0"}
 
 
 def _save(fig, stem, lang):
@@ -86,77 +87,168 @@ def _frames_of(npz):
 
 
 # ----------------------------------------------------------------------------------------------- problem
+def _shade(color, f):
+    """Lighten (f > 0) or darken (f < 0) a colour."""
+    c = np.array(matplotlib.colors.to_rgb(color))
+    return tuple(c + (1 - c) * f) if f > 0 else tuple(c * (1 + f))
+
+
+def _badge(ax, x, y, text, color, z=9, r=0.24, fs=9.5):
+    ax.add_patch(patches.Circle((x, y), r, facecolor="white", edgecolor=color, linewidth=2.0, zorder=z))
+    ax.text(x, y - 0.01, text, ha="center", va="center", fontsize=fs, fontweight="bold", color=color, zorder=z + 0.1)
+
+
+def _veh(ax, x, yb, color, L=1.3, H=0.42, D=0.22, s=1.0, kind="car", ghost=False, z=4):
+    """Vehicle seen by an elevated roadside camera: side face, roof (depth D) and wheels; x = centre, yb = ground line.
+    s scales far vehicles down. Drawn with patches from the coordinates given here."""
+    L, H, D = L * s, H * s, D * s
+    x0 = x - L / 2
+    side = [(x0, yb), (x0 + L, yb), (x0 + L, yb + H), (x0, yb + H)]
+    roof = [(x0, yb + H), (x0 + L, yb + H), (x0 + L + D * 0.6, yb + H + D), (x0 + D * 0.6, yb + H + D)]
+    if ghost:
+        for poly in (side, roof):
+            ax.add_patch(patches.Polygon(poly, closed=True, facecolor=(1, 1, 1, 0.15), edgecolor="white",
+                                         linewidth=1.8, linestyle=(0, (4, 3)), zorder=z))
+        return
+    ax.add_patch(patches.Ellipse((x + D * 0.3, yb + 0.02), L * 1.05, 0.16 * s, facecolor="black", alpha=0.3,
+                                 edgecolor="none", zorder=z - 0.3))
+    ax.add_patch(patches.Polygon(roof, closed=True, facecolor=_shade(color, 0.25), edgecolor=_shade(color, -0.35),
+                                 linewidth=0.9, zorder=z))
+    ax.add_patch(patches.Polygon(side, closed=True, facecolor=color, edgecolor=_shade(color, -0.35), linewidth=0.9,
+                                 zorder=z + 0.1))
+    glass = "#2d3748"
+    if kind == "bus":
+        n = 6
+        for k in range(n):
+            wx = x0 + 0.12 * s + k * (L - 0.24 * s) / n
+            ax.add_patch(patches.Rectangle((wx + 0.03 * s, yb + H * 0.5), (L - 0.24 * s) / n - 0.06 * s, H * 0.33,
+                                           facecolor=glass, alpha=0.85, edgecolor="none", zorder=z + 0.2))
+        ax.add_patch(patches.Rectangle((x0 + 0.1 * s, yb + H * 0.18), L - 0.2 * s, H * 0.08, facecolor="#2b6cb0",
+                                       edgecolor="none", zorder=z + 0.2))
+        wheels = (x0 + L * 0.15, x0 + L * 0.8)
+    else:
+        ax.add_patch(patches.Polygon([(x0 + L * 0.22, yb + H * 0.55), (x0 + L * 0.78, yb + H * 0.55),
+                                      (x0 + L * 0.68, yb + H * 0.95), (x0 + L * 0.32, yb + H * 0.95)], closed=True,
+                                     facecolor=glass, alpha=0.85, edgecolor="none", zorder=z + 0.2))
+        ax.add_patch(patches.Rectangle((x0 + L - 0.07 * s, yb + H * 0.3), 0.07 * s, H * 0.14, facecolor="#fefcbf",
+                                       edgecolor="none", zorder=z + 0.3))
+        wheels = (x0 + L * 0.2, x0 + L * 0.8)
+    for wx in wheels:
+        ax.add_patch(patches.Circle((wx, yb), 0.11 * s, facecolor="#1a202c", edgecolor="#4a5568", linewidth=0.8,
+                                    zorder=z + 0.3))
+
+
 def fig_problem():
-    T = {"en": {"before": "Frame {f}: the van is visible", "during": "Frame {f}: hidden behind the bus",
-                "after": "Frame {f}: it re-appears", "box": "the van (ground truth)",
-                "hidden": "hidden position (ground truth, not seen by the tracker)", "path": "path so far"},
-         "vi": {"before": "Khung {f}: xe van đang nhìn thấy", "during": "Khung {f}: bị xe buýt che",
-                "after": "Khung {f}: xe xuất hiện lại", "box": "xe van (ground truth)",
-                "hidden": "vị trí khi bị che (ground truth, tracker không thấy)", "path": "đường đi đến lúc đó"}}
-    vd = ROOT / "demo" / "sample_videos"
-    meta = json.loads((vd / "demo3_lock_meta.json").read_text(encoding="utf-8"))
-    gt, det = np.load(vd / "demo3_lock_gt.npz", allow_pickle=True), np.load(vd / "demo3_lock_dets.npz")
-    seq, f0 = str(meta["source"]["seq"]), int(meta["source"]["f0"])
-    lock_f, lx, ly = meta["lock"][0]
-    gidx, didx = _frames_of(gt), _frames_of(det)
-    a, b = gidx[int(lock_f)]
-    d = np.hypot(gt["boxes"][a:b, 0] - lx, gt["boxes"][a:b, 1] - ly)
-    tid = int(gt["tids"][a + int(np.argmin(d))])
-    track, visible = {}, {}
-    for f, (a, b) in gidx.items():
-        rows = np.nonzero(gt["tids"][a:b] == tid)[0]
-        if len(rows):
-            box = gt["boxes"][a + rows[0]]
-            track[f] = box
-            da, db = didx.get(f, (0, 0))
-            visible[f] = any(_iou(box, dbox) >= 0.3 for dbox in det["boxes"][da:db])
-    fs = sorted(track)
-    # longest run of hidden frames after the lock
-    runs, cur = [], []
-    for f in fs:
-        if f >= lock_f and not visible[f]:
-            cur.append(f)
-        elif cur:
-            runs.append(cur)
-            cur = []
-    if cur:
-        runs.append(cur)
-    hid = max(runs, key=len)
-    f_before, f_mid = hid[0] - 1, hid[len(hid) // 2]
-    f_after = next(f for f in fs if f > hid[-1] and visible[f])
-    pts = np.array([track[f][:2] for f in fs if f <= f_after])
-    size = max(track[f_before][2], track[f_before][3])
-    x0, y0 = pts.min(0) - 2.5 * size
-    x1, y1 = pts.max(0) + 2.5 * size
-    img0 = _frame(seq, f_before - 1 + f0)
-    H, W = img0.shape[:2]
-    cw = min(max(x1 - x0, (y1 - y0) * 16 / 9), W, H * 16 / 9)
-    ch = cw * 9 / 16
-    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-    ox, oy = int(np.clip(cx - cw / 2, 0, W - cw)), int(np.clip(cy - ch / 2, 0, H - ch))
-    cw, ch = int(cw), int(ch)
-    s = 640 / cw
-    print("problem: track", tid, "visible until", f_before, "hidden", hid[0], "-", hid[-1], "re-appears", f_after)
+    """Schematic of the re-association problem as seen by an elevated roadside camera: a bus in the near lane passes
+    in front of vehicle #7 in the far lane. Drawn from coordinates defined here; no dataset image is used."""
+    T = {"en": {"t1": "Before the occlusion", "t2": "During the occlusion", "t3": "At the decision frame",
+                "s1": "the camera tracks vehicle #7", "s2": "a bus passes in front of #7", "s3": "which candidate is #7?",
+                "hist": "history of #7", "pred": "predicted position", "hidden": "hidden",
+                "q": "#7 = A, B, C — or none of them?", "near": "near lane", "far": "far lane",
+                "nA": "#7 re-appears", "nB": "look-alike", "nC": "new vehicle", "key": "How to read the figure",
+                "k1": "vehicle #7, followed by the tracker", "k2": "where the model predicts #7 (Gaussian, 90% ellipse)",
+                "k3": "candidates detected at the decision frame",
+                "k4": "Answer: one candidate, or \u201cnone\u201d if #7 is still hidden"},
+         "vi": {"t1": "Trước khi bị che", "t2": "Trong khi bị che", "t3": "Tại khung quyết định",
+                "s1": "camera đang theo dõi xe #7", "s2": "xe buýt đi qua phía trước #7", "s3": "ứng viên nào là #7?",
+                "hist": "lịch sử của #7", "pred": "vị trí dự đoán", "hidden": "bị che",
+                "q": "#7 là A, B, C — hay không phải xe nào?", "near": "làn gần", "far": "làn xa",
+                "nA": "#7 xuất hiện lại", "nB": "xe trông giống", "nC": "xe mới", "key": "Cách đọc hình",
+                "k1": "xe #7, đang được tracker theo dõi", "k2": "nơi mô hình dự đoán #7 (Gaussian, elip 90%)",
+                "k3": "ứng viên được phát hiện tại khung quyết định",
+                "k4": "Đáp án: một ứng viên, hoặc \u201ckhông xe nào\u201d nếu #7 vẫn bị che"}}
+    blue, red, acc = "#3182ce", "#e05252", "#2b6cb0"
+    y_near, y_far, y_far2 = 0.75, 1.95, 2.55   # ground lines; the far lanes are higher in the image
+    s_far, s_far2 = 0.85, 0.75                 # far vehicles look smaller
+
+    def scene(ax):
+        ax.add_patch(patches.Rectangle((0, 3.0), 10, 1.2, facecolor="#e6f0f8", zorder=0))          # background
+        ax.add_patch(patches.Rectangle((0, 2.85), 10, 0.15, facecolor="#9ae6b4", zorder=0.2))      # far verge
+        ax.add_patch(patches.Polygon([(0, 0.3), (10, 0.3), (10, 2.85), (0, 2.85)], facecolor="#4a5568", zorder=0.3))
+        ax.add_patch(patches.Rectangle((0, 0.0), 10, 0.3, facecolor="#cbd5e0", zorder=0.4))        # near kerb
+        for yl in (1.45, 2.3):
+            for x0 in np.arange(0.2, 10, 0.9):
+                ax.add_patch(patches.Rectangle((x0, yl - 0.022), 0.5, 0.044, facecolor="white", alpha=0.8,
+                                               zorder=0.5))
+        ax.set_xlim(1.0, 8.6)
+        ax.set_ylim(0, 4.2)
+        ax.set_aspect("equal")
+        ax.axis("off")
+
+    def title(ax, n, t, sub):
+        ax.text(0.0, 1.17, f"{n}", transform=ax.transAxes, fontsize=11, fontweight="bold", color="white",
+                ha="left", va="center", bbox=dict(boxstyle="circle,pad=0.25", facecolor=acc, edgecolor="none"))
+        ax.text(0.07, 1.17, t, transform=ax.transAxes, fontsize=14, fontweight="bold", color="#1a202c",
+                ha="left", va="center")
+        ax.text(0.07, 1.04, sub, transform=ax.transAxes, fontsize=12, color="#4a5568", ha="left", va="center")
+
+    def trail(ax, alpha=1.0):
+        xs = np.linspace(1.2, 3.35, 8)
+        for k, x in enumerate(xs):
+            ax.add_patch(patches.Circle((x, y_far + 0.2), 0.05 + 0.012 * k, facecolor="#f6e05e",
+                                        alpha=alpha * (0.35 + 0.07 * k), edgecolor="none", zorder=7))
+
+    def lane_tags(ax, L):
+        ax.text(8.5, y_near - 0.3, L["near"], fontsize=10, color="#e2e8f0", ha="right", va="center", zorder=1)
+        ax.text(8.5, y_far - 0.22, L["far"], fontsize=10, color="#e2e8f0", ha="right", va="center", zorder=1)
+
     for lang in LANGS:
         L = T[lang]
-        fig, axes = plt.subplots(1, 3, figsize=(15, 3.55), dpi=170)
-        for ax, f, key in zip(axes, (f_before, f_mid, f_after), ("before", "during", "after")):
-            crop = _frame(seq, f - 1 + f0)[oy:oy + ch, ox:ox + cw]
-            crop = cv2.resize(crop, (640, int(round(ch * s))))
-            ax.imshow(crop)
-            if key == "during":
-                _rect(ax, track[f], ox, oy, s, edgecolor="white", linewidth=2.0, linestyle="--")
-            else:
-                _rect(ax, track[f], ox, oy, s, edgecolor=C_TRUE, linewidth=2.6)
-            ax.set_xlim(0, crop.shape[1])
-            ax.set_ylim(crop.shape[0], 0)
-            ax.set_title(L[key].format(f=f), fontsize=10)
-            ax.set_xticks([])
-            ax.set_yticks([])
-        handles = [patches.Patch(fill=False, edgecolor=C_TRUE, linewidth=2.6, label=L["box"]),
-                   patches.Patch(fill=False, edgecolor="#555555", linestyle="--", linewidth=2, label=L["hidden"])]
-        fig.legend(handles=handles, loc="lower center", ncol=2, fontsize=9, frameon=False)
-        fig.tight_layout(rect=(0, 0.08, 1, 1))
+        fig, axes = plt.subplots(1, 3, figsize=(14, 3.9), dpi=200)
+        # (1) before: #7 visible in the far lane, the bus is behind it in the near lane
+        ax = axes[0]
+        scene(ax)
+        lane_tags(ax, L)
+        trail(ax)
+        _veh(ax, 7.2, y_far2, red, s=s_far2, z=3)
+        _veh(ax, 4.0, y_far, blue, s=s_far, z=4)
+        _badge(ax, 4.0, y_far + 0.85, "#7", acc, r=0.34, fs=12)
+        ax.text(2.3, y_far + 0.5, L["hist"], fontsize=10.5, color="#1a202c", ha="center", va="bottom", zorder=8,
+                bbox=dict(boxstyle="round,pad=0.15", facecolor="#fefcbf", alpha=0.85, edgecolor="none"))
+        _veh(ax, 1.6, y_near, "#f6c343", L=3.0, H=1.25, D=0.3, kind="bus", z=6)
+        title(ax, 1, L["t1"], L["s1"])
+        # (2) during: the bus covers #7; only the predicted position is left
+        ax = axes[1]
+        scene(ax)
+        lane_tags(ax, L)
+        trail(ax, alpha=0.55)
+        _veh(ax, 7.9, y_far2, red, s=s_far2, z=3)
+        _veh(ax, 5.2, y_far, blue, s=s_far, z=4)
+        gx, gy = np.meshgrid(np.linspace(3.3, 7.6, 240), np.linspace(1.4, 3.0, 100))
+        dens = np.exp(-0.5 * (((gx - 5.5) / 0.7) ** 2 + ((gy - (y_far + 0.2)) / 0.26) ** 2))
+        rgba = np.zeros(dens.shape + (4,))
+        rgba[..., :3] = matplotlib.colors.to_rgb("#68d391")
+        rgba[..., 3] = 0.5 * dens
+        _veh(ax, 5.0, y_near, "#f6c343", L=3.4, H=1.3, D=0.3, kind="bus", z=6)
+        ax.imshow(rgba, extent=(3.3, 7.6, 1.4, 3.0), origin="lower", zorder=7, interpolation="bilinear")
+        ax.add_patch(patches.Ellipse((5.5, y_far + 0.2), 2 * 0.7 * 2.146, 2 * 0.26 * 2.146, facecolor="none",
+                                     edgecolor="#9ae6b4", linestyle=(0, (4, 3)), linewidth=1.3, zorder=7.5))
+        _veh(ax, 5.2, y_far, blue, s=s_far, ghost=True, z=8)
+        _badge(ax, 5.2, y_far + 0.85, "#7", acc, r=0.34, fs=12)
+        ax.text(5.2, y_far + 0.22, L["hidden"], fontsize=11, color="white", ha="center", va="center", zorder=9,
+                bbox=dict(boxstyle="round,pad=0.2", facecolor="#1a202c", alpha=0.75, edgecolor="none"))
+        ax.annotate(L["pred"], xy=(6.9, y_far + 0.35), xytext=(7.3, 3.65), fontsize=11, color="#276749",
+                    ha="center", va="center", zorder=9,
+                    bbox=dict(boxstyle="round,pad=0.25", facecolor="#f0fff4", edgecolor="#9ae6b4"),
+                    arrowprops=dict(arrowstyle="-", color="#276749", lw=0.9))
+        title(ax, 2, L["t2"], L["s2"])
+        # (3) decision: the bus has moved on; A = #7, B = look-alike, C = new vehicle
+        ax = axes[2]
+        scene(ax)
+        lane_tags(ax, L)
+        cands = ((3.0, y_far2, red, s_far2, "C", L["nC"]), (7.7, y_far2, blue, s_far2, "B", L["nB"]),
+                 (5.3, y_far, blue, s_far, "A", L["nA"]))
+        for x, yb, col, sc, k, note in cands:
+            _veh(ax, x, yb, col, s=sc, z=4 if yb == y_far else 3)
+            _badge(ax, x, yb + 0.85 * sc / s_far, k, "#dd6b20", r=0.3, fs=12)
+            below = k in ("A", "B")
+            ax.text(x if below else x + 0.36, yb - 0.32 * sc / s_far if below else yb + 0.85 * sc / s_far, note, fontsize=10.5,
+                    color="white", ha="center" if below else "left", va="center",
+                    zorder=9, bbox=dict(boxstyle="round,pad=0.15", facecolor="#1a202c", alpha=0.65, edgecolor="none"))
+        _veh(ax, 8.9, y_near, "#f6c343", L=3.4, H=1.3, D=0.3, kind="bus", z=6)
+        ax.text(4.8, 0.15, L["q"], fontsize=12, fontweight="bold", color="#c05621", ha="center", va="center", zorder=9)
+        title(ax, 3, L["t3"], L["s3"])
+        fig.subplots_adjust(left=0.005, right=0.995, top=0.82, bottom=0.01, wspace=0.035)
         _save(fig, "fig_problem", lang)
 
 
@@ -330,6 +422,59 @@ def fig_live():
         _save(fig, "fig_live", lang)
 
 
+# ----------------------------------------------------------------------------------------------- phase 2 curve
+def fig_live_curve():
+    T = {"en": {"x": "Nat-WLR — wrong re-links (%), lower is better", "y": "Nat-IRR — identity kept (%), higher is better",
+                "target": "5% wrong-link limit", "val": "validation sweep (13 videos)", "sel": "selected on validation",
+                "test": "test result at the selected point (40 videos)", "gl": "GapLink-Lite (tuned)",
+                "c1": "C-1 (no re-association)"},
+         "vi": {"x": "Nat-WLR — tái liên kết sai (%), càng thấp càng tốt",
+                "y": "Nat-IRR — giữ được ID (%), càng cao càng tốt", "target": "giới hạn 5% liên kết sai",
+                "val": "quét ngưỡng trên validation (13 video)", "sel": "điểm chọn trên validation",
+                "test": "kết quả test tại điểm đã chọn (40 video)", "gl": "GapLink-Lite (đã tinh chỉnh)",
+                "c1": "C-1 (không tái liên kết)"}}
+    sel = json.loads((ROOT / "runs" / "live_v13_val" / "select.json").read_text())
+    test = json.loads((ROOT / "runs" / "live_v13_test" / "live_v13_results.json").read_text())["methods"]
+    sweep = sel["sweep"]
+    kinds = {"C-2": "C-2", "C-3": "C-3", "C-4": "C-4", "GapLink-Lite": "GapLink-v13"}
+    for lang in LANGS:
+        L = T[lang]
+        fig, ax = plt.subplots(figsize=(8.2, 4.6), dpi=170)
+        ax.axvline(5, color=C_GL, ls="--", lw=1.1, zorder=1)
+        ax.text(5.3, 3, L["target"], color=C_GL, fontsize=8, rotation=90, va="bottom")
+        for name, kind in kinds.items():
+            pts = sorted((v["thr"], 100 * v["nat_wlr"], 100 * v["nat_irr"]) for k, v in sweep.items()
+                         if k.split("@")[0] == kind)
+            col = METHOD_COLORS[name]
+            lab = L["gl"] if name == "GapLink-Lite" else name
+            ax.plot([p[1] for p in pts], [p[2] for p in pts], "-o", color=col, ms=3.5, lw=1.6, label=lab, zorder=2)
+            ch = sel["chosen"][name]
+            ax.plot(100 * ch["nat_wlr"], 100 * ch["nat_irr"], marker="*", ms=14, color=col, mec="black", mew=0.6,
+                    zorder=4)
+            t = test[f"v1.3/{name}"]["natural_occlusion"]
+            tx, ty = 100 * t["nat_wlr"], 100 * t["nat_irr"]
+            ax.plot(tx, ty, marker="D", ms=7.5, mfc="white", mec=col, mew=2.0, zorder=5)
+            ax.annotate("", xy=(tx, ty), xytext=(100 * ch["nat_wlr"], 100 * ch["nat_irr"]),
+                        arrowprops=dict(arrowstyle="->", color=col, lw=0.9, alpha=0.7), zorder=3)
+        c1 = sweep["C-1"]
+        ax.plot(100 * c1["nat_wlr"], 100 * c1["nat_irr"], "s", color="#2d3748", ms=6, label=L["c1"], zorder=4)
+        h, lab = ax.get_legend_handles_labels()
+        h += [plt.Line2D([], [], color="#4a5568", lw=1.6, marker="o", ms=3.5),
+              plt.Line2D([], [], ls="", marker="*", ms=12, color="#a0aec0", mec="black", mew=0.6),
+              plt.Line2D([], [], ls="", marker="D", ms=7, mfc="white", mec="#4a5568", mew=2.0)]
+        lab += [L["val"], L["sel"], L["test"]]
+        ax.legend(h, lab, fontsize=7.8, loc="lower right", frameon=True, framealpha=0.95)
+        ax.set_xlabel(L["x"], fontsize=9)
+        ax.set_ylabel(L["y"], fontsize=9)
+        ax.set_xlim(-0.5, None)
+        ax.set_ylim(0, 100)
+        ax.grid(alpha=0.3)
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+        fig.tight_layout()
+        _save(fig, "fig_live_curve", lang)
+
+
 # ----------------------------------------------------------------------------------------------- failures
 def fig_failures():
     T = {"en": {"wrong_candidate": "(a) Both methods link to a wrong vehicle", "missed_relink": "(b) GapLink-Lite declines, C-3 links wrongly",
@@ -408,7 +553,7 @@ def fig_failures():
 
 def main(which=None):
     funcs = {"problem": fig_problem, "dataset": fig_dataset, "split": fig_split, "calibration": fig_calibration,
-             "live": fig_live, "failures": fig_failures}
+             "live": fig_live, "live_curve": fig_live_curve, "failures": fig_failures}
     for k, fn in funcs.items():
         if which is None or k in which:
             fn()

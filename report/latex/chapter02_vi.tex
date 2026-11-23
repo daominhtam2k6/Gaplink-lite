@@ -54,13 +54,14 @@ Bảng~\ref{tab:dataset_stats} tóm tắt bộ dữ liệu sau làm sạch. Qu�
 \subsection{Chia Dữ liệu}
 \label{sec:data_splitting}
 
-Các video từ cùng một camera trông gần như giống hệt nhau, nên chia ngẫu nhiên theo video sẽ làm rò rỉ khung cảnh sang tập validation. Vì vậy mỗi chuỗi được tính một nền trung vị $64 \times 36$, và các chuỗi được gom bằng phân cụm agglomerative ($1-r \le 0.65$) thành $25$ cụm camera, gần với $\sim\!24$ địa điểm vật lý của UA-DETRAC. $60$ chuỗi huấn luyện được chia \emph{theo cụm} thành $47$ chuỗi huấn luyện ($13$ cụm) và $13$ chuỗi validation ($4$ cụm). $40$ chuỗi test chính thức thuộc $15$ cụm, trong đó $7$ cụm cũng có trong huấn luyện hoặc validation và $8$ cụm chưa từng thấy; hai tập con được báo cáo riêng. Hình~\ref{fig:split} cho thấy ảnh nền trung vị của từng địa điểm huấn luyện và validation; hai nhóm không bao giờ dùng chung một cụm camera. Không dùng lật ngang ở bất kỳ đâu, vì lật ảnh sẽ tạo ra hướng lưu thông không thể có.
+Các video từ cùng một camera trông gần như giống hệt nhau, nên chia ngẫu nhiên theo video sẽ làm rò rỉ khung cảnh sang tập validation. Vì vậy mỗi chuỗi được tính một nền trung vị $64 \times 36$, và các chuỗi được gom bằng phân cụm agglomerative ($1-r \le 0.65$) thành $25$ cụm camera, gần với $\sim\!24$ địa điểm vật lý của UA-DETRAC. $60$ chuỗi huấn luyện được chia \emph{theo cụm} thành $47$ chuỗi huấn luyện ($13$ cụm) và $13$ chuỗi validation ($4$ cụm). $40$ chuỗi test chính thức thuộc $15$ cụm, trong đó $7$ cụm cũng có trong huấn luyện hoặc validation và $8$ cụm chưa từng thấy; hai tập con được báo cáo riêng. Hình~\ref{fig:split} cho thấy ảnh nền trung vị của từng địa điểm huấn luyện và validation; hai nhóm không bao giờ dùng chung một cụm camera. Không dùng lật ngang ở bất kỳ đâu, vì lật ảnh sẽ tạo ra hướng lưu thông không thể có. Hai tập sự kiện cố định có cùng tỉ lệ các loại sự kiện, nhưng sự kiện test khó hơn: khoảng trống trung bình là $27.59$ khung so với $22.64$ ở validation, và $71.55\%$ sự kiện có một ứng viên trông giống ở gần xe thật so với $60.43\%$. Vì vậy validation chỉ được dùng để chọn ngưỡng, không bao giờ dùng để ước lượng hiệu năng trên test.
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{figures/fig_split_vi.png}
     \caption{Ảnh nền trung vị của mọi địa điểm camera huấn luyện (xanh dương) và validation (cam), tính từ video đầu tiên của mỗi địa điểm; số video của mỗi địa điểm ghi trong ngoặc.}
     \label{fig:split}
 \end{figure}
+
 
 
 \subsection{Đạo đức và Quyền riêng tư}
@@ -79,7 +80,7 @@ UA-DETRAC gồm ô tô con, xe van, xe buýt và các xe lớn khác quay tại 
 \subsection{Tổng quan Thành phần Được và Không được Huấn luyện}
 \label{sec:trained_components}
 
-Chỉ mạng tái liên kết được huấn luyện (Bảng~\ref{tab:trained_components}). Dữ liệu và detector đến từ bên ngoài, tầng tracking thứ nhất và các quy tắc giám sát là thuật toán cố định, còn các thành phần còn lại được cài đặt trong đồ án này.
+Chỉ mạng tái liên kết được huấn luyện (Bảng~\ref{tab:trained_components}). Dữ liệu và detector đến từ bên ngoài, tầng tracking thứ nhất và các quy tắc giám sát là thuật toán cố định, còn các thành phần còn lại được cài đặt trong đồ án này. Vì các baseline C-1\dots C-4 và GapLink-Lite dùng chung detector, tầng tracking thứ nhất, cửa sổ track bị mất và các quy tắc giám sát, mọi khác biệt trong kết quả chỉ đến từ bước tái liên kết. Việc huấn luyện một mạng duy nhất này cũng rất nhẹ: một lần chạy mất khoảng $100$~s trên GPU laptop, nên $20$ lần chạy của thí nghiệm chính dễ dàng nằm trong lịch trình. Hiệu chuẩn $\sigma$ cũng không được học bằng gradient: chỉ ba hệ số được khớp trên validation sau khi huấn luyện (Mục~\ref{sec:rule_tuning}).
 
 \begin{table}[H]
     \centering
@@ -107,7 +108,36 @@ Chỉ mạng tái liên kết được huấn luyện (Bảng~\ref{tab:trained_c
 
 \textbf{Phát biểu bài toán.} Mô hình làm việc trên các \emph{sự kiện che khuất}. Tại một khung xác nhận $t_{\text{conf}}$, tracker giữ $N \le 6$ track bị mất và $M \le 10$ detection chưa được ghép, gọi là ứng viên. Mỗi track bị mất $i$ được mô tả bằng $K \le 20$ box cuối, khoảng trống $g_i = t_{\text{conf}} - t_{\text{lost},i}$ (số khung hình xe đã vắng mặt), một histogram màu và tối đa $8$ xe lân cận; mỗi ứng viên được mô tả bằng box, histogram của phần nhìn thấy và các xe lân cận. Nhãn của track $i$ là $y_i \in \{1,\dots,M\} \cup \{\varnothing\}$, trong đó $\varnothing$ nghĩa là không ứng viên nào là cùng xe, vì xe vẫn bị che, đã rời khung hình hoặc bị detector bỏ sót. Mô hình phải trả về một phép gán một--một, trong đó track và ứng viên đều có thể không được ghép, sao cho tối đa số quyết định đúng, kể cả quyết định ``không ghép'' đúng, đồng thời giữ \emph{liên kết sai} ($\hat{y}_i = j \ne y_i$) ở mức hiếm.
 
-Để làm điều này, GapLink-Lite xuất ra ma trận $P$ kích thước $(N+1)\times(M+1)$, trong đó $P_{ij}$ là xác suất track $i$ tiếp nối thành ứng viên $j$. Hàng và cột thêm vào, gọi là \emph{dustbin}, thu nhận các track và ứng viên không được ghép. Mô hình gồm năm module (Hình~\ref{fig:model_arch}), mỗi module nhắm vào một thách thức ở Mục~\ref{sec:bg_challenges}:
+Để làm điều này, GapLink-Lite xuất ra ma trận $P$ kích thước $(N+1)\times(M+1)$, trong đó $P_{ij}$ là xác suất track $i$ tiếp nối thành ứng viên $j$. Hàng và cột thêm vào, gọi là \emph{dustbin}, thu nhận các track và ứng viên không được ghép. Mô hình gồm năm module (Hình~\ref{fig:model_arch}), mỗi module nhắm vào một thách thức ở Mục~\ref{sec:bg_challenges}.
+
+\begin{figure}[H]
+    \centering
+    \resizebox{\textwidth}{!}{%
+    \begin{tikzpicture}[
+        node distance=0.9cm and 1.1cm,
+        box/.style={draw=SamsungBlue!80!black, rounded corners=4pt, fill=SamsungLightBlue!35, text width=3.1cm, align=center, minimum height=1.35cm, font=\small},
+        inp/.style={draw=gray!70!black, rounded corners=4pt, fill=gray!10, text width=2.9cm, align=center, minimum height=1.35cm, font=\small},
+        outb/.style={draw=red!65!black, rounded corners=4pt, fill=red!6, text width=3.2cm, align=center, minimum height=2.2cm, font=\small},
+        arr/.style={-{Stealth[length=2.5mm]}, thick, draw=black!75}
+    ]
+        \node[inp] (lost) {\textbf{Track bị mất ($1\dots N$)}\\ \scriptsize box ($K\le 20$), khoảng trống $g_i$,\\ HSV EMA, ngữ cảnh tại $t_{\text{lost}}$};
+        \node[inp, below=1.1cm of lost] (cand) {\textbf{Ứng viên ($1\dots M$)}\\ \scriptsize detection chưa ghép,\\ HSV vùng nhìn thấy, ngữ cảnh tại $t_{\text{conf}}$};
+        \node[box, right=1.0cm of lost] (mot) {\textbf{1. Mã hóa chuyển động}\\ \scriptsize GRU 2 lớp ($d=128$)\\ + embedding khoảng trống};
+        \node[box, right=1.0cm of cand] (ctx) {\textbf{2. Mã hóa ngữ cảnh}\\ \scriptsize DeepSets,\\ pooling max + mean};
+        \node[box, fill=green!8, draw=green!55!black, right=1.0cm of mot] (pred) {\textbf{3. Dự đoán Gaussian}\\ \scriptsize neo CV + phần dư\\ $\rightarrow (\mu_i, \ln\sigma_i^2)$};
+        \node[box, fill=purple!8, draw=purple!60!black, right=1.0cm of ctx] (scor) {\textbf{4. Theo cặp \& dustbin}\\ \scriptsize logit $S_{ij}$, track $z^t_i$,\\ ứng viên $z^c_j$};
+        \node[outb, right=1.0cm of $(pred.east)!0.5!(scor.east)$] (sink) {\textbf{5. Log-Sinkhorn ($T=20$)}\\ \scriptsize ma trận $(N+1)\times(M+1)$ $P$\\ Hungarian + ngưỡng $\tau$\\ $\rightarrow$ tái liên kết hoặc chờ};
+        \draw[arr] (lost) -- (mot); \draw[arr] (cand) -- (ctx); \draw[arr] (lost.south east) -- (ctx.north west);
+        \draw[arr] (mot) -- (pred); \draw[arr] (ctx) -- (scor); \draw[arr] (ctx.north east) -- (pred.south west);
+        \draw[arr] (mot.south east) -- (scor.north west); \draw[arr] (pred) -- (scor);
+        \draw[arr] (pred.east) -- (sink.west |- pred.east); \draw[arr] (scor.east) -- (sink.west |- scor.east);
+    \end{tikzpicture}%
+    }
+    \caption{Kiến trúc GapLink-Lite ($327\,979$ tham số) dùng ở Tầng 2}
+    \label{fig:model_arch}
+\end{figure}
+
+Cụ thể, năm module hoạt động như sau:
 \begin{enumerate}
     \item \textbf{Bộ mã hóa chuyển động.} Module đọc lịch sử gần đây của xe bị mất, mỗi khung hình là một vector sáu chiều (độ dịch chuyển, thay đổi kích thước và vận tốc, đều chuẩn hóa theo chiều cao box cuối để xe gần và xe xa trông như nhau), rồi nén thành một vector 128 chiều. Việc nén do gated recurrent unit (GRU) \cite{cho2014gru} đảm nhận: đây là mạng hồi quy có các cổng quyết định giữ lại thông tin nào từ các khung trước, phù hợp với chuỗi chuyển động ngắn. Khoảng trống $g_i$ được mã hóa riêng bằng các đặc trưng sin và cos của $\ln(1+g_i)$, để mô hình có thể nới rộng độ bất định khi che khuất dài.
     \item \textbf{Bộ mã hóa ngữ cảnh.} Module biến các xe lân cận (tối đa $8$ xe, mỗi xe sáu giá trị) thành một vector ngữ cảnh 128 chiều. Module theo ý tưởng DeepSets \cite{zaheer2017deepsets}: cùng một mạng nhỏ được áp dụng cho từng xe lân cận rồi gộp kết quả (lấy max và trung bình), nên đầu ra không phụ thuộc thứ tự liệt kê các xe.
@@ -225,14 +255,14 @@ Mỗi bước huấn luyện lấy một batch $64$ sự kiện mới. Batch tr�
 
 Mô hình được kiểm tra trên các sự kiện validation sau mỗi $600$ bước (Hình~\ref{fig:training_curves}). Mất mát gán tiếp tục giảm đến khoảng bước $1\,800$, và Top-1 validation đạt $93.2\%$ ở lần kiểm tra cuối, tại bước $2\,400$, không có dấu hiệu overfit trên các địa điểm validation. Seed đầu tiên được giữ làm mô hình cuối cùng; bốn seed còn lại dùng để báo cáo trung bình, độ lệch chuẩn và chạy ablation.
 
+\textbf{Tinh chỉnh cho detector YOLOv8n.} Một mô hình chỉ học trên box ground-truth chưa bao giờ thấy những gì detector thật tạo ra: box rung, xe chập chờn xuất hiện rồi biến mất trong 2--5 khung hình, và detection giả lẫn trong các ứng viên. Để thu hẹp khoảng cách này, tracker được chạy cùng YOLOv8n trên các video huấn luyện, tạo ra $7\,746$ sự kiện được gán nhãn sau đối chiếu với ground truth. Mô hình chính sau đó được huấn luyện tiếp trên hỗn hợp $70\%$ sự kiện detector và $30\%$ sự kiện ground-truth trong $3\,000$ bước. Trên các video validation, Top-1 trên sự kiện detector tăng từ $98.45\%$ lên $99.11\%$, đạt tại bước $1\,500$; checkpoint này được giữ lại, và các video test không được sử dụng. Hai cách sửa đơn giản hơn đã được thử trước và bị loại bỏ trên validation. Chỉ nâng ngưỡng chấp nhận $\tau$ giữ được tỉ lệ liên kết sai dưới $5\%$ khi $\tau \ge 0.85$, nhưng khi đó khả năng khôi phục thấp hơn C-2. Lọc ứng viên bằng Gaussian học được làm khả năng khôi phục giảm mạnh, vì độ bất định học trên box sạch quá hẹp so với nhiễu của detector.
+
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{figures/fig_training_curves.png}
     \caption{Huấn luyện mô hình đã đóng băng: mất mát gán đã làm mượt (trái) và độ chính xác Top-1 trên validation (phải), đánh giá mỗi 600 bước}
     \label{fig:training_curves}
 \end{figure}
-
-\textbf{Tinh chỉnh cho detector YOLOv8n.} Một mô hình chỉ học trên box ground-truth chưa bao giờ thấy những gì detector thật tạo ra: box rung, xe chập chờn xuất hiện rồi biến mất trong 2--5 khung hình, và detection giả lẫn trong các ứng viên. Để thu hẹp khoảng cách này, tracker được chạy cùng YOLOv8n trên các video huấn luyện, tạo ra $7\,746$ sự kiện được gán nhãn sau đối chiếu với ground truth. Mô hình chính sau đó được huấn luyện tiếp trên hỗn hợp $70\%$ sự kiện detector và $30\%$ sự kiện ground-truth trong $3\,000$ bước. Trên các video validation, Top-1 trên sự kiện detector tăng từ $98.45\%$ lên $99.11\%$, đạt tại bước $1\,500$; checkpoint này được giữ lại, và các video test không được sử dụng. Hai cách sửa đơn giản hơn đã được thử trước và bị loại bỏ trên validation. Chỉ nâng ngưỡng chấp nhận $\tau$ giữ được tỉ lệ liên kết sai dưới $5\%$ khi $\tau \ge 0.85$, nhưng khi đó khả năng khôi phục thấp hơn C-2. Lọc ứng viên bằng Gaussian học được làm khả năng khôi phục giảm mạnh, vì độ bất định học trên box sạch quá hẹp so với nhiễu của detector.
 
 \subsection{Tinh chỉnh các Module Dựa trên Quy tắc}
 \label{sec:rule_tuning}
@@ -257,8 +287,8 @@ Hệ thống xử lý luồng video theo từng khung hình và giữ trạng th
 \begin{figure}[H]
     \centering
     \begin{tikzpicture}[
-        node distance=0.42cm,
-        st/.style={draw=SamsungBlue!80!black, rounded corners=3pt, fill=SamsungLightBlue!35, text width=8.6cm, align=center, minimum height=0.8cm, font=\small},
+        node distance=0.34cm,
+        st/.style={draw=SamsungBlue!80!black, rounded corners=3pt, fill=SamsungLightBlue!35, text width=8.6cm, align=center, minimum height=0.7cm, font=\small},
         dec/.style={draw=purple!60!black, diamond, aspect=2.6, fill=purple!6, text width=3.2cm, align=center, font=\small, inner sep=1pt},
         side/.style={draw=gray!60!black, rounded corners=3pt, fill=gray!8, text width=3.0cm, align=center, minimum height=0.8cm, font=\small},
         arr/.style={-{Stealth[length=2.2mm]}, thick}
@@ -330,7 +360,7 @@ Người vận hành chọn một trong ba clip, phát hoặc chạy từng khun
 \section{Thiết kế Hệ thống}
 \label{sec:system_design}
 
-Hình~\ref{fig:sys_arch} thể hiện kiến trúc tổng thể của bảng điều khiển và Hình~\ref{fig:model_arch} thể hiện cấu trúc bên trong của GapLink-Lite. Trình duyệt giao tiếp với một máy chủ FastAPI cục bộ: mỗi nhịp đẩy cả hai tracker thêm một khung hình và gửi một khung JPEG cùng bộ đếm dưới dạng server-sent event; thao tác của người dùng (phát, tua, vùng mới, click vào xe) là các yêu cầu JSON nhỏ, và tua lùi hoặc vẽ vùng mới sẽ chạy lại cả hai tracker từ khung đầu, nên điều được hiển thị luôn là kết quả của một lần chạy trực tuyến liên tục.
+Hình~\ref{fig:sys_arch} thể hiện kiến trúc tổng thể của bảng điều khiển; cấu trúc bên trong của GapLink-Lite được trình bày ở Hình~\ref{fig:model_arch} (Mục~\ref{sec:model_selection}). Bảng điều khiển là một ứng dụng client--server nhỏ chạy hoàn toàn trên laptop: máy chủ Python đảm nhận toàn bộ tính toán, còn trình duyệt chỉ hiển thị khung hình và gửi thao tác của người dùng.
 
 \begin{figure}[H]
     \centering
@@ -359,29 +389,43 @@ Hình~\ref{fig:sys_arch} thể hiện kiến trúc tổng thể của bảng đi
     \label{fig:sys_arch}
 \end{figure}
 
-\begin{figure}[H]
+\textbf{Các thành phần.} Hệ thống gồm sáu phần:
+\begin{itemize}
+    \item \textbf{Dữ liệu clip.} Mỗi clip trình diễn đi kèm detection YOLOv8n và histogram màu đã cache, box ground-truth, và một mô tả ngắn về kịch bản (vùng, thời điểm quan trọng, điểm khóa). Việc cache bảo đảm hai khung nhận đúng cùng một tập detection ở mọi lần chạy.
+    \item \textbf{Phiên và bộ chạy clip.} Máy chủ giữ một phiên đọc video từng khung hình bằng OpenCV và đẩy hai khung tiến lên đồng bộ. Phiên lưu khung hình hiện tại, trạng thái phát và tốc độ; một khóa tuần tự hóa thao tác người dùng và các nhịp khung hình, nên một cú click không bao giờ gặp một khung hình đang xử lý dở.
+    \item \textbf{Các khung (pane).} Mỗi phương pháp có một khung. Mỗi khung sở hữu một tracker hai tầng hoàn chỉnh (cùng Tầng~1, với C-3 hoặc GapLink-Lite làm Tầng~2), các quy tắc giám sát riêng (lộ trình cấm, khóa mục tiêu), bộ đếm riêng và lịch sử sự cố riêng.
+    \item \textbf{Bộ chấm.} Sau mỗi khung hình, mỗi tái liên kết và cảnh báo lộ trình mới được so với ground truth và gán nhãn (đúng, nhầm xe, ID mới, cảnh báo giả). Kết quả chấm chỉ để hiển thị; chúng không bao giờ quay ngược vào tracker.
+    \item \textbf{Máy chủ web.} Máy chủ FastAPI cung cấp bốn giao diện ở Bảng~\ref{tab:api}.
+    \item \textbf{Trang trình duyệt.} Một trang duy nhất hiển thị khung hình ghép của hai khung, các nút điều khiển, bảng kết quả và lịch sử sự cố.
+\end{itemize}
+
+\begin{table}[H]
     \centering
-    \resizebox{\textwidth}{!}{%
-    \begin{tikzpicture}[
-        node distance=0.9cm and 1.1cm,
-        box/.style={draw=SamsungBlue!80!black, rounded corners=4pt, fill=SamsungLightBlue!35, text width=3.1cm, align=center, minimum height=1.35cm, font=\small},
-        inp/.style={draw=gray!70!black, rounded corners=4pt, fill=gray!10, text width=2.9cm, align=center, minimum height=1.35cm, font=\small},
-        outb/.style={draw=red!65!black, rounded corners=4pt, fill=red!6, text width=3.2cm, align=center, minimum height=2.2cm, font=\small},
-        arr/.style={-{Stealth[length=2.5mm]}, thick, draw=black!75}
-    ]
-        \node[inp] (lost) {\textbf{Track bị mất ($1\dots N$)}\\ \scriptsize box ($K\le 20$), khoảng trống $g_i$,\\ HSV EMA, ngữ cảnh tại $t_{\text{lost}}$};
-        \node[inp, below=1.1cm of lost] (cand) {\textbf{Ứng viên ($1\dots M$)}\\ \scriptsize detection chưa ghép,\\ HSV vùng nhìn thấy, ngữ cảnh tại $t_{\text{conf}}$};
-        \node[box, right=1.0cm of lost] (mot) {\textbf{1. Mã hóa chuyển động}\\ \scriptsize GRU 2 lớp ($d=128$)\\ + embedding khoảng trống};
-        \node[box, right=1.0cm of cand] (ctx) {\textbf{2. Mã hóa ngữ cảnh}\\ \scriptsize DeepSets,\\ pooling max + mean};
-        \node[box, fill=green!8, draw=green!55!black, right=1.0cm of mot] (pred) {\textbf{3. Dự đoán Gaussian}\\ \scriptsize neo CV + phần dư\\ $\rightarrow (\mu_i, \ln\sigma_i^2)$};
-        \node[box, fill=purple!8, draw=purple!60!black, right=1.0cm of ctx] (scor) {\textbf{4. Theo cặp \& dustbin}\\ \scriptsize logit $S_{ij}$, track $z^t_i$,\\ ứng viên $z^c_j$};
-        \node[outb, right=1.0cm of $(pred.east)!0.5!(scor.east)$] (sink) {\textbf{5. Log-Sinkhorn ($T=20$)}\\ \scriptsize ma trận $(N+1)\times(M+1)$ $P$\\ Hungarian + ngưỡng $\tau$\\ $\rightarrow$ tái liên kết hoặc chờ};
-        \draw[arr] (lost) -- (mot); \draw[arr] (cand) -- (ctx); \draw[arr] (lost.south east) -- (ctx.north west);
-        \draw[arr] (mot) -- (pred); \draw[arr] (ctx) -- (scor); \draw[arr] (ctx.north east) -- (pred.south west);
-        \draw[arr] (mot.south east) -- (scor.north west); \draw[arr] (pred) -- (scor);
-        \draw[arr] (pred.east) -- (sink.west |- pred.east); \draw[arr] (scor.east) -- (sink.west |- scor.east);
-    \end{tikzpicture}%
-    }
-    \caption{Kiến trúc GapLink-Lite ($327\,979$ tham số) dùng ở Tầng 2}
-    \label{fig:model_arch}
-\end{figure}
+    \caption{Giao diện giữa trình duyệt và máy chủ}
+    \label{tab:api}
+    \small
+    \begin{tabularx}{\textwidth}{l l X}
+        \toprule
+        \textbf{Giao diện} & \textbf{Kiểu} & \textbf{Mục đích} \\
+        \midrule
+        Danh sách clip & GET & Liệt kê ba clip và kịch bản của chúng cho các nút chọn clip \\
+        Thao tác & POST (JSON) & Mở clip, phát/tạm dừng, chạy từng khung, tua, đổi tốc độ, bật/tắt ID, khóa xe, sửa hoặc lưu vùng \\
+        Luồng khung hình & server-sent events & Mỗi nhịp một thông điệp: khung JPEG, số khung, bộ đếm, vùng và FPS đo được \\
+        Lịch sử sự cố & GET & Ảnh cắt trước/sau của mỗi sự cố; chỉ tải lại khi số phiên bản thay đổi \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\textbf{Xử lý một nhịp.} Khi clip đang phát, mỗi nhịp của luồng thực hiện:
+\begin{enumerate}
+    \item đọc khung hình video tiếp theo;
+    \item đưa detection đã cache của khung đó cho cả hai khung và chạy Tầng~1, Tầng~2 của tracker;
+    \item cập nhật các quy tắc giám sát (lượt vào vùng, cảnh báo lộ trình, trạng thái mục tiêu đang khóa);
+    \item để bộ chấm gán nhãn các sự kiện mới và thêm vào lịch sử sự cố;
+    \item vẽ hai khung cạnh nhau, mã hóa ảnh JPEG (chất lượng $80$) và gửi kèm bộ đếm trong một thông điệp;
+    \item chờ để luồng đi đúng tốc độ khung hình của clip nhân với tốc độ phát.
+\end{enumerate}
+
+\textbf{Lựa chọn thiết kế.} Ba lựa chọn giữ cho những gì người vận hành thấy trung thực với một hệ thống trực tuyến. Khi tua lùi hoặc vẽ vùng mới, cả hai tracker được chạy lại từ khung đầu tiên thay vì khôi phục trạng thái đã lưu, nên hình hiển thị luôn là kết quả của một lần chạy trực tuyến liền mạch. Ground truth chỉ được bộ chấm sử dụng, không bao giờ được tracker hay các quy tắc dùng. Cuối cùng, mô hình nhỏ chạy trên CPU với một luồng, nhanh hơn GPU với khối lượng tính toán này (Mục~\ref{sec:rule_tuning}) và để dành GPU cho detector trực tiếp.
+
+

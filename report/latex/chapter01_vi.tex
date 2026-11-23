@@ -7,11 +7,11 @@
 \subsection{Giám sát Giao thông và Danh tính Phương tiện}
 \label{sec:bg_surveillance}
 
-Camera giao thông hiện đã được lắp ở hầu hết các nút giao lớn, đường cao tốc và bãi đỗ xe. Nhiều nhiệm vụ của chúng đòi hỏi theo dõi \emph{cùng một} phương tiện theo thời gian chứ không chỉ phát hiện phương tiện ở từng khung hình: kiểm tra một xe có đi từ một vùng vào vùng cấm hay không, đo thời gian xe dừng trong khu vực cấm dừng, hay bám theo một xe nghi vấn trong toàn cảnh. Trong theo dõi đa đối tượng (MOT), tính chất này gọi là tính nhất quán danh tính (ID). Nó bị phá vỡ thường xuyên nhất khi có che khuất: khi một ô tô đi khuất sau xe buýt hoặc xe tải trong một đến ba giây, tracker mất dấu xe, và khi xe xuất hiện lại, tracker phải quyết định đó là xe cũ hay một xe mới. Hình~\ref{fig:problem} là một trường hợp điển hình trong video test: một xe van khuất sau xe buýt khớp nối hơn hai giây rồi xuất hiện lại gần như ở cùng chỗ; tracker đã mất dấu xe phải nhận ra nó giữa các xe xung quanh.
+Camera giao thông hiện đã được lắp ở hầu hết các nút giao lớn, đường cao tốc và bãi đỗ xe. Nhiều nhiệm vụ của chúng đòi hỏi theo dõi \emph{cùng một} phương tiện theo thời gian chứ không chỉ phát hiện phương tiện ở từng khung hình: kiểm tra một xe có đi từ một vùng vào vùng cấm hay không, đo thời gian xe dừng trong khu vực cấm dừng, hay bám theo một xe nghi vấn trong toàn cảnh. Trong theo dõi đa đối tượng (MOT), tính chất này gọi là tính nhất quán danh tính (ID). Nó bị phá vỡ thường xuyên nhất khi có che khuất: khi một ô tô đi khuất sau xe buýt hoặc xe tải trong một đến ba giây, tracker mất dấu xe, và khi xe xuất hiện lại, tracker phải quyết định đó là xe cũ hay một xe mới. Hình~\ref{fig:problem} minh họa tình huống này: xe \#7 khuất sau một xe buýt, và khi xe buýt đi qua, tracker phải quyết định ứng viên nào đang nhìn thấy là \#7 --- hay xe vẫn còn bị che.
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{figures/fig_problem_vi.png}
-    \caption{Danh tính qua một lần che khuất (video test UA-DETRAC MVI\_40864): xe van đang nhìn thấy (trái), bị che hoàn toàn sau xe buýt khớp nối từ khung $39$ đến khung $95$ (giữa, nét đứt: vị trí ground-truth mà tracker không nhìn thấy), và xuất hiện lại ở khung $96$ (phải).}
+    \caption{Bài toán tái liên kết, nhìn từ một camera đặt trên cao bên đường: (1) xe \#7 đang được theo dõi; (2) xe buýt ở làn gần đi qua phía trước và che khuất nó, tracker chỉ còn vị trí dự đoán (xanh lá: phân phối Gaussian dự đoán và elip 90\%); (3) tại khung quyết định, tracker thấy nhiều ứng viên --- \#7 xuất hiện lại (A), một xe trông giống (B) và một xe mới (C) --- và phải chọn một trong số đó hoặc không chọn xe nào.}
     \label{fig:problem}
 \end{figure}
 
@@ -102,6 +102,7 @@ Dự án được thực hiện từ ngày 15 đến 21 tháng 11 năm 2026 theo
     \centering
     \caption{Lịch trình và các mốc của dự án}
     \label{tab:milestones}
+    \small
     \begin{tabularx}{\textwidth}{c p{1.6cm} X p{1.9cm}}
         \toprule
         \textbf{Cổng} & \textbf{Ngày} & \textbf{Sản phẩm bàn giao} & \textbf{Trạng thái} \\
