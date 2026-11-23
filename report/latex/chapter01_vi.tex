@@ -12,14 +12,14 @@ Camera giao thông hiện đã được lắp ở hầu hết các nút giao l�
 \subsection{Thực tiễn Hiện nay trong Theo dõi Phương tiện}
 \label{sec:bg_practice}
 
-Phần lớn tracker đang triển khai đi theo sơ đồ tracking-by-detection: detector sinh box ở mọi khung hình, bộ lọc Kalman \cite{kalman1960} dự đoán vị trí của mỗi track, và thuật toán Hungarian \cite{kuhn1955hungarian} ghép dự đoán với detection, thường sau bước gating bằng khoảng cách Mahalanobis \cite{mahalanobis1936}. SORT \cite{bewley2016sort} ghép theo IoU và xóa track sau vài khung hình bị bỏ lỡ, nên không tái liên kết được xe sau một lần che khuất thật sự. DeepSORT \cite{wojke2017deepsort} thêm khoảng cách cosine của embedding re-identification, cần một mạng huấn luyện riêng và tốn kém ở độ phân giải thấp của camera giao thông góc rộng. ByteTrack \cite{zhang2022bytetrack} ghép thêm các detection có độ tin cậy thấp ở lượt thứ hai, còn OC-SORT \cite{cao2023ocsort} hiệu chỉnh trạng thái Kalman bằng các quan sát quanh khoảng trống. Tất cả đều giữ một mô hình chuyển động thiết kế thủ công và quyết định từng cặp track--detection bằng một ngưỡng riêng. Ghép cặp có học với lựa chọn ``không ghép'' đã có trong bài toán ghép ảnh: SuperGlue \cite{sarlin2020superglue} giải bài toán ghép điểm đặc trưng bằng lớp Sinkhorn có thêm một hàng và một cột dustbin. GapLink-Lite chuyển ý tưởng này sang phương tiện sau che khuất; không thành phần nào của các phương pháp trên được dùng lại, và tracker bên thứ ba bị loại trừ theo quy định của đề tài.
+Phần lớn tracker đang triển khai đi theo sơ đồ tracking-by-detection: detector sinh box ở mọi khung hình, bộ lọc Kalman \cite{kalman1960} dự đoán vị trí của mỗi track, và thuật toán Hungarian \cite{kuhn1955hungarian} ghép dự đoán với detection, thường sau bước gating bằng khoảng cách Mahalanobis \cite{mahalanobis1936}. SORT \cite{bewley2016sort} ghép theo IoU và xóa track sau vài khung hình bị bỏ lỡ, nên không tái liên kết được xe sau một lần che khuất thật sự. DeepSORT \cite{wojke2017deepsort} thêm khoảng cách cosine của embedding re-identification, cần một mạng huấn luyện riêng và tốn kém ở độ phân giải thấp của camera giao thông góc rộng. ByteTrack \cite{zhang2022bytetrack} ghép thêm các detection có độ tin cậy thấp ở lượt thứ hai, còn OC-SORT \cite{cao2023ocsort} hiệu chỉnh trạng thái Kalman bằng các quan sát quanh khoảng trống. Tất cả đều giữ một mô hình chuyển động thiết kế thủ công và quyết định từng cặp track--detection bằng một ngưỡng riêng. Ghép cặp có học với lựa chọn ``không ghép'' đã có trong bài toán ghép ảnh: SuperGlue \cite{sarlin2020superglue} giải bài toán ghép điểm đặc trưng bằng lớp Sinkhorn có thêm một hàng và một cột dustbin. GapLink-Lite chuyển ý tưởng này sang bài toán phương tiện sau che khuất.
 
 \subsection{Các Công nghệ Nền tảng}
 \label{sec:bg_tech}
 
-Dự án dựa trên năm thành phần đã được thiết lập vững chắc, tất cả đều được tự cài đặt trong đồ án này:
+Dự án dựa trên năm thành phần đã được kiểm chứng rộng rãi:
 \begin{itemize}
-    \item \textbf{Phát hiện đối tượng.} YOLOv8 \cite{jocher2023yolov8} chỉ được dùng làm detector bên ngoài trong ứng dụng trực tiếp (Giai đoạn~2); nó không thuộc mô hình được huấn luyện.
+    \item \textbf{Phát hiện đối tượng.} YOLOv8 \cite{jocher2023yolov8} cung cấp box phương tiện khi hệ thống chạy trên video thật; đây là detector bên ngoài, không thuộc mô hình được huấn luyện.
     \item \textbf{Mã hóa chuyển động bằng mạng hồi quy.} Gated recurrent unit (GRU) \cite{cho2014gru} tóm tắt quỹ đạo gần đây của một xe bị mất dấu.
     \item \textbf{Mã hóa tập hợp.} DeepSets \cite{zaheer2017deepsets} mã hóa các xe xung quanh theo cách bất biến hoán vị.
     \item \textbf{Vận chuyển tối ưu.} Thuật toán Sinkhorn \cite{sinkhorn1967,cuturi2013sinkhorn} với hàng và cột ``dustbin'' học được, theo cách được SuperGlue \cite{sarlin2020superglue} phổ biến, biến điểm số theo cặp thành một phép gán đồng thời, trong đó track và ứng viên đều có thể không được ghép.
@@ -29,7 +29,7 @@ Dự án dựa trên năm thành phần đã được thiết lập vững chắ
 \subsection{Thách thức Kỹ thuật}
 \label{sec:bg_challenges}
 
-Tái liên kết phương tiện sau một khoảng che khuất $g \in [3, 90]$ khung hình khó vì ba lý do. (i) Ngoại suy vận tốc không đổi bị trôi khi xe phanh, tăng tốc hoặc chuyển làn trong khoảng trống, và sai số tăng theo $g$. (ii) Tracker phải giải bài toán nhiều--nhiều giữa $N$ track bị mất và $M$ ứng viên, trong đó một số track đã rời khung hình và một số ứng viên là xe mới; quyết định tham lam, đặt ngưỡng độc lập cho từng cặp không thể biểu diễn ``không phải xe nào trong số này''. (iii) Giao thông đông (trung bình $8.7$ xe mỗi khung hình trong UA-DETRAC) đặt các xe trông giống nhau gần xe thật, nên một liên kết sai thường có khả năng xảy ra cao hơn việc không liên kết.
+Câu hỏi cốt lõi phát biểu khá đơn giản: khi một xe xuất hiện lại sau khi bị che, đó có phải là một trong các xe tracker đã mất dấu không, nếu phải thì là xe nào --- hay chưa phải xe nào cả? Trả lời đáng tin cậy câu hỏi này sau một khoảng che khuất $g \in [3, 90]$ khung hình là khó vì ba lý do. (i) Ngoại suy vận tốc không đổi bị trôi khi xe phanh, tăng tốc hoặc chuyển làn trong khoảng trống, và sai số tăng theo $g$. (ii) Tracker phải giải bài toán nhiều--nhiều giữa $N$ track bị mất và $M$ ứng viên, trong đó một số track đã rời khung hình và một số ứng viên là xe mới; quyết định tham lam, đặt ngưỡng độc lập cho từng cặp không thể biểu diễn ``không phải xe nào trong số này''. (iii) Giao thông đông (trung bình $8.7$ xe mỗi khung hình trong UA-DETRAC) đặt các xe trông giống nhau gần xe thật, nên một liên kết sai thường có khả năng xảy ra cao hơn việc không liên kết.
 
 \section{Động lực và Mục tiêu}
 \label{sec:motivation_objective}
@@ -37,37 +37,41 @@ Tái liên kết phương tiện sau một khoảng che khuất $g \in [3, 90]$ 
 \subsection{Động lực}
 \label{sec:motivation}
 
-Trong hệ thống giám sát, một liên kết sai tệ hơn một liên kết bị bỏ lỡ. Bỏ lỡ tái liên kết tách một quỹ đạo thành hai, người vận hành vẫn có thể ghép lại. Liên kết sai gộp hai xe khác nhau: quy tắc lộ trình cấm khi đó báo vi phạm cho một xe chưa từng vào vùng xuất phát, hoặc mục tiêu đang khóa âm thầm nhảy sang xe khác. Vì vậy động lực của đồ án không chỉ là tái liên kết được nhiều xe hơn sau che khuất, mà là làm điều đó với \emph{ít liên kết sai hơn} so với phép ghép dựa trên bộ lọc Kalman của các tracker hiện nay, bằng một mô hình đủ nhỏ để chạy cạnh detector trên GPU laptop.
+Trong hệ thống giám sát, một liên kết sai tệ hơn một liên kết bị bỏ lỡ. Bỏ lỡ tái liên kết tách một quỹ đạo thành hai, người vận hành vẫn có thể ghép lại. Liên kết sai gộp hai xe khác nhau: quy tắc lộ trình cấm khi đó báo vi phạm cho một xe chưa từng vào vùng xuất phát, hoặc mục tiêu đang khóa âm thầm nhảy sang xe khác. Vì vậy động lực của đồ án không chỉ là tái liên kết được nhiều xe hơn sau che khuất, mà là làm điều đó với \emph{ít liên kết sai hơn} so với phép ghép dựa trên bộ lọc Kalman của các tracker hiện nay, bằng một mô hình đủ nhỏ để triển khai trên thiết bị biên như camera thông minh hay bộ xử lý đặt cạnh đường, thay vì các mạng re-identification nặng chạy trên máy chủ.
 
 \subsection{Mục tiêu}
 \label{sec:objectives}
 
-\begin{enumerate}
-    \item \textbf{Mô hình.} Thiết kế và huấn luyện \textbf{GapLink-Lite}, mạng tái liên kết tự phát triển, huấn luyện từ khởi tạo ngẫu nhiên với dưới $1$ triệu tham số (bản cuối: $327\,979$), trên bộ benchmark UA-DETRAC \cite{wen2020uadetrac}.
-    \item \textbf{Đánh giá có kiểm soát (Giai đoạn~1).} So sánh với các baseline cổ điển trên box ground-truth với che khuất có kiểm soát, theo các giả thuyết đã đăng ký trước mọi lần chạy test, và đóng băng kết quả.
-    \item \textbf{Ứng dụng (Giai đoạn~2).} Triển khai mô hình đã đóng băng sau detector YOLOv8n trực tiếp và đo, trên che khuất tự nhiên, xem lợi thế có còn với detection thật hay không.
-    \item \textbf{Trình diễn.} Xây dựng bảng điều khiển quản lý video (GapLink-VMS) thể hiện sự khác biệt trên ba nhiệm vụ giám sát: khôi phục danh tính, lộ trình cấm và bám theo mục tiêu.
-\end{enumerate}
-
-\textbf{Các giả thuyết đăng ký trước.} Bản tiền đăng ký cố định bốn tiêu chí; kết quả của chúng (Mục~\ref{sec:experimental_evaluation}) là:
+Mục tiêu chính của đồ án là phát triển một mô hình tái liên kết phương tiện đủ nhỏ để triển khai trên thiết bị biên nhưng vẫn giữ danh tính xe ổn định qua che khuất, để các bài toán giám sát dựa trên danh tính có thể chạy ngay cạnh camera thay vì phụ thuộc vào một mô hình nặng trên máy chủ. Danh tính ổn định là nền tảng của nhiều bài toán thực tế:
 \begin{itemize}
-    \item \textbf{H1} (Top-1 cấp sự kiện trên tập con khó vượt baseline tốt nhất $\ge 3.0$~pp): \textbf{được ủng hộ}, $+7.33$~pp, KTC 95\% $[6.13, 8.77]$.
-    \item \textbf{H2} (độ phủ 90\% sau hiệu chuẩn nằm trong $[85, 95]\%$ ở cả ba nhóm khoảng trống): \textbf{không được ủng hộ}; nhóm khoảng trống dài đạt $95.14\%$ trên tập validation.
-    \item \textbf{H3} (IRR của tracker cao hơn C-2 và C-3 ở $\ge 2/3$ nhóm khoảng trống với $\Delta$WLR $\le +0.5$~pp): \textbf{được ủng hộ} ở 3/3 nhóm.
-    \item \textbf{P1} (kiểm tra giao thức, IRR $< 5\%$ khi không tái liên kết): \textbf{đạt}, $0.00\%$.
+    \item \textbf{Lộ trình cấm và rẽ sai quy định:} phát hiện xe đi vào vùng cấm hoặc rẽ ở nơi không được phép, điều này đòi hỏi cùng một danh tính ở điểm vào và điểm ra của lộ trình.
+    \item \textbf{Khu vực cấm dừng, cấm đỗ:} đo thời gian một xe ở lại trong vùng cấm, kể cả khi dòng xe đi qua che khuất nó vài giây.
+    \item \textbf{Đếm lưu lượng và luồng xuất phát--đích:} đếm xe theo từng hướng di chuyển mà không đếm một xe hai lần sau che khuất.
+    \item \textbf{Bám theo xe nghi vấn:} giữ khóa một xe do người vận hành chọn khi nó đi khuất sau xe buýt, xe tải.
 \end{itemize}
 
-\subsection{Phát biểu Bài toán và Phạm vi}
-\label{sec:problem}
+Các mục tiêu cụ thể gồm:
+\begin{enumerate}
+    \item \textbf{Mô hình tái liên kết gọn nhẹ:} thiết kế và huấn luyện \textbf{GapLink-Lite}, mạng dưới $1$ triệu tham số, huấn luyện từ khởi tạo ngẫu nhiên trên bộ benchmark UA-DETRAC \cite{wen2020uadetrac}, quyết định một xe xuất hiện lại có phải là xe đã mất dấu không, là xe nào, hay không phải xe nào.
+    \item \textbf{Đánh giá có kiểm soát:} so sánh mô hình với các phương pháp ghép cổ điển trên box ground-truth với che khuất có kiểm soát (Giai đoạn~1), theo các tiêu chí cố định trước mọi lần chạy test.
+    \item \textbf{Đánh giá với detector thật:} chạy mô hình sau detector YOLOv8n trên che khuất tự nhiên (Giai đoạn~2) và kiểm tra lợi thế có còn khi detection không hoàn hảo.
+    \item \textbf{Bảng điều khiển trình diễn:} xây dựng bảng điều khiển quản lý video (GapLink-VMS) cho thấy tác động lên việc khôi phục danh tính, lộ trình cấm và bám theo mục tiêu được khóa.
+\end{enumerate}
 
-Tại khung xác nhận $t_{\text{conf}}$, tracker giữ $N \le 6$ track bị mất và $M \le 10$ detection chưa được ghép (ứng viên). Mỗi track bị mất $i$ được mô tả bằng $K \le 20$ box cuối, khoảng trống $g_i = t_{\text{conf}} - t_{\text{lost},i}$, một histogram màu và tối đa $8$ xe lân cận; mỗi ứng viên được mô tả bằng box, histogram của vùng nhìn thấy và các xe lân cận. Nhãn của track $i$ là $y_i \in \{1,\dots,M\} \cup \{\varnothing\}$, trong đó $\varnothing$ nghĩa là không ứng viên nào là cùng xe (vẫn bị che, đã rời khung hình hoặc bị detector bỏ sót). Mô hình phải đưa ra một phép gán một--một từng phần tối đa hóa số quyết định đúng, kể cả quyết định ``không ghép'' đúng, đồng thời giữ \emph{liên kết sai} ($\hat{y}_i = j \ne y_i$) ở mức hiếm.
+\textbf{Các giả thuyết đăng ký trước.} Trước khi huấn luyện bất kỳ mô hình nào, bốn tiêu chí đã được cố định:
+\begin{itemize}
+    \item \textbf{H1:} trên các sự kiện khó, khi có một xe trông giống đứng gần xe thật, GapLink-Lite chọn đúng ứng viên thường xuyên hơn baseline cổ điển tốt nhất ít nhất $3.0$ điểm phần trăm.
+    \item \textbf{H2:} sau hiệu chuẩn, elip dự đoán 90\% chứa vị trí xuất hiện lại thật trong khoảng $85\%$ đến $95\%$ số trường hợp, như nhau cho che khuất ngắn, trung bình và dài.
+    \item \textbf{H3:} bên trong tracker trực tuyến, GapLink-Lite khôi phục danh tính xe bị che thường xuyên hơn các baseline vận tốc không đổi và Kalman ở ít nhất hai trong ba nhóm độ dài che khuất, mà không làm tăng liên kết sai quá $0.5$ điểm phần trăm.
+    \item \textbf{P1:} để kiểm tra chính giao thức, một tracker không có tái liên kết phải khôi phục dưới $5\%$ danh tính.
+\end{itemize}
 
-Đồ án tập trung vào camera giao thông cố định đặt trên cao; ô tô con, xe van, xe buýt và xe tải; và che khuất dài $3$--$90$ khung hình ($0.12$--$3.6$~s ở $25$~fps), chỉ dùng box và histogram màu để mô hình có thể đặt sau bất kỳ detector nào. Xe máy và người đi bộ (UA-DETRAC không có nhãn danh tính cho chúng), camera chuyển động, nhận dạng biển số hay khuôn mặt, chuyển giao giữa nhiều camera và quyết định xử phạt tự động nằm ngoài phạm vi.
+Đồ án giới hạn ở camera giao thông cố định đặt trên cao; ô tô con, xe van, xe buýt và xe tải; và che khuất dài $3$--$90$ khung hình ($0.12$--$3.6$~s ở $25$~fps). Mô hình chỉ dùng box và histogram màu nên có thể đặt sau bất kỳ detector nào. Xe máy và người đi bộ, camera chuyển động, nhận dạng biển số hay khuôn mặt, chuyển giao giữa nhiều camera và quyết định xử phạt tự động nằm ngoài phạm vi.
 
 \section{Thành viên và Phân công Vai trò}
 \label{sec:members_roles}
 
-Đây là đồ án capstone cá nhân (Bảng~\ref{tab:team_roles}). Bảng~\ref{tab:contributions} tách các thành phần do đồ án tự phát triển khỏi dữ liệu và thư viện bên ngoài.
+Đây là đồ án capstone cá nhân (Bảng~\ref{tab:team_roles}).
 
 \begin{table}[H]
     \centering
@@ -77,27 +81,7 @@ Tại khung xác nhận $t_{\text{conf}}$, tracker giữ $N \le 6$ track bị m�
         \toprule
         \textbf{STT} & \textbf{Thành viên} & \textbf{Vai trò và trách nhiệm} \\
         \midrule
-        1 & \memberOne & Chủ nhiệm đồ án: xác định bài toán và tiền đăng ký; chuyển đổi dữ liệu và chia theo địa điểm camera; thiết kế, cài đặt và huấn luyện GapLink-Lite; baseline và đánh giá; fine-tune thích ứng detector; ứng dụng GapLink-VMS và demo; báo cáo. \\
-        \bottomrule
-    \end{tabularx}
-\end{table}
-
-\begin{table}[H]
-    \centering
-    \caption{Thành phần tự phát triển và tài nguyên bên ngoài}
-    \label{tab:contributions}
-    \begin{tabularx}{\textwidth}{p{4.0cm} p{2.6cm} X}
-        \toprule
-        \textbf{Thành phần} & \textbf{Nguồn gốc} & \textbf{Ghi chú} \\
-        \midrule
-        Video và nhãn UA-DETRAC & Bên ngoài & $100$ chuỗi, $960\times540$, 25~fps \cite{wen2020uadetrac} \\
-        Detector YOLOv8n & Bên ngoài & Dùng nguyên trạng làm detector trực tiếp (Giai đoạn~2 và demo) \cite{jocher2023yolov8} \\
-        PyTorch, OpenCV, SciPy, FastAPI & Bên ngoài & Chỉ là thư viện; mô hình lõi không dùng trọng số pretrained \\
-        Bộ chuyển đổi dữ liệu và chia theo địa điểm & Tự phát triển & Làm sạch vùng bỏ qua, 25 cụm camera, chia tách rời theo địa điểm \\
-        Mạng GapLink-Lite & Tự phát triển & GRU + DeepSets + Gaussian predictor + pairwise/dustbin scorer + log-Sinkhorn, $327\,979$ tham số, khởi tạo ngẫu nhiên \\
-        Baseline C-1 \dots C-4 & Tự phát triển & IoU, vận tốc không đổi, Kalman + Mahalanobis, Kalman + kích thước + màu \\
-        Tracker trực tuyến và độ đo & Tự phát triển & Tracker hai tầng; IRR, WLR, IDF1, MOTA, IDSW; bootstrap theo địa điểm \\
-        GapLink-VMS & Tự phát triển & Bảng điều khiển web, chấm tái liên kết, lộ trình và khóa mục tiêu theo GT \\
+        1 & \memberOne & Chủ nhiệm đồ án: xác định bài toán và tiền đăng ký; chuyển đổi dữ liệu và chia theo địa điểm camera; thiết kế, cài đặt và huấn luyện GapLink-Lite; baseline và đánh giá; tinh chỉnh cho YOLOv8n; ứng dụng GapLink-VMS và demo; báo cáo. \\
         \bottomrule
     \end{tabularx}
 \end{table}
@@ -117,11 +101,11 @@ Dự án được thực hiện từ ngày 15 đến 21 tháng 11 năm 2026 theo
         \midrule
         G1 & 15/11 & Chuyển đổi và làm sạch UA-DETRAC; 25 cụm camera; chia tách rời theo địa điểm; histogram HSV 5 góc nhìn & Hoàn thành \\
         G2 & 15/11 & Bộ lấy mẫu sự kiện dùng chung; tập sự kiện validation ($6\,000$) và test ($12\,000$) cố định, đã băm & Hoàn thành \\
-        G3 & 15/11 & Cài đặt GapLink-Lite; unit test; kiểm tra overfit 64 sự kiện ($100\%$ Top-1) & Hoàn thành \\
+        G3 & 15/11 & Cài đặt GapLink-Lite; unit test; kiểm tra nhanh: học thuộc hoàn toàn 64 sự kiện & Hoàn thành \\
         G4 & 15--16/11 & 5 seed mô hình đầy đủ và 3 ablation (20 lần chạy GPU); hiệu chuẩn trên validation & Hoàn thành \\
         G5--G6 & 16/11 & Chọn ngưỡng trên validation; đóng băng checkpoint; một lần chạy test Giai đoạn~1 đã khóa & Hoàn thành \\
         G7 & 18--20/11 & GapLink-VMS với YOLOv8n trực tiếp & Hoàn thành \\
-        G8 & 21/11 & Checkpoint thích ứng detector; điểm vận hành trực tiếp trên validation; một lần chạy test trực tiếp; demo ba video & Hoàn thành \\
+        G8 & 21/11 & Tinh chỉnh mô hình cho YOLOv8n; chọn điểm vận hành trên validation; một lần chạy test trực tiếp; demo ba video & Hoàn thành \\
         \bottomrule
     \end{tabularx}
 \end{table}

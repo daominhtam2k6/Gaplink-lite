@@ -20,7 +20,7 @@
 
 Các hạn chế ở Mục~\ref{sec:limitations} gợi ra những hướng sau:
 \begin{itemize}
-    \item \textbf{Tỉ lệ liên kết sai trực tiếp dưới 5\%.} Huấn luyện mô hình thích ứng detector với nhiều seed, thêm sự kiện detector với số ca xuất hiện lại cân bằng hơn (hiện $94.6\%$ dòng track bị mất là ca không có cặp ghép) và một đầu độ bất định được huấn luyện trên nhiễu detector.
+    \item \textbf{Tỉ lệ liên kết sai trực tiếp dưới 5\%.} Tinh chỉnh mô hình cho YOLOv8n với nhiều seed, thêm sự kiện detector với số ca xuất hiện lại cân bằng hơn (hiện $94.6\%$ dòng track bị mất là ca không có cặp ghép) và một đầu độ bất định được huấn luyện trên nhiễu detector.
     \item \textbf{Xe máy và giao thông hỗn hợp.} Huấn luyện và đánh giá trên dữ liệu tracking có danh tính xe máy (ví dụ VisDrone-MOT \cite{zhu2021visdrone}) để bao phủ giao thông đô thị Việt Nam.
     \item \textbf{Kiểm định bên ngoài.} Đánh giá trên dữ liệu camera mới có chú thích và so với các bản cài đặt tham chiếu của ByteTrack và OC-SORT.
     \item \textbf{Dự đoán đa mode.} Thay Gaussian đơn bằng hỗn hợp 2--3 thành phần để biểu diễn việc rẽ tại nút giao trong các khoảng che khuất dài.

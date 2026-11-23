@@ -20,7 +20,7 @@ The project delivers a working re-association model and a console that shows its
 
 The limitations in Section~\ref{sec:limitations} point to the following directions:
 \begin{itemize}
-    \item \textbf{Live wrong-link rate under 5\%.} Train the detector-aware model with several seeds, more detector events with balanced re-appearances (currently $94.6\%$ of lost-track rows are no-match cases) and an uncertainty head trained on detector noise.
+    \item \textbf{Live wrong-link rate under 5\%.} Tune the model for YOLOv8n with several seeds, more detector events with balanced re-appearances (currently $94.6\%$ of lost-track rows are no-match cases) and an uncertainty head trained on detector noise.
     \item \textbf{Motorcycles and mixed traffic.} Train and evaluate on tracking data with motorcycle identities (for example VisDrone-MOT \cite{zhu2021visdrone}) to cover Vietnamese urban traffic.
     \item \textbf{External validation.} Evaluate on new, annotated camera footage and against reference implementations of ByteTrack and OC-SORT.
     \item \textbf{Multi-modal prediction.} Replace the single Gaussian by a mixture of 2--3 components to represent turns at intersections during long occlusions.

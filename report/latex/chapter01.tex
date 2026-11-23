@@ -12,14 +12,14 @@ Traffic cameras are now installed at most major intersections, expressways and p
 \subsection{Current Practice in Vehicle Tracking}
 \label{sec:bg_practice}
 
-Most deployed trackers follow the tracking-by-detection scheme: a detector produces boxes in every frame, a Kalman filter \cite{kalman1960} predicts where each track should be, and the Hungarian algorithm \cite{kuhn1955hungarian} matches predictions to detections, often after gating with the Mahalanobis distance \cite{mahalanobis1936}. SORT \cite{bewley2016sort} matches by IoU and deletes a track after a few missed frames, so it cannot re-link a vehicle after a real occlusion. DeepSORT \cite{wojke2017deepsort} adds the cosine distance of a re-identification embedding, which needs a separately trained network and is costly at the low resolution of wide-angle traffic cameras. ByteTrack \cite{zhang2022bytetrack} also associates low-confidence detections in a second pass, and OC-SORT \cite{cao2023ocsort} corrects the Kalman state with the observations around the gap. All of them keep a hand-designed motion model and decide each track--detection pair with its own threshold. Learned matching with a ``no match'' option exists in image matching: SuperGlue \cite{sarlin2020superglue} solves keypoint matching with a Sinkhorn layer extended by a dustbin row and column. GapLink-Lite transfers this idea to vehicles after occlusion; no component of these methods is reused, and third-party trackers were excluded by the project rules.
+Most deployed trackers follow the tracking-by-detection scheme: a detector produces boxes in every frame, a Kalman filter \cite{kalman1960} predicts where each track should be, and the Hungarian algorithm \cite{kuhn1955hungarian} matches predictions to detections, often after gating with the Mahalanobis distance \cite{mahalanobis1936}. SORT \cite{bewley2016sort} matches by IoU and deletes a track after a few missed frames, so it cannot re-link a vehicle after a real occlusion. DeepSORT \cite{wojke2017deepsort} adds the cosine distance of a re-identification embedding, which needs a separately trained network and is costly at the low resolution of wide-angle traffic cameras. ByteTrack \cite{zhang2022bytetrack} also associates low-confidence detections in a second pass, and OC-SORT \cite{cao2023ocsort} corrects the Kalman state with the observations around the gap. All of them keep a hand-designed motion model and decide each track--detection pair with its own threshold. Learned matching with a ``no match'' option exists in image matching: SuperGlue \cite{sarlin2020superglue} solves keypoint matching with a Sinkhorn layer extended by a dustbin row and column. GapLink-Lite transfers this idea to vehicles after occlusion.
 
 \subsection{Foundational Technologies}
 \label{sec:bg_tech}
 
-The project builds on five well-established components, all implemented from scratch in this work:
+The project builds on five well-established components:
 \begin{itemize}
-    \item \textbf{Object detection.} YOLOv8 \cite{jocher2023yolov8} is used only as the external detector in the live application (Phase~2); it is not part of the trained model.
+    \item \textbf{Object detection.} YOLOv8 \cite{jocher2023yolov8} provides the vehicle boxes when the system runs on real video; it is used as an external detector and is not part of the trained model.
     \item \textbf{Recurrent motion encoding.} A gated recurrent unit (GRU) \cite{cho2014gru} summarises the recent trajectory of a lost vehicle.
     \item \textbf{Set encoding.} DeepSets \cite{zaheer2017deepsets} encodes the surrounding vehicles in a permutation-invariant way.
     \item \textbf{Optimal transport.} The Sinkhorn algorithm \cite{sinkhorn1967,cuturi2013sinkhorn} with a learnable ``dustbin'' row and column, as popularised by SuperGlue \cite{sarlin2020superglue}, turns pairwise scores into a joint assignment in which tracks and candidates may also remain unmatched.
@@ -29,7 +29,7 @@ The project builds on five well-established components, all implemented from scr
 \subsection{Technical Challenges}
 \label{sec:bg_challenges}
 
-Re-associating vehicles after an occlusion of $g \in [3, 90]$ frames is difficult for three reasons. (i) Constant-velocity extrapolation drifts when the vehicle brakes, accelerates or changes lanes during the gap, and the error grows with $g$. (ii) The tracker must solve a many-to-many problem between $N$ lost tracks and $M$ candidates, where some tracks have left the camera view and some candidates are new vehicles; a greedy, independently thresholded decision per pair cannot express ``none of these''. (iii) Dense traffic (on average $8.7$ vehicles per frame in UA-DETRAC) places look-alike vehicles near the true one, so a wrong link is often more likely than no link.
+The core question is simple to state: when a vehicle re-appears after being hidden, is it one of the vehicles the tracker lost, and if so which one --- or none of them yet? Answering it reliably after an occlusion of $g \in [3, 90]$ frames is difficult for three reasons. (i) Constant-velocity extrapolation drifts when the vehicle brakes, accelerates or changes lanes during the gap, and the error grows with $g$. (ii) The tracker must solve a many-to-many problem between $N$ lost tracks and $M$ candidates, where some tracks have left the camera view and some candidates are new vehicles; a greedy, independently thresholded decision per pair cannot express ``none of these''. (iii) Dense traffic (on average $8.7$ vehicles per frame in UA-DETRAC) places look-alike vehicles near the true one, so a wrong link is often more likely than no link.
 
 \section{Motivation and Objective}
 \label{sec:motivation_objective}
@@ -37,37 +37,41 @@ Re-associating vehicles after an occlusion of $g \in [3, 90]$ frames is difficul
 \subsection{Motivation}
 \label{sec:motivation}
 
-In a surveillance system a wrong link is worse than a missed one. A missed re-link splits one trajectory into two, which an operator can still reconcile. A wrong link merges two different vehicles: the forbidden-route rule then fires for a vehicle that never entered the restricted origin, or a locked target silently jumps to another car. The motivation of this project is therefore not only to re-link more vehicles after occlusion, but to do so with \emph{fewer wrong links} than the Kalman-filter association used by today's trackers, using a model small enough to run next to the detector on a laptop GPU.
+In a surveillance system a wrong link is worse than a missed one. A missed re-link splits one trajectory into two, which an operator can still reconcile. A wrong link merges two different vehicles: the forbidden-route rule then fires for a vehicle that never entered the restricted origin, or a locked target silently jumps to another car. The motivation of this project is therefore not only to re-link more vehicles after occlusion, but to do so with \emph{fewer wrong links} than the Kalman-filter association used by today's trackers, using a model small enough to be deployed on edge devices, such as smart cameras or roadside processing units, instead of the heavy re-identification networks used in server-side systems.
 
 \subsection{Objectives}
 \label{sec:objectives}
 
-\begin{enumerate}
-    \item \textbf{Model.} Design and train \textbf{GapLink-Lite}, a self-developed re-association network trained from random initialisation with fewer than $1$ million parameters (final: $327{,}979$), on the UA-DETRAC benchmark \cite{wen2020uadetrac}.
-    \item \textbf{Controlled evaluation (Phase~1).} Compare it with classical baselines on ground-truth boxes with controlled occlusions, under hypotheses pre-registered before any test run, and freeze the result.
-    \item \textbf{Application (Phase~2).} Deploy the frozen model behind a live YOLOv8n detector and measure, on natural occlusions, whether the advantage survives real detections.
-    \item \textbf{Demonstration.} Build a video management console (GapLink-VMS) that shows the difference on three surveillance tasks: identity recovery, forbidden routes and target following.
-\end{enumerate}
-
-\textbf{Pre-registered hypotheses.} The pre-registration fixed four criteria; their outcomes (Section~\ref{sec:experimental_evaluation}) are:
+The primary objective of this project is to develop a vehicle re-association model that is small enough for edge deployment yet keeps vehicle identities reliable through occlusions, so that identity-based traffic surveillance can run next to the camera instead of relying on a heavy model on a server. Stable identities are what several practical tasks depend on:
 \begin{itemize}
-    \item \textbf{H1} (event Top-1 on the hard subset exceeds the best baseline by $\ge 3.0$~pp): \textbf{supported}, $+7.33$~pp, 95\% CI $[6.13, 8.77]$.
-    \item \textbf{H2} (calibrated 90\% coverage in $[85, 95]\%$ in all three gap bins): \textbf{not supported}; the long-gap bin reaches $95.14\%$ on validation.
-    \item \textbf{H3} (tracker IRR above C-2 and C-3 in $\ge 2/3$ gap bins with $\Delta$WLR $\le +0.5$~pp): \textbf{supported} in 3/3 bins.
-    \item \textbf{P1} (protocol check, IRR $< 5\%$ without re-association): \textbf{passed}, $0.00\%$.
+    \item \textbf{Forbidden routes and illegal turns:} detecting vehicles that enter a restricted zone or turn where they should not, which requires the same identity at the entry and at the exit of the manoeuvre.
+    \item \textbf{No-stopping and no-parking zones:} measuring how long a vehicle stays in a restricted area, even when passing traffic hides it for a few seconds.
+    \item \textbf{Traffic counting and origin--destination flows:} counting vehicles per movement without counting the same vehicle twice after an occlusion.
+    \item \textbf{Following a suspect vehicle:} keeping an operator-selected vehicle locked while it passes behind buses and trucks.
 \end{itemize}
 
-\subsection{Problem Formulation and Scope}
-\label{sec:problem}
+The specific objectives are as follows:
+\begin{enumerate}
+    \item \textbf{Compact re-association model:} design and train \textbf{GapLink-Lite}, a network of fewer than $1$ million parameters trained from random initialisation on the UA-DETRAC benchmark \cite{wen2020uadetrac}, that decides whether a re-appearing vehicle is a lost one, and which, or none of them.
+    \item \textbf{Controlled evaluation:} compare the model with classical association methods on ground-truth boxes with controlled occlusions (Phase~1), under criteria fixed before any test run.
+    \item \textbf{Evaluation with a real detector:} run the model behind a YOLOv8n detector on natural occlusions (Phase~2) and check that the advantage holds with imperfect detections.
+    \item \textbf{Demonstration console:} build a video management console (GapLink-VMS) that shows the effect on identity recovery, a forbidden route and the following of a locked target.
+\end{enumerate}
 
-At a confirmation frame $t_{\text{conf}}$ the tracker holds $N \le 6$ lost tracks and $M \le 10$ unmatched detections (candidates). Each lost track $i$ is described by its last $K \le 20$ boxes, its gap $g_i = t_{\text{conf}} - t_{\text{lost},i}$, a colour histogram and up to $8$ neighbouring vehicles; each candidate by its box, the histogram of its visible crop and its neighbours. The label of track $i$ is $y_i \in \{1,\dots,M\} \cup \{\varnothing\}$, where $\varnothing$ means that no candidate is the same vehicle (still hidden, left the view or missed by the detector). The model must output a partial one-to-one assignment that maximises correct decisions, including correct ``no match'' decisions, while keeping \emph{wrong links} ($\hat{y}_i = j \ne y_i$) rare.
+\textbf{Pre-registered hypotheses.} Before any model was trained, four criteria were fixed:
+\begin{itemize}
+    \item \textbf{H1:} on the hard events, where a look-alike vehicle is close to the true one, GapLink-Lite chooses the correct candidate at least $3.0$ percentage points more often than the best classical baseline.
+    \item \textbf{H2:} after calibration, the 90\% prediction ellipse contains the true re-appearance position between $85\%$ and $95\%$ of the time, for short, medium and long occlusions alike.
+    \item \textbf{H3:} inside the online tracker, GapLink-Lite restores the identity of occluded vehicles more often than the constant-velocity and Kalman baselines in at least two of the three occlusion-length groups, without increasing wrong links by more than $0.5$ percentage points.
+    \item \textbf{P1:} as a check of the protocol itself, a tracker without any re-association must restore fewer than $5\%$ of the identities.
+\end{itemize}
 
-The project covers fixed, elevated traffic cameras; cars, vans, buses and trucks; and occlusions of $3$--$90$ frames ($0.12$--$3.6$~s at $25$~fps), using only boxes and colour histograms so that the model can sit behind any detector. Motorcycles and pedestrians (no identity labels in UA-DETRAC), moving cameras, licence-plate or face recognition, multi-camera hand-over and automatic enforcement decisions are out of scope.
+The project is limited to fixed, elevated traffic cameras; cars, vans, buses and trucks; and occlusions of $3$--$90$ frames ($0.12$--$3.6$~s at $25$~fps). The model uses only boxes and colour histograms, so it can sit behind any detector. Motorcycles and pedestrians, moving cameras, licence-plate or face recognition, hand-over between cameras and automatic enforcement decisions are outside its scope.
 
 \section{Members and Role Assignments}
 \label{sec:members_roles}
 
-This is an individual capstone project (Table~\ref{tab:team_roles}). Table~\ref{tab:contributions} separates the components developed in this project from external data and libraries.
+This is an individual capstone project (Table~\ref{tab:team_roles}).
 
 \begin{table}[H]
     \centering
@@ -77,30 +81,11 @@ This is an individual capstone project (Table~\ref{tab:team_roles}). Table~\ref{
         \toprule
         \textbf{No.} & \textbf{Member} & \textbf{Role and responsibilities} \\
         \midrule
-        1 & \memberOne & Project owner: problem definition and pre-registration; data conversion and camera-location split; design, implementation and training of GapLink-Lite; baselines and evaluation; detector-aware fine-tuning; GapLink-VMS application and demo; report. \\
+        1 & \memberOne & Project owner: problem definition and pre-registration; data conversion and camera-location split; design, implementation and training of GapLink-Lite; baselines and evaluation; tuning for YOLOv8n; GapLink-VMS application and demo; report. \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
-\begin{table}[H]
-    \centering
-    \caption{Self-developed components and external resources}
-    \label{tab:contributions}
-    \begin{tabularx}{\textwidth}{p{4.0cm} p{2.6cm} X}
-        \toprule
-        \textbf{Component} & \textbf{Origin} & \textbf{Notes} \\
-        \midrule
-        UA-DETRAC videos and labels & External & $100$ sequences, $960\times540$, 25~fps \cite{wen2020uadetrac} \\
-        YOLOv8n detector & External & Used unchanged as the live detector (Phase~2 and demo) \cite{jocher2023yolov8} \\
-        PyTorch, OpenCV, SciPy, FastAPI & External & Libraries only; no pretrained weights in the core model \\
-        Data converter and location split & Self-developed & Ignore-region cleaning, 25 camera clusters, location-disjoint split \\
-        GapLink-Lite network & Self-developed & GRU + DeepSets + Gaussian predictor + pairwise/dustbin scorer + log-Sinkhorn, $327{,}979$ parameters, random initialisation \\
-        Baselines C-1 \dots C-4 & Self-developed & IoU, constant velocity, Kalman + Mahalanobis, Kalman + size + colour \\
-        Online tracker and metrics & Self-developed & Two-stage tracker; IRR, WLR, IDF1, MOTA, IDSW; location bootstrap \\
-        GapLink-VMS & Self-developed & Web console, GT-based judging of re-links, routes and target lock \\
-        \bottomrule
-    \end{tabularx}
-\end{table}
 
 \section{Schedule and Milestones}
 \label{sec:schedule_milestones}
@@ -117,11 +102,11 @@ The project was executed between 15 and 21 November 2026 as a sequence of verifi
         \midrule
         G1 & 15/11 & UA-DETRAC converted and cleaned; 25 camera clusters; location-disjoint split; 5-view HSV histograms & Completed \\
         G2 & 15/11 & Shared event sampler; fixed and hashed validation ($6{,}000$) and test ($12{,}000$) event sets & Completed \\
-        G3 & 15/11 & GapLink-Lite implemented; unit tests; 64-event overfit check ($100\%$ Top-1) & Completed \\
+        G3 & 15/11 & GapLink-Lite implemented; unit tests; quick check: 64 events learned perfectly & Completed \\
         G4 & 15--16/11 & 5 seeds of the full model and 3 ablations (20 GPU runs); calibration on validation & Completed \\
         G5--G6 & 16/11 & Thresholds selected on validation; checkpoint frozen; single locked Phase-1 test run & Completed \\
         G7 & 18--20/11 & GapLink-VMS with live YOLOv8n & Completed \\
-        G8 & 21/11 & Detector-aware checkpoint; live operating points on validation; single live test run; three-video demo & Completed \\
+        G8 & 21/11 & Model tuned for YOLOv8n; operating points chosen on validation; single live test run; three-video demo & Completed \\
         \bottomrule
     \end{tabularx}
 \end{table}

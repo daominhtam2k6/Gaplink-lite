@@ -2,7 +2,7 @@
 \chapter{Source Code and Implementation Details}
 \label{app:code}
 
-This appendix gives key excerpts of the implementation: the training step, the Sinkhorn layer with dustbins, the assignment loss, the acceptance rule of the re-association decision, and the verdicts used by the console to judge its events against ground truth.
+This appendix gives key excerpts of the implementation: the training step, the Sinkhorn layer with dustbins and the acceptance rule of the re-association decision.
 
 \section{Training Loop}
 Each step samples a batch of synthetic occlusion events with a growing share of hard events, and optimises the assignment and Gaussian losses with AdamW, linear warm-up and cosine decay.
@@ -48,21 +48,6 @@ def log_sinkhorn(S, z_t, z_c, trk_mask, cand_mask, iters=20):
     return log_alpha
 \end{lstlisting}
 
-\section{Assignment Loss}
-\begin{lstlisting}[language=Python, caption={Negative log-likelihood of the true assignment}, label={lst:assign_loss}]
-def assignment_loss(logP, label, cand_label, tm, cm):
-    B, N1, M1 = logP.shape
-    N, M = N1 - 1, M1 - 1
-    # lost track -> its true candidate, or the dustbin column if it has none
-    t_target = torch.where(label >= 0, label, torch.full_like(label, M)).clamp(0, M)
-    row_logp = logP[:, :N, :].gather(2, t_target.unsqueeze(-1)).squeeze(-1)
-    loss_t, n_t = -(row_logp * tm.float()).sum(), tm.float().sum().clamp(min=1.0)
-    # candidate without a lost track -> dustbin row
-    unmatched_c = cm & (cand_label < 0)
-    loss_c = -(logP[:, N, :M] * unmatched_c.float()).sum()
-    return (loss_t + loss_c) / (n_t + unmatched_c.float().sum())
-\end{lstlisting}
-
 \section{Re-Association Decision}
 \begin{lstlisting}[language=Python, caption={Accepting a link only if it beats the threshold and the dustbin}, label={lst:decide}]
 def decide(self, ev):
@@ -77,24 +62,6 @@ def decide(self, ev):
         if P_real[r, c] >= self.tau and P_real[r, c] > P_dust[r]:
             out[r] = int(c)
     return out
-\end{lstlisting}
-
-\section{Judging Console Events Against Ground Truth}
-\begin{lstlisting}[language=Python, caption={Re-link and route verdicts used by the console}, label={lst:judge}]
-# re-link after a gap of >= MIN_GAP frames: same real vehicle before and after?
-g0, g1 = lost_info[tid]["gt"], entry["gt_tid_after"]
-verdict = "unk" if (g0 < 0 or g1 < 0) else ("ok" if g0 == g1 else "wrong")
-
-# a new track whose real vehicle is still owned by a lost track -> "new ID"
-if owner is not None and owner != tid and owner in live_lost and gap >= MIN_GAP:
-    counts["missed"] += 1
-
-# forbidden route Z_A -> Z_B
-def judge(alert, zone_a):
-    g0, g1 = alert["origin_gt_tid"], alert["dest_gt_tid"]
-    if g1 < 0:  return "unk"
-    if g0 == g1: return "ok"                                   # correct ID
-    return "wrong_id" if visited(g1, zone_a, alert["frame"]) else "false"
 \end{lstlisting}
 
 \chapter{Configurations}
@@ -115,7 +82,7 @@ def judge(alert, zone_a):
         Acceptance Gate $\tau$ & $0.25$ & Selected on validation under WLR $\le 5.0\%$ rule \\
         Calibration $(a, b, c)$ & $(0.413, -0.341, 0.074)$ & Fitted on val half-A; test Cov90 $= 90.22\%$ \\
         \midrule
-        Live checkpoint (Phase 2) & v1.3 & Fine-tuned from the frozen model, $3{,}000$ steps (best at $1{,}500$), $70/30$ detector/pool events \\
+        Model tuned for YOLOv8n & --- & Fine-tuned from the main model, $3{,}000$ steps (best at $1{,}500$), $70/30$ detector/pool events \\
         Live operating points & $\tau=0.65$ & Selected on $13$ validation videos (C-2 $\theta=1.2$, C-3 $\theta=1.0$, C-4 $\theta=1.2$) \\
         \bottomrule
     \end{tabularx}
@@ -151,7 +118,7 @@ def judge(alert, zone_a):
         \textbf{Setting} & \textbf{Value} & \textbf{Notes} \\
         \midrule
         Detector & YOLOv8n, input size $640$, conf.\ $0.28$ & Detections cached per clip \\
-        Baseline / model & C-3 ($\theta = 1.0$) / GapLink-Lite v1.3 ($\tau = 0.65$) & Live operating points selected on validation \\
+        Baseline / model & C-3 ($\theta = 1.0$) / tuned GapLink-Lite ($\tau = 0.65$) & Live operating points selected on validation \\
         Track confirmation & $3$ hits & Same for both panes \\
         Re-link judging & gap $\ge 3$ frames, GT IoU $\ge 0.45$ & Post hoc; never used by the trackers \\
         GapLink-Lite device & CPU, 1 thread & Fastest on the RTX 3050 laptop (Section~\ref{sec:rule_tuning}) \\

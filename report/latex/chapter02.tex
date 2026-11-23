@@ -7,7 +7,7 @@
 \subsection{Data Sources}
 \label{sec:data_sources}
 
-The project uses one public benchmark, \textbf{UA-DETRAC} \cite{wen2020uadetrac}: $100$ real traffic videos recorded at $25$~fps and $960 \times 540$ pixels by fixed, elevated cameras at roads and intersections, with box and identity annotations for every vehicle. It is the standard benchmark for multi-vehicle tracking from a surveillance viewpoint, which is exactly the setting of this project. The official split ($60$ training and $40$ test sequences) is kept, and the $40$ test sequences are used only for the locked test runs. Two further data products are derived from the same videos: \emph{occlusion events} sampled from ground-truth trajectories (Phase~1), and \emph{detector events} built by running YOLOv8n \cite{jocher2023yolov8} and the online tracker on the training videos (Phase~2 fine-tuning).
+The project uses one public benchmark, \textbf{UA-DETRAC} \cite{wen2020uadetrac}: $100$ real traffic videos recorded at $25$~fps and $960 \times 540$ pixels by fixed, elevated cameras at roads and intersections, with box and identity annotations for every vehicle. It is the standard benchmark for multi-vehicle tracking from a surveillance viewpoint, which is exactly the setting of this project. The official split ($60$ training and $40$ test sequences) is kept, and the $40$ test sequences are used only for the locked test runs. Two further data products are derived from the same videos: \emph{occlusion events} sampled from ground-truth trajectories, used to train the model, and \emph{detector events} built by running YOLOv8n \cite{jocher2023yolov8} and the online tracker on the training videos, used to tune the model to real detections.
 
 \subsection{Data Collection}
 \label{sec:data_collection}
@@ -17,7 +17,7 @@ The raw annotations were converted to the MOT text format. The source mirror sto
 \subsection{Data Annotation}
 \label{sec:data_annotation}
 
-No manual labelling was required: every vehicle box in UA-DETRAC carries a trajectory identity, which gives the label of every occlusion event (which candidate, if any, is the same vehicle as each lost track) and the ground truth of every evaluation. For detector events and demonstration clips, each YOLOv8n box is matched afterwards to a ground-truth box by the Hungarian algorithm with IoU $\ge 0.45$; this \emph{post-hoc} label is used for scoring and fine-tuning only and never enters a tracker.
+No manual labelling was required: every vehicle box in UA-DETRAC carries a trajectory identity, which gives the label of every occlusion event (which candidate, if any, is the same vehicle as each lost track) and the ground truth of every evaluation. For detector events and demonstration clips, each YOLOv8n box is matched afterwards to a ground-truth box by the Hungarian algorithm with IoU $\ge 0.45$; this \emph{post-hoc} label is used only for scoring and for tuning the model to YOLOv8n and never enters a tracker.
 
 \subsection{Dataset Statistics}
 \label{sec:dataset_stats}
@@ -65,7 +65,7 @@ UA-DETRAC contains cars, vans, buses and other large vehicles recorded in Chines
 \subsection{Overview of Trained and Non-Trained Components}
 \label{sec:trained_components}
 
-Only the re-association network is trained (Table~\ref{tab:trained_components}); detection, the first tracking stage and the surveillance rules are fixed algorithms or external models.
+Only the re-association network is trained (Table~\ref{tab:trained_components}). The data and the detector come from outside the project, the first tracking stage and the surveillance rules are fixed algorithms, and the remaining components were implemented in this project.
 
 \begin{table}[H]
     \centering
@@ -76,12 +76,14 @@ Only the re-association network is trained (Table~\ref{tab:trained_components});
         \textbf{Component} & \textbf{Trained?} & \textbf{Approach} \\
         \midrule
         GapLink-Lite re-association & Yes & Self-developed network, random initialisation, $327{,}979$ parameters \\
-        Detector-aware checkpoint (v1.3) & Yes & Fine-tuned from the frozen model on detector events of the training videos \\
+        GapLink-Lite tuned for YOLOv8n & Yes & Main model fine-tuned on events produced by YOLOv8n on the training videos \\
         Calibration of $\sigma$ & Fitted & Gap-dependent scale $(a,b,c)$ fitted on validation half~A \\
-        Vehicle detector & No & YOLOv8n \cite{jocher2023yolov8}, used unchanged (Phase~2 and demo only) \\
+        Vehicle detector & No & YOLOv8n \cite{jocher2023yolov8}, external, used unchanged on real video \\
         Stage-1 tracking & No & IoU + Hungarian matching \cite{kuhn1955hungarian} \\
         Baselines C-1 \dots C-4 & No & IoU, constant velocity, Kalman \cite{kalman1960} + Mahalanobis \cite{mahalanobis1936}, + size and colour \\
         Surveillance rules & No & Zone polygons, route and target-lock logic, GT-based judging \\
+        Dataset & --- & UA-DETRAC videos and labels \cite{wen2020uadetrac}, external, cleaned in this project \\
+        Software libraries & --- & PyTorch, OpenCV, SciPy, FastAPI, external; no pretrained weights inside GapLink-Lite \\
         \bottomrule
     \end{tabularx}
 \end{table}
@@ -89,18 +91,20 @@ Only the re-association network is trained (Table~\ref{tab:trained_components});
 \subsection{Model Selection}
 \label{sec:model_selection}
 
-Given $N \le 6$ lost tracks and $M \le 10$ candidates, GapLink-Lite outputs a doubly stochastic assignment over an augmented $(N+1)\times(M+1)$ matrix whose extra row and column (the \emph{dustbins}) absorb unmatched tracks and candidates. Its five modules (Figure~\ref{fig:model_arch}) address the three challenges of Section~\ref{sec:bg_challenges}:
+\textbf{Problem formulation.} The model works on \emph{occlusion events}. At a confirmation frame $t_{\text{conf}}$ the tracker holds $N \le 6$ lost tracks and $M \le 10$ unmatched detections, called candidates. Each lost track $i$ is described by its last $K \le 20$ boxes, its gap $g_i = t_{\text{conf}} - t_{\text{lost},i}$ (the number of frames it has been missing), a colour histogram and up to $8$ neighbouring vehicles; each candidate by its box, the histogram of its visible part and its neighbours. The label of track $i$ is $y_i \in \{1,\dots,M\} \cup \{\varnothing\}$, where $\varnothing$ means that no candidate is the same vehicle because it is still hidden, has left the view or was missed by the detector. The model must return a one-to-one assignment in which tracks and candidates may stay unmatched, maximising correct decisions, including correct ``no match'' decisions, while keeping \emph{wrong links} ($\hat{y}_i = j \ne y_i$) rare.
+
+To do so, GapLink-Lite outputs a matrix $P$ of size $(N+1)\times(M+1)$ in which $P_{ij}$ is the probability that track $i$ continues as candidate $j$. The extra row and column, the \emph{dustbins}, collect the tracks and candidates that are not matched. The model has five modules (Figure~\ref{fig:model_arch}), each aimed at one of the challenges of Section~\ref{sec:bg_challenges}:
 \begin{enumerate}
-    \item \textbf{Motion encoder.} Each history step is described by six scale-invariant values normalised by the last box height $h_l$ (displacement, log size ratio, velocity). A 2-layer GRU \cite{cho2014gru} ($d=128$) encodes the history, and the gap $g_i$ is embedded separately with sine/cosine features of $\ln(1+g_i)$, so that the model can widen its uncertainty for long gaps.
-    \item \textbf{Context encoder.} Up to $8$ neighbouring vehicles at $t_{\text{lost}}$ and $t_{\text{conf}}$ are encoded by a shared MLP and permutation-invariant max-plus-mean pooling (DeepSets \cite{zaheer2017deepsets}).
-    \item \textbf{Gaussian predictor.} A constant-velocity anchor plus a learned residual gives a 4D Gaussian over the normalised position and log size of the vehicle at $t_{\text{conf}}$:
+    \item \textbf{Motion encoder.} It reads the recent history of the lost vehicle, one six-dimensional vector per frame (displacement, size change and velocity, all normalised by the last box height so that near and far vehicles look alike), and compresses it into a single 128-dimensional vector. The compression is done by a gated recurrent unit (GRU) \cite{cho2014gru}, a recurrent network whose gates decide what to keep from earlier frames, which suits short motion histories. The gap $g_i$ is encoded separately with sine and cosine features of $\ln(1+g_i)$, so that the model can widen its uncertainty for long occlusions.
+    \item \textbf{Context encoder.} It turns the neighbouring vehicles (up to $8$, each described by six values) into one 128-dimensional context vector. It follows DeepSets \cite{zaheer2017deepsets}: the same small network is applied to every neighbour and the results are pooled (maximum and mean), so the output does not depend on the order in which neighbours are listed.
+    \item \textbf{Gaussian predictor.} From the motion and context vectors it predicts where the vehicle should re-appear, as a Gaussian distribution: a mean $\mu_i$ for the position and size, and a variance $\sigma_i^2$ that says how uncertain this prediction is. The mean starts from a constant-velocity guess and the network learns a correction:
     \begin{equation}
         \mu_i = \hat{\mu}^{\text{CV}}_i + f_{\mu}(h_i, c_i, g_i), \qquad \ln \sigma_i^2 = \operatorname{clamp}\big(f_{\sigma}(h_i, c_i, g_i), -6, 4\big).
     \end{equation}
-    \item \textbf{Pairwise and dustbin scorer.} For each pair, nine values --- the Gaussian log-density $m_{ij}$ of the candidate, its Mahalanobis and Euclidean distances to the prediction, size differences, IoU with the predicted box and the cosine similarity of the 128-bin HSV histograms --- are fed to an MLP whose output is added to $m_{ij}$, giving the logit $S_{ij}$. Track and candidate dustbin logits receive border proximity and competition statistics, so the model can say ``this track has left'' or ``this candidate is new'' \cite{sarlin2020superglue}.
-    \item \textbf{Log-domain Sinkhorn.} $T=20$ alternating row/column normalisations \cite{sinkhorn1967,cuturi2013sinkhorn} with marginals $\mathbf{r}=[1,\dots,1,M]$ and $\mathbf{c}=[1,\dots,1,N]$ produce $\log P$.
+    \item \textbf{Pairwise and dustbin scorer.} For every track--candidate pair it combines nine pieces of evidence --- how likely the candidate is under the predicted Gaussian ($m_{ij}$), its distance to the prediction, size differences, the overlap with the predicted box and the similarity of the 128-bin HSV colour histograms --- into one score $S_{ij}$. It also gives every track and every candidate a dustbin score, based on how close it is to the image border and how strong its best competitor is, so that the model can say ``this vehicle has left'' or ``this candidate is a new vehicle'', an idea introduced by SuperGlue for image matching \cite{sarlin2020superglue}.
+    \item \textbf{Log-domain Sinkhorn.} It turns the score matrix into the assignment probabilities $P$. The Sinkhorn algorithm \cite{sinkhorn1967,cuturi2013sinkhorn} comes from optimal transport: by normalising rows and columns in turn ($T=20$ times here), it converts arbitrary scores into a soft one-to-one matching, in which a candidate cannot be fully given to two tracks at once. The dustbin row and column are allowed to absorb several tracks or candidates. The final decision uses the Hungarian algorithm \cite{kuhn1955hungarian}, which picks the best one-to-one pairs from $P$ (Section~\ref{sec:two_stage}).
 \end{enumerate}
-A larger model was not needed: an overfit check on 64 events reached $100\%$ Top-1, and the full model trains in about $100$~s per run, which allowed five seeds and three ablations within the schedule. Table~\ref{tab:param_breakdown} shows where the $327{,}979$ parameters are; two thirds are in the motion encoder.
+A larger model was not needed: in a quick training on a very small set of events, the model learned every example perfectly, which shows enough capacity for the task, and a full training run takes only about $100$~s. Table~\ref{tab:param_breakdown} shows where the $327{,}979$ parameters are; two thirds of them are in the motion encoder.
 
 \begin{table}[H]
     \centering
@@ -131,24 +135,25 @@ which is the motion model inside SORT, DeepSORT, ByteTrack and OC-SORT. \emph{C-
 \subsection{Training Environment}
 \label{sec:training_env}
 
-All experiments ran locally on a laptop with an NVIDIA GeForce RTX~3050 Laptop GPU (6~GB VRAM), in a Python~3.12 virtual environment with PyTorch 2.11.0 (CUDA 12.8). Table~\ref{tab:train_hparams} lists the training configuration. The learning rate of the frozen Phase-1 run was not recorded and is therefore not reported.
+All experiments ran locally on a laptop with an NVIDIA GeForce RTX~3050 Laptop GPU (6~GB VRAM), in a Python~3.12 virtual environment with PyTorch 2.11.0 (CUDA 12.8). Training was done in two steps, summarised in Table~\ref{tab:train_hparams}. The \emph{main training} learns the model from scratch on events built from ground-truth boxes. The \emph{tuning for YOLOv8n} then continues from the main model on events produced by the YOLOv8n detector, so that the model is used to real detections (Section~\ref{sec:training_process}). The learning rate of the main training was not recorded and is therefore not reported.
 
 \begin{table}[H]
     \centering
     \caption{Training hyperparameters}
     \label{tab:train_hparams}
-    \begin{tabularx}{\textwidth}{l l X}
+    \begin{tabularx}{\textwidth}{l X X}
         \toprule
-        \textbf{Parameter} & \textbf{Phase 1 model} & \textbf{Detector-aware fine-tune (v1.3)} \\
+        \textbf{Parameter} & \textbf{Main training} & \textbf{Tuning for YOLOv8n} \\
         \midrule
-        Initial weights & Random (seeds 20260417--21) & Frozen Phase-1 checkpoint \\
-        Optimiser & AdamW \cite{loshchilov2019adamw}, cosine schedule with warm-up & AdamW, lr $2\times10^{-4}$, weight decay $10^{-4}$, 100 warm-up steps, cosine \\
-        Steps / batch size & $2{,}400$ / $64$ events & $3{,}000$ (best at $1{,}500$) / $64$ \\
+        Initial weights & Random initialisation & Weights of the main training \\
+        Optimiser & AdamW \cite{loshchilov2019adamw}, cosine schedule & AdamW, learning rate $2\times10^{-4}$, cosine schedule \\
+        Training steps & $2{,}400$ & $3{,}000$ (best at $1{,}500$) \\
+        Batch size & $64$ events & $64$ events \\
         Gradient clipping & $1.0$ & $1.0$ \\
-        Validation check & Every $600$ steps, GT events & Every $250$ steps, detector events ($\tau=0.5$) \\
-        Loss & $\mathcal{L}_{\text{assign}} + 0.5\,\mathcal{L}_{\text{NLL}}$ & same \\
-        Training data & $120{,}038$ GT events & $70/30$ mix of $7{,}746$ detector events and GT events \\
-        Runs & 5 seeds full model + 3 ablations $\times$ 5 seeds & 1 seed (20261121) \\
+        Loss & $\mathcal{L}_{\text{assign}} + 0.5\,\mathcal{L}_{\text{NLL}}$ & Same \\
+        Training data & $120{,}038$ events from ground-truth boxes & $7{,}746$ events from YOLOv8n, mixed $70/30$ with ground-truth events \\
+        Validation check & Every $600$ steps & Every $250$ steps \\
+        Runs & $5$ seeds + $3$ ablations $\times$ $5$ seeds & $1$ seed \\
         \bottomrule
     \end{tabularx}
 \end{table}
@@ -156,36 +161,55 @@ All experiments ran locally on a laptop with an NVIDIA GeForce RTX~3050 Laptop G
 \subsection{Data Augmentation}
 \label{sec:data_augmentation}
 
-Training events are synthesised on the fly from ground-truth trajectories, which acts as the augmentation pipeline:
+The model learns from clean ground-truth boxes, but in use it receives the boxes of a real detector, which jitter, miss vehicles for a few frames and see vehicles only partly when they are hidden. Data augmentation makes the training events look like these conditions. Each training event is created on the fly from a real trajectory by hiding one or more vehicles for a random number of frames; the following transformations are then applied (Figure~\ref{fig:events}):
 \begin{itemize}
-    \item \textbf{Occlusion length.} The gap is drawn from three bins, $3$--$15$, $16$--$45$ and $46$--$90$ frames, with probabilities $0.4/0.4/0.2$.
-    \item \textbf{Event types.} A lost track is occluded and re-appears, is dropped by the detector, has left the view, or is still hidden ($0.4/0.4/0.1/0.1$), so that the dustbins are trained.
-    \item \textbf{Box noise.} Gaussian position noise of $3\%$ (history) and $5\%$ (candidates) of the box size and $\pm10\%$ size jitter imitate detector boxes; $5\%$ of true candidates are dropped.
-    \item \textbf{Partial occlusion.} With probability $0.4$, a candidate's colour histogram is taken only from its visible sub-box, so occluded pixels never leak.
-    \item \textbf{Curriculum.} Batches mix ``easy'' and ``hard'' events (another candidate within $1.15$ box sizes of the true match); the share of hard events increases during training.
+    \item \textbf{Occlusion length:} the hidden interval is drawn from $3$--$15$, $16$--$45$ or $46$--$90$ frames (probabilities $0.4/0.4/0.2$), covering occlusions from a fraction of a second up to about $3.6$~s.
+    \item \textbf{Event type:} the hidden vehicle re-appears, is missed by the detector, has left the view, or is still hidden when the decision is made ($0.4/0.4/0.1/0.1$). The last two cases have no correct candidate, which teaches the model to answer ``no match''.
+    \item \textbf{Box noise:} Gaussian noise of $3\%$ (history) and $5\%$ (candidates) of the box size on positions and $\pm10\%$ on sizes imitates the jitter of detector boxes.
+    \item \textbf{Missed detections:} $5\%$ of the true candidates are removed, imitating a detector that misses the vehicle at the decision frame.
+    \item \textbf{Partial occlusion:} with probability $0.4$ the colour histogram of a candidate is taken only from its visible part, as when a car is still half hidden behind a bus.
 \end{itemize}
+The labels are kept consistent with every transformation: the candidate that belongs to the hidden vehicle stays marked as its true match. Images are never flipped, because flipping would create traffic directions that do not exist at these cameras.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_events.png}
+    \caption{Three training events drawn on the real frame at the decision time: the noisy history of the hidden vehicle (yellow), where it was last seen (dashed blue), the true vehicle (green) and the other candidates (orange). In (c) the vehicle is still hidden, so the correct answer is ``no match''.}
+    \label{fig:events}
+\end{figure}
 
 \subsection{Loss Function and Metrics}
 \label{sec:loss_metrics}
 
-With $y_i = M+1$ when track $i$ has no true candidate, $\mathcal{U}$ the candidates that continue no lost track, and $\mathbf{t}_i$ the normalised true re-appearance box, the model minimises $\mathcal{L}_{\text{assign}} + 0.5\,\mathcal{L}_{\text{NLL}}$:
-\begin{align}
-    \mathcal{L}_{\text{assign}} &= -\frac{1}{N + |\mathcal{U}|}\Big(\sum_{i=1}^{N} \log P_{i,y_i} + \sum_{j \in \mathcal{U}} \log P_{N+1,j}\Big), \\
-    \mathcal{L}_{\text{NLL}} &= \frac{1}{|\mathcal{V}|}\sum_{i \in \mathcal{V}} \sum_{k=1}^{4} \frac{1}{2}\Big(\ln\sigma^2_{i,k} + \frac{(t_{i,k}-\mu_{i,k})^2}{\sigma^2_{i,k}} + \ln 2\pi\Big),
-\end{align}
-where $\mathcal{V}$ are the lost tracks whose true box at $t_{\text{conf}}$ is known. Evaluation uses:
+The model learns two things at once: to choose the right candidate, and to predict where the vehicle will re-appear together with how sure it is. The training loss therefore has two parts, $\mathcal{L} = \mathcal{L}_{\text{assign}} + 0.5\,\mathcal{L}_{\text{NLL}}$, where the weight $0.5$ balances them.
+
+\textbf{Assignment loss.} The first part is a cross-entropy over the assignment matrix $P$:
+\begin{equation}
+    \mathcal{L}_{\text{assign}} = -\frac{1}{N + |\mathcal{U}|}\Big(\sum_{i=1}^{N} \log P_{i,y_i} + \sum_{j \in \mathcal{U}} \log P_{N+1,j}\Big).
+\end{equation}
+Here $P_{i,y_i}$ is the probability the model gives to the correct answer for lost track $i$. When the vehicle has no true candidate, $y_i = M+1$ points to the dustbin column, so the model is rewarded for answering ``no match''. The second sum does the same for candidates: $\mathcal{U}$ is the set of candidates that are new vehicles, and they should go to the dustbin row $N+1$. The loss is small only when probability mass sits on the correct cells, and the division by $N + |\mathcal{U}|$ averages over the number of decisions, so crowded events do not dominate the training.
+
+\textbf{Gaussian loss.} The second part is the negative log-likelihood (NLL) of the true re-appearance box $\mathbf{t}_i$ under the predicted Gaussian:
+\begin{equation}
+    \mathcal{L}_{\text{NLL}} = \frac{1}{|\mathcal{V}|}\sum_{i \in \mathcal{V}} \sum_{k=1}^{4} \frac{1}{2}\Big(\ln\sigma^2_{i,k} + \frac{(t_{i,k}-\mu_{i,k})^2}{\sigma^2_{i,k}} + \ln 2\pi\Big).
+\end{equation}
+The term $(t-\mu)^2/\sigma^2$ penalises the distance between the predicted position $\mu$ and the true one, divided by the predicted uncertainty; the term $\ln\sigma^2$ penalises claiming a large uncertainty. The two pull in opposite directions: the model cannot be confidently wrong, and it cannot avoid errors by always declaring a huge uncertainty, so it has to learn an uncertainty that matches its real error. The sum runs over the four predicted values (position and log size), $\mathcal{V}$ contains the lost tracks whose true box is known at the decision frame, and $\ln 2\pi$ is a constant that does not affect learning. This calibrated uncertainty is what allows the console to draw a search area while a vehicle is hidden.
+
+\textbf{Evaluation metrics.} The results use the following measures:
 \begin{itemize}
-    \item \textbf{Event Top-1}: fraction of lost tracks assigned to the correct candidate or correctly to the dustbin; \textbf{WLR} (wrong-link rate): fraction linked to a wrong candidate.
-    \item \textbf{90\% coverage} and 2D NLL of the predicted ellipse (calibration).
-    \item \textbf{IRR} (identity recovery rate) and \textbf{WLR} of the online tracker: fractions of injected occlusion intervals after which the vehicle keeps its ID, or that end with an incorrect re-association. Intervals are hidden in the ground truth (one or two per trajectory, at least $8$ visible frames before and $5$ after, at most $18\%$ of the boxes of a frame), fully or with only a visible sub-box (partial). \textbf{IDF1}, \textbf{MOTA} and \textbf{IDSW} are reported as well.
-    \item \textbf{Nat-IRR / Nat-WLR} in Phase~2: a natural gap is an interval of $3$--$95$ frames between two detections of the same real vehicle; Nat-IRR is the fraction of such gaps after which the ID is unchanged, and Nat-WLR the fraction of re-associations that join two different vehicles. For the forbidden route, recall counts occluded $Z_A\!\to\!Z_B$ crossings caught with the correct ID, and FAR $= \text{FP}/(\text{TP}+\text{FP})$.
+    \item \textbf{Event Top-1}: fraction of lost tracks assigned to the correct candidate, or correctly to the dustbin; \textbf{WLR} (wrong-link rate): fraction linked to a wrong candidate.
+    \item \textbf{90\% coverage} and 2D NLL of the predicted ellipse, which measure calibration.
+    \item \textbf{IRR} (identity recovery rate) and \textbf{WLR} inside the online tracker: the fraction of occlusion intervals after which the vehicle keeps its ID, and the fraction that end with an incorrect re-association. The intervals are created by hiding vehicles in the ground truth (one or two per trajectory, at least $8$ visible frames before and $5$ after, at most $18\%$ of the boxes of a frame), either fully or leaving a visible part (partial). \textbf{IDF1}, \textbf{MOTA} and \textbf{IDSW} are reported as well.
+    \item \textbf{Nat-IRR / Nat-WLR} when the system runs with the YOLOv8n detector: a natural gap is an interval of $3$--$95$ frames between two detections of the same real vehicle; Nat-IRR is the fraction of such gaps after which the ID is unchanged, and Nat-WLR the fraction of re-associations that join two different vehicles. For the forbidden route, recall counts occluded $Z_A\!\to\!Z_B$ crossings caught with the correct ID, and the false-alarm rate is FAR $= \text{FP}/(\text{TP}+\text{FP})$.
 \end{itemize}
-Confidence intervals are paired bootstraps \cite{efron1994bootstrap} with the camera location as resampling unit ($15$ test locations, $10{,}000$ draws).
+Differences between methods are reported with a 95\% confidence interval (CI): if the interval does not contain zero, the difference is unlikely to be due to chance. The intervals are computed by bootstrap \cite{efron1994bootstrap}: the $15$ test camera locations are resampled with replacement $10{,}000$ times, both methods are scored on each resample, and the interval is the middle $95\%$ of the differences. Locations rather than single events are resampled because events from the same camera are strongly alike.
 
 \subsection{Training Process and Model Selection}
 \label{sec:training_process}
 
-Validation Top-1 was evaluated every $600$ steps (Figure~\ref{fig:training_curves}); the smoothed assignment loss falls until step $1{,}800$ and validation Top-1 reaches $93.2\%$ at the last evaluation (step $2{,}400$), with no sign of over-fitting on the validation locations. Seed~1 was frozen as the final checkpoint; the other four seeds are used for mean $\pm$ SD and ablations.
+Each training step draws a batch of $64$ new events. Batches mix ``easy'' events with ``hard'' ones, in which another candidate lies within $1.15$ box sizes of the true vehicle, and the share of hard events grows as training progresses, so that the model first learns the general pattern and then the difficult cases. A full run takes only about $100$~s on the laptop GPU, which made it possible to train five seeds of the full model and five seeds of each of three ablations.
+
+The model was checked on the validation events every $600$ steps (Figure~\ref{fig:training_curves}). The assignment loss keeps falling until about step $1{,}800$, and validation Top-1 reaches $93.2\%$ at the last check, at step $2{,}400$, without any sign of over-fitting on the validation locations. The first seed was kept as the final model; the other four are used to report the mean and standard deviation and to run the ablations.
 
 \begin{figure}[H]
     \centering
@@ -194,14 +218,14 @@ Validation Top-1 was evaluated every $600$ steps (Figure~\ref{fig:training_curve
     \label{fig:training_curves}
 \end{figure}
 
-\textbf{Detector-aware fine-tuning.} A model trained on ground-truth boxes never sees detector jitter, 2--5-frame flicker or false-positive candidates. For Phase~2, the tracker was run with YOLOv8n on the training videos to collect $7{,}746$ detector events, labelled post hoc, and the frozen model was fine-tuned on a $70/30$ mix of detector and ground-truth events for $3{,}000$ steps (AdamW, learning rate $2\times10^{-4}$, cosine). The checkpoint at step $1{,}500$ (validation Top-1 on detector events $99.11\%$, against $98.45\%$ before fine-tuning) was kept as \textbf{v1.3}; the test videos were not used. Two simpler fixes had been abandoned on validation first: raising only $\tau$ reached Nat-WLR $\le 5\%$ only at $\tau \ge 0.85$ with lower recovery than C-2, and gating with the learned Gaussian cut recovery sharply because an uncertainty learned on clean boxes is too narrow for detector noise.
+\textbf{Tuning for the YOLOv8n detector.} A model trained only on ground-truth boxes never sees what a real detector produces: boxes that jitter, vehicles that flicker in and out for 2--5 frames, and false detections among the candidates. To close this gap, the tracker was run with YOLOv8n on the training videos, which produced $7{,}746$ events labelled afterwards against the ground truth. The main model was then trained further on a mix of $70\%$ of these detector events and $30\%$ ground-truth events, for $3{,}000$ steps. On the validation videos, Top-1 on detector events rose from $98.45\%$ to $99.11\%$, reached at step $1{,}500$; this checkpoint was kept, and the test videos were not used. Two simpler fixes had been tried first and abandoned on validation. Raising only the acceptance threshold $\tau$ kept the wrong-link rate below $5\%$ only at $\tau \ge 0.85$, where recovery fell below that of C-2. Filtering candidates with the learned Gaussian cut recovery sharply, because an uncertainty learned on clean boxes is too narrow for detector noise.
 
 \subsection{Tuning of Rule-Based Modules}
 \label{sec:rule_tuning}
 
 All thresholds were selected on validation data and then frozen:
 \begin{itemize}
-    \item \textbf{Acceptance threshold.} A GapLink-Lite link $(i,j)$ is accepted iff $P_{ij} \ge \tau$ and $P_{ij} > P_{i,\text{dustbin}}$. Phase~1: $\tau = 0.25$; Phase~2: $\tau = 0.65$ (highest validation Nat-IRR subject to Nat-WLR $\le 5\%$). Baseline gates follow the same rule (Phase-1 tracker: C-2 $\theta=3.0$, C-3 $25.0$, C-4 $29.0$; live: C-2 $1.2$, C-3 $1.0$, C-4 $1.2$).
+    \item \textbf{Acceptance threshold.} A GapLink-Lite link $(i,j)$ is accepted iff $P_{ij} \ge \tau$ and $P_{ij} > P_{i,\text{dustbin}}$. With ground-truth boxes (Phase~1): $\tau = 0.25$; with YOLOv8n (Phase~2): $\tau = 0.65$ (highest validation Nat-IRR subject to Nat-WLR $\le 5\%$). Baseline gates follow the same rule (Phase-1 tracker: C-2 $\theta=3.0$, C-3 $25.0$, C-4 $29.0$; live: C-2 $1.2$, C-3 $1.0$, C-4 $1.2$).
     \item \textbf{Tracker.} Stage-1 IoU threshold $0.30$; a track is confirmed after $3$ hits in the live system; lost tracks are kept for $a_{\max} = 95$ frames, longer than the longest injected gap.
     \item \textbf{Calibration.} $\sigma' = \sigma \exp(a + b\ell + c\ell^2)$ with $\ell = \ln(1+g)$ and $(a,b,c) = (0.413, -0.341, 0.074)$, fitted on half~A of the validation events so that the 90\% ellipse ($d^2 \le \chi^2_2(0.90) = 4.605$) covers 90\% of the true positions in each gap bin; half~B is kept for testing H2.
 \end{itemize}
@@ -225,7 +249,7 @@ The system processes a video stream frame by frame and keeps state between frame
         side/.style={draw=gray!60!black, rounded corners=3pt, fill=gray!8, text width=3.0cm, align=center, minimum height=0.8cm, font=\small},
         arr/.style={-{Stealth[length=2.2mm]}, thick}
     ]
-        \node[st] (v) {Camera / video file (OpenCV)};
+        \node[st] (v) {Video file (OpenCV)};
         \node[st, below=of v] (d) {YOLOv8n vehicle detection + HSV histograms (cached for the demo clips)};
         \node[st, below=of d] (s1) {Stage 1: IoU + Hungarian matching of active tracks};
         \node[dec, below=of s1] (q) {Unmatched lost tracks and detections?};

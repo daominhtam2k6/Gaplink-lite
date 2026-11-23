@@ -2,7 +2,7 @@
 \chapter{Mã nguồn và Chi tiết Cài đặt}
 \label{app:code}
 
-Phụ lục này trích các đoạn mã then chốt: một bước huấn luyện, lớp Sinkhorn có dustbin, mất mát gán, quy tắc chấp nhận của quyết định tái liên kết, và các phán quyết bảng điều khiển dùng để chấm sự kiện theo ground truth.
+Phụ lục này trích các đoạn mã then chốt: một bước huấn luyện, lớp Sinkhorn có dustbin và quy tắc chấp nhận của quyết định tái liên kết.
 
 \section{Vòng lặp Huấn luyện}
 Mỗi bước lấy một batch sự kiện che khuất tổng hợp với tỉ lệ sự kiện khó tăng dần, và tối ưu mất mát gán cùng mất mát Gaussian bằng AdamW, khởi động tuyến tính và giảm theo cosine.
@@ -48,21 +48,6 @@ def log_sinkhorn(S, z_t, z_c, trk_mask, cand_mask, iters=20):
     return log_alpha
 \end{lstlisting}
 
-\section{Mất mát Gán}
-\begin{lstlisting}[language=Python, caption={Negative log-likelihood của phép gán đúng}, label={lst:assign_loss}]
-def assignment_loss(logP, label, cand_label, tm, cm):
-    B, N1, M1 = logP.shape
-    N, M = N1 - 1, M1 - 1
-    # lost track -> its true candidate, or the dustbin column if it has none
-    t_target = torch.where(label >= 0, label, torch.full_like(label, M)).clamp(0, M)
-    row_logp = logP[:, :N, :].gather(2, t_target.unsqueeze(-1)).squeeze(-1)
-    loss_t, n_t = -(row_logp * tm.float()).sum(), tm.float().sum().clamp(min=1.0)
-    # candidate without a lost track -> dustbin row
-    unmatched_c = cm & (cand_label < 0)
-    loss_c = -(logP[:, N, :M] * unmatched_c.float()).sum()
-    return (loss_t + loss_c) / (n_t + unmatched_c.float().sum())
-\end{lstlisting}
-
 \section{Quyết định Tái liên kết}
 \begin{lstlisting}[language=Python, caption={Chỉ chấp nhận liên kết khi vượt ngưỡng và vượt dustbin}, label={lst:decide}]
 def decide(self, ev):
@@ -77,24 +62,6 @@ def decide(self, ev):
         if P_real[r, c] >= self.tau and P_real[r, c] > P_dust[r]:
             out[r] = int(c)
     return out
-\end{lstlisting}
-
-\section{Chấm Sự kiện của Bảng điều khiển theo Ground Truth}
-\begin{lstlisting}[language=Python, caption={Phán quyết tái liên kết và lộ trình của bảng điều khiển}, label={lst:judge}]
-# re-link after a gap of >= MIN_GAP frames: same real vehicle before and after?
-g0, g1 = lost_info[tid]["gt"], entry["gt_tid_after"]
-verdict = "unk" if (g0 < 0 or g1 < 0) else ("ok" if g0 == g1 else "wrong")
-
-# a new track whose real vehicle is still owned by a lost track -> "new ID"
-if owner is not None and owner != tid and owner in live_lost and gap >= MIN_GAP:
-    counts["missed"] += 1
-
-# forbidden route Z_A -> Z_B
-def judge(alert, zone_a):
-    g0, g1 = alert["origin_gt_tid"], alert["dest_gt_tid"]
-    if g1 < 0:  return "unk"
-    if g0 == g1: return "ok"                                   # correct ID
-    return "wrong_id" if visited(g1, zone_a, alert["frame"]) else "false"
 \end{lstlisting}
 
 \chapter{Cấu hình}
@@ -115,7 +82,7 @@ def judge(alert, zone_a):
         Ngưỡng chấp nhận $\tau$ & $0.25$ & Chọn trên validation theo quy tắc WLR $\le 5.0\%$ \\
         Hiệu chuẩn $(a, b, c)$ & $(0.413, -0.341, 0.074)$ & Khớp trên nửa A validation; Cov90 test $= 90.22\%$ \\
         \midrule
-        Checkpoint trực tiếp (Giai đoạn 2) & v1.3 & Fine-tune từ mô hình đóng băng, $3\,000$ bước (tốt nhất ở $1\,500$), sự kiện detector/pool $70/30$ \\
+        Mô hình tinh chỉnh cho YOLOv8n & --- & Huấn luyện tiếp từ mô hình chính, $3\,000$ bước (tốt nhất tại $1\,500$), sự kiện detector/ground-truth $70/30$ \\
         Điểm vận hành trực tiếp & $\tau=0.65$ & Chọn trên $13$ video validation (C-2 $\theta=1.2$, C-3 $\theta=1.0$, C-4 $\theta=1.2$) \\
         \bottomrule
     \end{tabularx}
@@ -146,12 +113,12 @@ def judge(alert, zone_a):
     \centering
     \caption{Cấu hình bảng điều khiển GapLink-VMS}
     \label{tab:vms_cfg}
-    \begin{tabularx}{\textwidth}{l l X}
+    \begin{tabularx}{\textwidth}{p{3.4cm} p{5.0cm} X}
         \toprule
         \textbf{Thiết lập} & \textbf{Giá trị} & \textbf{Ghi chú} \\
         \midrule
         Detector & YOLOv8n, input size $640$, conf.\ $0.28$ & Detection được cache theo từng clip \\
-        Baseline / mô hình & C-3 ($\theta = 1.0$) / GapLink-Lite v1.3 ($\tau = 0.65$) & Điểm vận hành trực tiếp chọn trên validation \\
+        Baseline / mô hình & C-3 ($\theta = 1.0$) / GapLink-Lite đã tinh chỉnh ($\tau = 0.65$) & Điểm vận hành trực tiếp chọn trên validation \\
         Xác nhận track & $3$ lần khớp & Như nhau ở cả hai khung \\
         Chấm tái liên kết & khoảng trống $\ge 3$ khung, IoU GT $\ge 0.45$ & Hậu kiểm; tracker không bao giờ dùng \\
         Thiết bị chạy GapLink-Lite & CPU, 1 luồng & Nhanh nhất trên laptop RTX 3050 (Mục~\ref{sec:rule_tuning}) \\

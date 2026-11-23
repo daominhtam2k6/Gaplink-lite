@@ -1,12 +1,12 @@
 \chapter{Results}
 \label{chap:results}
 
-The evaluation has two phases. \textbf{Phase~1} measures the model itself on ground-truth vehicle boxes with controlled occlusions, under the pre-registered protocol (thresholds on validation, a single locked test run). \textbf{Phase~2} measures how much of that advantage survives behind a live YOLOv8n detector on natural occlusions. All numbers are from the frozen test runs; 95\% confidence intervals (CI) are paired bootstraps over the $15$ test camera locations ($10{,}000$ draws).
+The evaluation has two phases. \textbf{Phase~1} measures the model itself: vehicles are hidden on purpose in the ground-truth boxes, so the occlusions are controlled and every answer is known; it follows the pre-registered protocol (thresholds chosen on validation, a single locked test run). \textbf{Phase~2} asks how much of that advantage survives in practice, when the boxes come from the YOLOv8n detector and the occlusions are the natural ones in the video. All numbers come from the frozen test runs, with 95\% confidence intervals (CI) computed as described in Section~\ref{sec:loss_metrics}.
 
 \section{Data Preprocessing}
 \label{sec:data_preprocessing}
 
-After removing the $72{,}714$ boxes inside ignore regions, $1{,}201{,}341$ vehicle boxes in $8{,}251$ trajectories remain. Fixed event sets were generated once and hashed: $6{,}000$ validation events ($11{,}389$ lost tracks) and $12{,}000$ test events ($27{,}120$ lost tracks). Each event contains the last $K \le 20$ boxes of every lost track, the gap, the colour histogram of the track (exponential moving average) and of each candidate (visible crop only), and up to $8$ neighbours at $t_{\text{lost}}$ and $t_{\text{conf}}$. Box coordinates are expressed relative to the last box height, so the model is independent of image resolution and distance to the camera. Because the official test split shares $7$ of its $15$ camera locations with training and validation, the test set was also scored separately on shared and unseen locations: GapLink-Lite reaches $93.39\%$ and $93.44\%$ Top-1 respectively (C-3: $80.59\%$ and $79.96\%$), so performance does not depend on having seen the camera.
+After removing the $72{,}714$ boxes inside ignore regions, $1{,}201{,}341$ vehicle boxes in $8{,}251$ trajectories remain. Fixed event sets were generated once and hashed: $6{,}000$ validation events ($11{,}389$ lost tracks) and $12{,}000$ test events ($27{,}120$ lost tracks). Each event stores the recent history of every lost track, the colour histograms and the neighbouring vehicles described in Section~\ref{sec:model_selection}, with coordinates relative to the last box height so that the model does not depend on image resolution. Because the official test split shares $7$ of its $15$ camera locations with training and validation, the test set was also scored separately on shared and unseen locations: GapLink-Lite reaches $93.39\%$ and $93.44\%$ Top-1 respectively (C-3: $80.59\%$ and $79.96\%$), so performance does not depend on having seen the camera.
 
 \section{Exploratory Data Analysis (EDA)}
 \label{sec:eda}
@@ -26,7 +26,7 @@ Figure~\ref{fig:eda_results} shows that most trajectories are short (median $86$
 \subsection{Phase 1: Controlled Evaluation on Ground-Truth Boxes}
 \label{sec:phase1}
 
-\textbf{Event-level re-association.} Table~\ref{tab:event_results} compares the frozen checkpoint with the three classical baselines at their validation-selected thresholds. GapLink-Lite reaches $\mathbf{93.41\%}$ Top-1 with $\mathbf{3.01\%}$ wrong links (5-seed mean $93.64\% \pm 0.14\%$), against $80.29\%$ / $19.24\%$ for the Kalman baseline C-3 and $83.69\%$ / $15.88\%$ for the strongest baseline C-4. The gain is $+13.12$~pp over C-3 (CI $[12.29, 14.19]$) and $+9.72$~pp over C-4 ($[8.68, 10.94]$), and it is largest where classical motion models break down: on long gaps ($46$--$90$ frames) Top-1 rises from $64.24\%$ (C-4) to $79.58\%$. Figure~\ref{fig:wlr_curve} shows that this is not an artefact of threshold choice: over the full threshold range, GapLink-Lite's curve lies above every baseline curve.
+\textbf{Event-level re-association.} The first question is whether, looking only at the re-association step, GapLink-Lite picks the right vehicle more often than the classical methods, and especially when the occlusion is long. Table~\ref{tab:event_results} answers it on the $12{,}000$ test events. GapLink-Lite chooses correctly in $\mathbf{93.41\%}$ of the cases and links to a wrong vehicle in only $\mathbf{3.01\%}$, while the best baseline, C-4, reaches $83.69\%$ with $15.88\%$ wrong links. The gain over the Kalman baseline C-3 is $+13.12$ percentage points (CI $[12.29, 14.19]$). The difference grows with the length of the occlusion, which is exactly where constant-velocity models break down: on gaps of $46$--$90$ frames, Top-1 rises from $64.24\%$ for C-4 to $79.58\%$. On the hard events of hypothesis H1, where a look-alike vehicle is close to the true one, the margin over the best baseline is $+7.33$ points (CI $[6.13, 8.77]$), well above the required $3.0$, so \textbf{H1 is supported}. Figure~\ref{fig:wlr_curve} shows that the result does not depend on the chosen threshold: at every threshold, GapLink-Lite's curve lies above all baselines.
 
 \begin{table}[H]
     \centering
@@ -58,9 +58,9 @@ Figure~\ref{fig:eda_results} shows that most trajectories are short (median $86$
     \label{fig:wlr_curve}
 \end{figure}
 
-\textbf{Uncertainty calibration (H2).} The pre-registered criterion requires calibrated 90\% coverage within $[85, 95]\%$ in all three gap bins. Short and medium gaps meet it, but the long-gap bin over-covers slightly ($95.14\%$ on validation, $95.86\%$ on test), so \textbf{H2 is not supported}; the long-gap scale factor was fitted on only four validation locations. The raw Gaussian head is already close to calibrated (test: $86.42\% / 85.46\% / 88.02\%$ for short/medium/long gaps) and far sharper than the Kalman baseline, whose ellipses over-cover at about $98\%$ with a higher NLL ($9.15$ vs.\ $7.99$); this is reported as a post-hoc observation, not as a passed hypothesis.
+\textbf{Uncertainty calibration (H2).} The predicted uncertainty is only useful if it can be trusted: a 90\% search ellipse should contain the true position about 90\% of the time. Hypothesis H2 asked for coverage between $85\%$ and $95\%$ for short, medium and long occlusions. Short and medium occlusions meet it, but for long occlusions the ellipse is slightly too wide ($95.14\%$ on validation, $95.86\%$ on test), so \textbf{H2 is not supported}. The likely reason is that the correction for long gaps was fitted on only four validation locations. Even before calibration, the model's ellipses are much tighter than those of the Kalman baseline, which cover about $98\%$ because they are far too wide; this is an observation made after the test, not a passed hypothesis.
 
-\textbf{Online tracking (H3, P1).} Inside the two-stage online tracker (Table~\ref{tab:tracker_results}), GapLink-Lite recovers $\mathbf{96.20\%}$ of injected occlusions with only $\mathbf{0.21\%}$ wrong links, versus $85.17\%$ / $4.32\%$ for C-2 and $84.96\%$ / $10.25\%$ for C-3; IDF1 rises from $77.60\%$ (C-3) to $\mathbf{99.11\%}$ and identity switches fall from $342$ to $98$. The IRR gain over C-3 is $+11.24$~pp (CI $[9.10, 14.35]$), and GapLink-Lite beats both C-2 and C-3 in all three gap bins, so \textbf{H3 is supported}. Under partial occlusion with visible-crop appearance only, the result holds ($95.99\%$ IRR, $0.36\%$ WLR). The protocol check \textbf{P1 passes}: without re-association (C-1) IRR is $0.00\%$.
+\textbf{Online tracking (H3, P1).} A good decision on isolated events must also hold inside a running tracker, where errors can accumulate. Table~\ref{tab:tracker_results} hides vehicles in the $40$ test sequences and counts how often each tracker gives them back their identity. GapLink-Lite restores $\mathbf{96.20\%}$ of the hidden vehicles and links only $\mathbf{0.21\%}$ to a wrong one; the Kalman tracker restores $84.96\%$ with $10.25\%$ wrong links. As a result, identity switches fall from $342$ to $98$ and IDF1 rises from $77.60\%$ to $\mathbf{99.11\%}$. GapLink-Lite is better than both C-2 and C-3 in all three occlusion-length groups, so \textbf{H3 is supported}, and the result holds when vehicles stay partly visible ($95.99\%$ recovery). Finally, the protocol check \textbf{P1 passes}: a tracker without re-association restores $0.00\%$ of the identities, which confirms that the recovery measured above comes from the re-association step and not from the measurement itself.
 
 \begin{table}[H]
     \centering
@@ -85,9 +85,9 @@ Figure~\ref{fig:eda_results} shows that most trajectories are short (median $86$
 \subsection{Phase 2: Application with a Live YOLOv8n Detector}
 \label{sec:phase2}
 
-\textbf{Setup.} All methods receive the same YOLOv8n detections (input size $640$, confidence $0.28$) and share the same Stage-1 tracker, lost-track window ($a_{\max}=95$) and security rules; only the re-association module differs. Ground truth is used solely afterwards for scoring. For every method the acceptance threshold was selected on the $13$ validation videos with the same rule (highest Nat-IRR subject to Nat-WLR $\le 5\%$) and evaluated once on the $40$ test videos. GapLink-Lite uses the detector-aware checkpoint v1.3 (Section~\ref{sec:training_process}).
+\textbf{Setup.} All methods receive the same YOLOv8n detections (input size $640$, confidence $0.28$) and share the same Stage-1 tracker, lost-track window ($a_{\max}=95$) and security rules; only the re-association module differs. Ground truth is used solely afterwards for scoring. For every method the acceptance threshold was selected on the $13$ validation videos with the same rule (highest Nat-IRR subject to Nat-WLR $\le 5\%$) and evaluated once on the $40$ test videos. GapLink-Lite is the version tuned for YOLOv8n (Section~\ref{sec:training_process}), labelled \emph{v1.3} in the figures and in the console; the main model before tuning is labelled \emph{v1.1}.
 
-\textbf{Results.} Table~\ref{tab:live_v13} and Figure~\ref{fig:live_scatter} show the outcome. Against the Kalman family that underlies industrial trackers, GapLink-Lite is better on both axes: Nat-IRR $\mathbf{84.41\%}$ vs.\ $57.63\%$ (C-3) and $61.85\%$ (C-4), Nat-WLR $\mathbf{6.09\%}$ vs.\ $24.70\%$ and $9.94\%$. Against the strongest baseline, constant velocity (C-2), recovery is equal ($84.41\%$ vs.\ $84.58\%$; $\Delta = -0.17$~pp, CI $[-1.33, 1.08]$) while \textbf{wrong links are halved} ($6.09\%$ vs.\ $12.92\%$; $\Delta = -6.82$~pp, CI $[-11.04, -3.18]$). In absolute terms, GapLink-Lite made $313$ wrong re-associations out of $5{,}137$, against $676$ of $5{,}234$ for C-2 and $1{,}072$ of $4{,}340$ for C-3. In a security console a wrong link is a false alarm, and GapLink-Lite also has the lowest forbidden-route false-alarm rate ($9.27\%$, i.e.\ $14$ false alerts against $18$ for C-2 and $70$ for C-3). The price of this caution is route recall: it catches $69$ of the $162$ occluded violations with the correct ID, against $77$ for C-3 and $80$ for C-4. The detector-aware checkpoint is what makes the result possible: with the original checkpoint the live wrong-link rate is $10.20\%$, and fine-tuning reduces it by $4.11$~pp (CI $[1.57, 5.98]$) at a cost of $2.89$~pp recovery. On validation C-2 was ahead by $4$~pp of Nat-IRR; this ranking did not carry over to test, which shows that four validation locations make the operating-point selection noisy.
+\textbf{Results.} Table~\ref{tab:live_v13} shows the outcome. Against the Kalman family that underlies industrial trackers, GapLink-Lite is better on both axes: Nat-IRR $\mathbf{84.41\%}$ vs.\ $57.63\%$ (C-3) and $61.85\%$ (C-4), Nat-WLR $\mathbf{6.09\%}$ vs.\ $24.70\%$ and $9.94\%$. Against the strongest baseline, constant velocity (C-2), recovery is equal ($84.41\%$ vs.\ $84.58\%$; $\Delta = -0.17$~pp, CI $[-1.33, 1.08]$) while \textbf{wrong links are halved} ($6.09\%$ vs.\ $12.92\%$; $\Delta = -6.82$~pp, CI $[-11.04, -3.18]$). In absolute terms, GapLink-Lite made $313$ wrong re-associations out of $5{,}137$, against $676$ of $5{,}234$ for C-2 and $1{,}072$ of $4{,}340$ for C-3. In a security console a wrong link is a false alarm, and GapLink-Lite also has the lowest forbidden-route false-alarm rate ($9.27\%$, i.e.\ $14$ false alerts against $18$ for C-2 and $70$ for C-3). The price of this caution is route recall: it catches $69$ of the $162$ occluded violations with the correct ID, against $77$ for C-3 and $80$ for C-4. The tuning for YOLOv8n is what makes the result possible: with the main model the live wrong-link rate is $10.20\%$, and fine-tuning reduces it by $4.11$~pp (CI $[1.57, 5.98]$) at a cost of $2.89$~pp recovery. On validation C-2 was ahead by $4$~pp of Nat-IRR; this ranking did not carry over to test, which shows that four validation locations make the operating-point selection noisy.
 
 \begin{table}[H]
     \centering
@@ -104,19 +104,12 @@ Figure~\ref{fig:eda_results} shows that most trajectories are short (median $86$
         C-2 ($\theta=1.2$) & \textbf{81.56} & 4.87 & \textbf{84.58} & 12.92 & 41.98 & 11.32 \\
         C-3 ($\theta=1.0$)$^\dagger$ & 32.23 & 16.37 & 57.63 & 24.70 & 47.53 & 32.56 \\
         C-4 ($\theta=1.2$) & 32.08 & \textbf{3.81} & 61.85 & 9.94 & \textbf{49.38} & 14.04 \\
-        GapLink-Lite v1.1 ($\tau=0.25$, reference) & 81.69 & 13.33 & 87.30 & 10.20 & 45.68 & 12.88 \\
-        \textbf{GapLink-Lite v1.3} ($\tau=0.65$) & 77.55 & 4.21 & 84.41 & \textbf{6.09} & 42.59 & \textbf{9.27} \\
+        GapLink-Lite, main model ($\tau=0.25$) & 81.69 & 13.33 & 87.30 & 10.20 & 45.68 & 12.88 \\
+        \textbf{GapLink-Lite, tuned} ($\tau=0.65$) & 77.55 & 4.21 & 84.41 & \textbf{6.09} & 42.59 & \textbf{9.27} \\
         \bottomrule
     \end{tabular}%
     }
 \end{table}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.78\textwidth]{figures/fig_live_v13_scatter.png}
-    \caption{Phase 2 --- recovery vs.\ wrong links on $40$ live test videos (validation-selected operating points).}
-    \label{fig:live_scatter}
-\end{figure}
 
 \textbf{Processing time with a live detector.} An earlier version of the console (model on the GPU) was profiled on the busiest intersection clip with YOLOv8n running live: $28.95$~ms per frame ($34.5$~FPS), of which $12.53$~ms for YOLOv8n, $3.26$~ms for histograms and box filtering and $13.16$~ms for tracking, rules and drawing. The final console uses cached detections and the CPU model; its timing with a live detector was not re-measured.
 
@@ -169,7 +162,7 @@ Figure~\ref{fig:eda_results} shows that most trajectories are short (median $86$
 \section{User Interface}
 \label{sec:user_interface}
 
-\textbf{GapLink-VMS} is a local web console that plays a clip and shows the baseline tracker (C-3 Kalman, left) and GapLink-Lite v1.3 (right) side by side on the same YOLOv8n detections (Figure~\ref{fig:vms_ui}). The interface was deliberately reduced to what the demonstration needs: three clip buttons, play/pause, frame stepping, a seek bar, playback speed ($1\times$, $0.5\times$, $0.25\times$), an ID on/off switch, a zone tool for the route clip and click-to-lock for the target clip. The right column shows the result table of the current clip and the incident history with before/after crops.
+\textbf{GapLink-VMS} is a local web console that plays a clip and shows the baseline tracker (C-3 Kalman, left) and the tuned GapLink-Lite (right, labelled v1.3) side by side on the same YOLOv8n detections (Figure~\ref{fig:vms_ui}). The interface was deliberately reduced to what the demonstration needs: three clip buttons, play/pause, frame stepping, a seek bar, playback speed ($1\times$, $0.5\times$, $0.25\times$), an ID on/off switch, a zone tool for the route clip and click-to-lock for the target clip. The right column shows the result table of the current clip and the incident history with before/after crops.
 
 \begin{figure}[H]
     \centering
@@ -236,7 +229,7 @@ Table~\ref{tab:eval_vs_target} compares the final results with the targets fixed
         H3: tracker IRR $>$ C-2, C-3 with $\Delta$WLR $\le 0.5$~pp & 3/3 bins; IRR $96.20\%$, WLR $0.21\%$ & $\ge 2/3$ bins & Supported \\
         P1: IRR without re-association & $0.00\%$ & $< 5\%$ & Passed \\
         Model size & $327{,}979$ parameters & $< 1$M & Met \\
-        Live Nat-WLR (test, v1.3) & $6.09\%$ & $\le 5\%$ & Not met \\
+        Nat-WLR with YOLOv8n (test) & $6.09\%$ & $\le 5\%$ & Not met \\
         Live Nat-IRR vs.\ strongest baseline (C-2) & $84.41$ vs.\ $84.58\%$ & not lower & Equal (CI $[-1.33, 1.08]$) \\
         Console speed (cached detections, CPU model) & $36$--$46$ FPS & $\ge 25$ FPS & Met \\
         \bottomrule
@@ -252,7 +245,7 @@ Table~\ref{tab:eval_vs_target} compares the final results with the targets fixed
 
 \begin{table}[H]
     \centering
-    \caption{Results of the three demonstration clips (final console, C-3 vs.\ GapLink-Lite v1.3)}
+    \caption{Results of the three demonstration clips (final console, C-3 vs.\ tuned GapLink-Lite)}
     \label{tab:demo3}
     \small
     \begin{tabularx}{\textwidth}{l X c c}
@@ -273,7 +266,7 @@ Table~\ref{tab:eval_vs_target} compares the final results with the targets fixed
     \end{tabularx}
 \end{table}
 
-\textbf{Iterative improvements.} Three changes shaped the final system. (i) An audit of the first locked test run found a data-conversion error (ignore regions merged into a fake track) and a lost-track window shorter than the longest gap; both were fixed and the model was re-trained and re-frozen. (ii) Phase~2 showed that a model trained only on ground-truth boxes links too eagerly on detector boxes; detector-aware fine-tuning (v1.3) halved the live wrong-link rate relative to the strongest baseline. (iii) The demonstration console was rebuilt around three tasks and profiled; running the small model on the CPU and simplifying the drawing raised it from $12$--$14.5$ to $36$--$46$~FPS.
+\textbf{Iterative improvements.} Three changes shaped the final system. (i) An audit of the first locked test run found a data-conversion error (ignore regions merged into a fake track) and a lost-track window shorter than the longest gap; both were fixed and the model was re-trained and re-frozen. (ii) Phase~2 showed that a model trained only on ground-truth boxes links too eagerly on detector boxes; tuning the model on YOLOv8n events halved the live wrong-link rate relative to the strongest baseline. (iii) The demonstration console was rebuilt around three tasks and profiled; running the small model on the CPU and simplifying the drawing raised it from $12$--$14.5$ to $36$--$46$~FPS.
 
 \subsection{Limitations}
 \label{sec:limitations}
@@ -281,7 +274,7 @@ Table~\ref{tab:eval_vs_target} compares the final results with the targets fixed
 \begin{itemize}
     \item \textbf{Long-gap calibration.} H2 failed because the long-gap calibration factor, fitted on four validation locations, over-covers ($95.86\%$ on test).
     \item \textbf{Live wrong links.} No method, including GapLink-Lite ($6.09\%$), kept the live wrong-link rate below the $5\%$ target on test, and against the constant-velocity baseline the advantage is in wrong links and false alarms, not in recovery or route recall.
-    \item \textbf{Evaluation history.} The Phase-1 test split was evaluated a second time after the data-conversion fix, and the live test videos were scored for both the original and the detector-aware checkpoint; both re-runs are reported openly rather than replaced.
-    \item \textbf{Data scope.} No motorcycle class, fixed elevated cameras in Chinese cities, four validation locations, $7$ of $15$ test locations shared with training (no measurable effect: $93.39\%$ vs.\ $93.44\%$ Top-1), and a single seed for the live fine-tune.
+    \item \textbf{Evaluation history.} The Phase-1 test split was evaluated a second time after the data-conversion fix, and the live test videos were scored for both the main model and the model tuned for YOLOv8n; both re-runs are reported openly rather than replaced.
+    \item \textbf{Data scope.} No motorcycle class, fixed elevated cameras in Chinese cities, four validation locations, $7$ of $15$ test locations shared with training (no measurable effect: $93.39\%$ vs.\ $93.44\%$ Top-1), and a single seed for the tuning for YOLOv8n.
     \item \textbf{Demonstration clips.} The clips were selected on test videos to show the difference clearly; their counts illustrate behaviour and are not unbiased estimates (the frozen Phase-2 table is).
 \end{itemize}
