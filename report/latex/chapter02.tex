@@ -7,7 +7,14 @@
 \subsection{Data Sources}
 \label{sec:data_sources}
 
-The project uses one public benchmark, \textbf{UA-DETRAC} \cite{wen2020uadetrac}: $100$ real traffic videos recorded at $25$~fps and $960 \times 540$ pixels by fixed, elevated cameras at roads and intersections, with box and identity annotations for every vehicle. It is the standard benchmark for multi-vehicle tracking from a surveillance viewpoint, which is exactly the setting of this project. The official split ($60$ training and $40$ test sequences) is kept, and the $40$ test sequences are used only for the locked test runs. Two further data products are derived from the same videos: \emph{occlusion events} sampled from ground-truth trajectories, used to train the model, and \emph{detector events} built by running YOLOv8n \cite{jocher2023yolov8} and the online tracker on the training videos, used to tune the model to real detections.
+The project uses one public benchmark, \textbf{UA-DETRAC} \cite{wen2020uadetrac}: $100$ real traffic videos recorded at $25$~fps and $960 \times 540$ pixels by fixed, elevated cameras at roads and intersections, with box and identity annotations for every vehicle. It is the standard benchmark for multi-vehicle tracking from a surveillance viewpoint, which is exactly the setting of this project. The official split ($60$ training and $40$ test sequences) is kept, and the $40$ test sequences are used only for the locked test runs. Two further data products are derived from the same videos: \emph{occlusion events} sampled from ground-truth trajectories, used to train the model, and \emph{detector events} built by running YOLOv8n \cite{jocher2023yolov8} and the online tracker on the training videos, used to tune the model to real detections. Figure~\ref{fig:dataset} shows six frames from different camera locations, from daylight to night.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_dataset.png}
+    \caption{Sample UA-DETRAC frames from six camera locations, ordered from the brightest to the darkest scene. Green: annotated vehicle boxes; hatched: ignore regions, where vehicles are not annotated.}
+    \label{fig:dataset}
+\end{figure}
+
 
 \subsection{Data Collection}
 \label{sec:data_collection}
@@ -47,7 +54,14 @@ Table~\ref{tab:dataset_stats} summarises the cleaned dataset. Trajectories are s
 \subsection{Data Splitting}
 \label{sec:data_splitting}
 
-Videos from the same camera look almost identical, so a random split by video would leak the scene into validation. A $64 \times 36$ median background is therefore computed per sequence, and the sequences are grouped by agglomerative clustering ($1-r \le 0.65$) into $25$ camera clusters, close to the $\sim\!24$ physical locations of UA-DETRAC. The $60$ training sequences are split \emph{by cluster} into $47$ training sequences ($13$ clusters) and $13$ validation sequences ($4$ clusters). The official $40$ test sequences cover $15$ clusters, $7$ of which also appear in training or validation and $8$ of which are unseen; both subsets are reported separately. No horizontal flipping is used anywhere, because it would create impossible traffic directions.
+Videos from the same camera look almost identical, so a random split by video would leak the scene into validation. A $64 \times 36$ median background is therefore computed per sequence, and the sequences are grouped by agglomerative clustering ($1-r \le 0.65$) into $25$ camera clusters, close to the $\sim\!24$ physical locations of UA-DETRAC. The $60$ training sequences are split \emph{by cluster} into $47$ training sequences ($13$ clusters) and $13$ validation sequences ($4$ clusters). The official $40$ test sequences cover $15$ clusters, $7$ of which also appear in training or validation and $8$ of which are unseen; both subsets are reported separately. Figure~\ref{fig:split} shows one median background per training and validation location; the two groups never share a camera cluster. No horizontal flipping is used anywhere, because it would create impossible traffic directions.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_split.png}
+    \caption{Median background of every training (blue) and validation (orange) camera location, computed from the first video of each location; the number of videos per location is given in brackets.}
+    \label{fig:split}
+\end{figure}
+
 
 \subsection{Ethical and Privacy Considerations}
 \label{sec:ethics}

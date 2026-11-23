@@ -7,7 +7,14 @@
 \subsection{Nguồn Dữ liệu}
 \label{sec:data_sources}
 
-Dự án dùng một benchmark công khai, \textbf{UA-DETRAC} \cite{wen2020uadetrac}: $100$ video giao thông thật quay ở $25$~fps, độ phân giải $960 \times 540$ bởi các camera cố định đặt trên cao tại đường phố và nút giao, có chú thích box và danh tính cho mọi phương tiện. Đây là benchmark chuẩn cho bài toán theo dõi nhiều phương tiện từ góc nhìn giám sát, đúng bối cảnh của đồ án. Cách chia chính thức ($60$ chuỗi huấn luyện và $40$ chuỗi test) được giữ nguyên, và $40$ chuỗi test chỉ dùng cho các lần chạy test đã khóa. Hai sản phẩm dữ liệu khác được sinh từ cùng các video: \emph{sự kiện che khuất} lấy mẫu từ quỹ đạo ground-truth, dùng để huấn luyện mô hình, và \emph{sự kiện detector} tạo ra bằng cách chạy YOLOv8n \cite{jocher2023yolov8} cùng tracker trực tuyến trên các video huấn luyện, dùng để tinh chỉnh mô hình cho detection thật.
+Dự án dùng một benchmark công khai, \textbf{UA-DETRAC} \cite{wen2020uadetrac}: $100$ video giao thông thật quay ở $25$~fps, độ phân giải $960 \times 540$ bởi các camera cố định đặt trên cao tại đường phố và nút giao, có chú thích box và danh tính cho mọi phương tiện. Đây là benchmark chuẩn cho bài toán theo dõi nhiều phương tiện từ góc nhìn giám sát, đúng bối cảnh của đồ án. Cách chia chính thức ($60$ chuỗi huấn luyện và $40$ chuỗi test) được giữ nguyên, và $40$ chuỗi test chỉ dùng cho các lần chạy test đã khóa. Hai sản phẩm dữ liệu khác được sinh từ cùng các video: \emph{sự kiện che khuất} lấy mẫu từ quỹ đạo ground-truth, dùng để huấn luyện mô hình, và \emph{sự kiện detector} tạo ra bằng cách chạy YOLOv8n \cite{jocher2023yolov8} cùng tracker trực tuyến trên các video huấn luyện, dùng để tinh chỉnh mô hình cho detection thật. Hình~\ref{fig:dataset} minh họa sáu khung hình từ các địa điểm camera khác nhau, từ ban ngày đến ban đêm.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_dataset_vi.png}
+    \caption{Khung hình mẫu của UA-DETRAC từ sáu địa điểm camera, xếp từ cảnh sáng nhất đến tối nhất. Xanh lá: box phương tiện được gán nhãn; gạch chéo: vùng bỏ qua, nơi phương tiện không được gán nhãn.}
+    \label{fig:dataset}
+\end{figure}
+
 
 \subsection{Thu thập Dữ liệu}
 \label{sec:data_collection}
@@ -47,7 +54,14 @@ Bảng~\ref{tab:dataset_stats} tóm tắt bộ dữ liệu sau làm sạch. Qu�
 \subsection{Chia Dữ liệu}
 \label{sec:data_splitting}
 
-Các video từ cùng một camera trông gần như giống hệt nhau, nên chia ngẫu nhiên theo video sẽ làm rò rỉ khung cảnh sang tập validation. Vì vậy mỗi chuỗi được tính một nền trung vị $64 \times 36$, và các chuỗi được gom bằng phân cụm agglomerative ($1-r \le 0.65$) thành $25$ cụm camera, gần với $\sim\!24$ địa điểm vật lý của UA-DETRAC. $60$ chuỗi huấn luyện được chia \emph{theo cụm} thành $47$ chuỗi huấn luyện ($13$ cụm) và $13$ chuỗi validation ($4$ cụm). $40$ chuỗi test chính thức thuộc $15$ cụm, trong đó $7$ cụm cũng có trong huấn luyện hoặc validation và $8$ cụm chưa từng thấy; hai tập con được báo cáo riêng. Không dùng lật ngang ở bất kỳ đâu, vì lật ảnh sẽ tạo ra hướng lưu thông không thể có.
+Các video từ cùng một camera trông gần như giống hệt nhau, nên chia ngẫu nhiên theo video sẽ làm rò rỉ khung cảnh sang tập validation. Vì vậy mỗi chuỗi được tính một nền trung vị $64 \times 36$, và các chuỗi được gom bằng phân cụm agglomerative ($1-r \le 0.65$) thành $25$ cụm camera, gần với $\sim\!24$ địa điểm vật lý của UA-DETRAC. $60$ chuỗi huấn luyện được chia \emph{theo cụm} thành $47$ chuỗi huấn luyện ($13$ cụm) và $13$ chuỗi validation ($4$ cụm). $40$ chuỗi test chính thức thuộc $15$ cụm, trong đó $7$ cụm cũng có trong huấn luyện hoặc validation và $8$ cụm chưa từng thấy; hai tập con được báo cáo riêng. Hình~\ref{fig:split} cho thấy ảnh nền trung vị của từng địa điểm huấn luyện và validation; hai nhóm không bao giờ dùng chung một cụm camera. Không dùng lật ngang ở bất kỳ đâu, vì lật ảnh sẽ tạo ra hướng lưu thông không thể có.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_split_vi.png}
+    \caption{Ảnh nền trung vị của mọi địa điểm camera huấn luyện (xanh dương) và validation (cam), tính từ video đầu tiên của mỗi địa điểm; số video của mỗi địa điểm ghi trong ngoặc.}
+    \label{fig:split}
+\end{figure}
+
 
 \subsection{Đạo đức và Quyền riêng tư}
 \label{sec:ethics}

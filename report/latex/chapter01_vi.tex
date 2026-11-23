@@ -7,7 +7,14 @@
 \subsection{Giám sát Giao thông và Danh tính Phương tiện}
 \label{sec:bg_surveillance}
 
-Camera giao thông hiện đã được lắp ở hầu hết các nút giao lớn, đường cao tốc và bãi đỗ xe. Nhiều nhiệm vụ của chúng đòi hỏi theo dõi \emph{cùng một} phương tiện theo thời gian chứ không chỉ phát hiện phương tiện ở từng khung hình: kiểm tra một xe có đi từ một vùng vào vùng cấm hay không, đo thời gian xe dừng trong khu vực cấm dừng, hay bám theo một xe nghi vấn trong toàn cảnh. Trong theo dõi đa đối tượng (MOT), tính chất này gọi là tính nhất quán danh tính (ID). Nó bị phá vỡ thường xuyên nhất khi có che khuất: khi một ô tô đi khuất sau xe buýt hoặc xe tải trong một đến ba giây, tracker mất dấu xe, và khi xe xuất hiện lại, tracker phải quyết định đó là xe cũ hay một xe mới.
+Camera giao thông hiện đã được lắp ở hầu hết các nút giao lớn, đường cao tốc và bãi đỗ xe. Nhiều nhiệm vụ của chúng đòi hỏi theo dõi \emph{cùng một} phương tiện theo thời gian chứ không chỉ phát hiện phương tiện ở từng khung hình: kiểm tra một xe có đi từ một vùng vào vùng cấm hay không, đo thời gian xe dừng trong khu vực cấm dừng, hay bám theo một xe nghi vấn trong toàn cảnh. Trong theo dõi đa đối tượng (MOT), tính chất này gọi là tính nhất quán danh tính (ID). Nó bị phá vỡ thường xuyên nhất khi có che khuất: khi một ô tô đi khuất sau xe buýt hoặc xe tải trong một đến ba giây, tracker mất dấu xe, và khi xe xuất hiện lại, tracker phải quyết định đó là xe cũ hay một xe mới. Hình~\ref{fig:problem} là một trường hợp điển hình trong video test: một xe van khuất sau xe buýt khớp nối hơn hai giây rồi xuất hiện lại gần như ở cùng chỗ; tracker đã mất dấu xe phải nhận ra nó giữa các xe xung quanh.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_problem_vi.png}
+    \caption{Danh tính qua một lần che khuất (video test UA-DETRAC MVI\_40864): xe van đang nhìn thấy (trái), bị che hoàn toàn sau xe buýt khớp nối từ khung $39$ đến khung $95$ (giữa, nét đứt: vị trí ground-truth mà tracker không nhìn thấy), và xuất hiện lại ở khung $96$ (phải).}
+    \label{fig:problem}
+\end{figure}
+
 
 \subsection{Thực tiễn Hiện nay trong Theo dõi Phương tiện}
 \label{sec:bg_practice}

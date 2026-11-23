@@ -7,7 +7,14 @@
 \subsection{Traffic Surveillance and Vehicle Identity}
 \label{sec:bg_surveillance}
 
-Traffic cameras are now installed at most major intersections, expressways and parking facilities, and many of the tasks they serve depend on following the \emph{same} vehicle over time rather than detecting vehicles frame by frame: checking whether a vehicle drove from one zone into a forbidden one, measuring how long it stayed in a no-stopping area, or following a suspect vehicle across the scene. In multi-object tracking (MOT) this property is called identity (ID) consistency. It breaks most often during occlusion: when a car passes behind a bus or truck for one to three seconds, the tracker loses it, and when the car re-appears the tracker must decide whether it is the old vehicle or a new one.
+Traffic cameras are now installed at most major intersections, expressways and parking facilities, and many of the tasks they serve depend on following the \emph{same} vehicle over time rather than detecting vehicles frame by frame: checking whether a vehicle drove from one zone into a forbidden one, measuring how long it stayed in a no-stopping area, or following a suspect vehicle across the scene. In multi-object tracking (MOT) this property is called identity (ID) consistency. It breaks most often during occlusion: when a car passes behind a bus or truck for one to three seconds, the tracker loses it, and when the car re-appears the tracker must decide whether it is the old vehicle or a new one. Figure~\ref{fig:problem} shows a typical case from the test videos: a van disappears behind an articulated bus for more than two seconds and comes out again at almost the same place; a tracker that has lost it must now recognise it among the surrounding cars.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_problem.png}
+    \caption{Identity through an occlusion (UA-DETRAC test video MVI\_40864): the van is visible (left), is fully hidden behind an articulated bus from frame $39$ to frame $95$ (centre, dashed: its ground-truth position, which the tracker does not see), and re-appears at frame $96$ (right).}
+    \label{fig:problem}
+\end{figure}
+
 
 \subsection{Current Practice in Vehicle Tracking}
 \label{sec:bg_practice}
