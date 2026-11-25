@@ -115,6 +115,10 @@ python -m venv .venv
 
 `--fresh` starts with an empty video list; without it, videos processed earlier are listed again.
 
+On Windows, double-clicking **`run_demo.bat`** does the same: on the first run it creates `.venv` and installs
+`requirements.txt` (needs Python 3.12 and internet; PyTorch from PyPI is the CPU build, which is enough for the demo),
+then it starts the console and opens the browser. The demo videos are in `demo/showcase/`.
+
 **Workflow.**
 1. Drag a video onto the page (or use *Upload video*). The file is stored in `demo/uploads/` and its SHA-256 is shown.
 2. The server resamples it to 25 fps, resizes it to 960 px wide and runs YOLOv8n once, with the same settings as the
