@@ -1,0 +1,15 @@
+{
+  "n_sequences": 100,
+  "total_frames_with_objects": 138045,
+  "dense_frames_ge_10_vehicles": 45603,
+  "n_tracks": 8251,
+  "total_vehicle_boxes": 1201341,
+  "total_ignore_regions": 407,
+  "tracks_with_natural_gaps": 242,
+  "track_length_p10": 31.0,
+  "track_length_p50": 86.0,
+  "track_length_p90": 245.0,
+  "boxes_per_frame_mean": 8.702531783114202,
+  "boxes_per_frame_p90": 17.0,
+  "human_boxes": 0
+}
