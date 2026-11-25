@@ -62,7 +62,7 @@ The specific objectives are as follows:
     \item \textbf{Compact re-association model:} design and train \textbf{GapLink-Lite}, a network of fewer than $1$ million parameters trained from random initialisation on the UA-DETRAC benchmark \cite{wen2020uadetrac}, that decides whether a re-appearing vehicle is a lost one, and which, or none of them.
     \item \textbf{Controlled evaluation:} compare the model with classical association methods on ground-truth boxes with controlled occlusions (Phase~1), under criteria fixed before any test run.
     \item \textbf{Evaluation with a real detector:} run the model behind a YOLOv8n detector on natural occlusions (Phase~2) and check that the advantage holds with imperfect detections.
-    \item \textbf{Demonstration console:} build a video management console (GapLink-VMS) that shows the effect on identity recovery, a forbidden route and the following of a locked target.
+    \item \textbf{Demonstration console:} build a video management console (GapLink Live) that runs the full pipeline on an uploaded video and shows identity recovery after occlusion, the following of a locked target and a forbidden route, so that a viewer can check the identities by eye.
 \end{enumerate}
 
 \textbf{Pre-registered hypotheses.} Before any model was trained, four criteria were fixed:
@@ -88,7 +88,7 @@ This is an individual capstone project (Table~\ref{tab:team_roles}).
         \toprule
         \textbf{No.} & \textbf{Member} & \textbf{Role and responsibilities} \\
         \midrule
-        1 & \memberOne & Project owner: problem definition and pre-registration; data conversion and camera-location split; design, implementation and training of GapLink-Lite; baselines and evaluation; tuning for YOLOv8n; GapLink-VMS application and demo; report. \\
+        1 & \memberOne & Project owner: problem definition and pre-registration; data conversion and camera-location split; design, implementation and training of GapLink-Lite; baselines and evaluation; tuning for YOLOv8n; GapLink Live console and demo; report. \\
         \bottomrule
     \end{tabularx}
 \end{table}
@@ -114,7 +114,8 @@ The project was executed between 15 and 21 November 2026 as a sequence of verifi
         G4 & 15--16/11 & 5 seeds of the full model and 3 ablations (20 GPU runs); calibration on validation & Completed \\
         G5--G6 & 16/11 & Thresholds selected on validation; checkpoint frozen; single locked Phase-1 test run & Completed \\
         G7 & 18--20/11 & GapLink-VMS with live YOLOv8n & Completed \\
-        G8 & 21/11 & Model tuned for YOLOv8n; operating points chosen on validation; single live test run; three-video demo & Completed \\
+        G8 & 21/11 & Model tuned for YOLOv8n; operating points chosen on validation; single live test run & Completed \\
+        G9 & 24--25/11 & GapLink Live console (upload, live processing, GapLink-Lite only); demonstration clips checked against ground truth & Completed \\
         \bottomrule
     \end{tabularx}
 \end{table}

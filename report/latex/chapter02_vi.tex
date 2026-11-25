@@ -24,7 +24,7 @@ Chú thích gốc được chuyển sang định dạng văn bản MOT. Bản mi
 \subsection{Gán nhãn Dữ liệu}
 \label{sec:data_annotation}
 
-Không cần gán nhãn thủ công: mọi box phương tiện trong UA-DETRAC đều mang danh tính quỹ đạo, cho nhãn của mọi sự kiện che khuất (ứng viên nào, nếu có, là cùng xe với mỗi track bị mất) và ground truth của mọi phép đánh giá. Với sự kiện detector và các clip trình diễn, mỗi box YOLOv8n được ghép \emph{hậu kiểm} với một box ground-truth bằng thuật toán Hungarian với IoU $\ge 0.45$; nhãn này chỉ dùng để chấm điểm và tinh chỉnh mô hình cho YOLOv8n, không bao giờ đi vào tracker.
+Không cần gán nhãn thủ công: mọi box phương tiện trong UA-DETRAC đều mang danh tính quỹ đạo, cho nhãn của mọi sự kiện che khuất (ứng viên nào, nếu có, là cùng xe với mỗi track bị mất) và ground truth của mọi phép đánh giá. Với sự kiện detector, mỗi box YOLOv8n được ghép \emph{hậu kiểm} với một box ground-truth bằng thuật toán Hungarian với IoU $\ge 0.45$; nhãn này chỉ dùng để chấm điểm và tinh chỉnh mô hình cho YOLOv8n, không bao giờ đi vào tracker. Các clip trình diễn được kiểm tra theo quy tắc chặt hơn (IoU $\ge 0.5$, Mục~\ref{sec:experimental_evaluation}).
 
 \subsection{Thống kê Bộ dữ liệu}
 \label{sec:dataset_stats}
@@ -96,7 +96,7 @@ Chỉ mạng tái liên kết được huấn luyện (Bảng~\ref{tab:trained_c
         Detector phương tiện & Không & YOLOv8n \cite{jocher2023yolov8}, bên ngoài, dùng nguyên trạng trên video thật \\
         Tracking tầng 1 & Không & IoU + ghép Hungarian \cite{kuhn1955hungarian} \\
         Baseline C-1 \dots C-4 & Không & IoU, vận tốc không đổi, Kalman \cite{kalman1960} + Mahalanobis \cite{mahalanobis1936}, + kích thước và màu \\
-        Quy tắc giám sát & Không & Đa giác vùng, logic lộ trình và khóa mục tiêu, chấm theo GT \\
+        Quy tắc giám sát & Không & Đa giác vùng, logic lộ trình và khóa mục tiêu; chấm theo GT chỉ khi đánh giá \\
         Bộ dữ liệu & --- & Video và nhãn UA-DETRAC \cite{wen2020uadetrac}, bên ngoài, được làm sạch trong đồ án \\
         Thư viện phần mềm & --- & PyTorch, OpenCV, SciPy, FastAPI, bên ngoài; GapLink-Lite không dùng trọng số huấn luyện sẵn \\
         \bottomrule
@@ -237,7 +237,7 @@ Mô hình học đồng thời hai việc: chọn đúng ứng viên, và dự �
 \begin{equation}
     \mathcal{L}_{\text{NLL}} = \frac{1}{|\mathcal{V}|}\sum_{i \in \mathcal{V}} \sum_{k=1}^{4} \frac{1}{2}\Big(\ln\sigma^2_{i,k} + \frac{(t_{i,k}-\mu_{i,k})^2}{\sigma^2_{i,k}} + \ln 2\pi\Big).
 \end{equation}
-Số hạng $(t-\mu)^2/\sigma^2$ phạt khoảng cách giữa vị trí dự đoán $\mu$ và vị trí thật, chia cho độ bất định dự đoán; số hạng $\ln\sigma^2$ phạt việc khai báo độ bất định lớn. Hai số hạng kéo theo hai hướng ngược nhau: mô hình không thể sai mà vẫn tự tin, cũng không thể né lỗi bằng cách luôn khai báo độ bất định rất lớn, nên nó phải học một độ bất định khớp với sai số thật. Tổng chạy qua bốn giá trị dự đoán (vị trí và log kích thước), $\mathcal{V}$ gồm các track bị mất có box thật tại khung quyết định, và $\ln 2\pi$ là hằng số không ảnh hưởng đến việc học. Chính độ bất định đã hiệu chuẩn này cho phép bảng điều khiển vẽ vùng tìm kiếm khi xe đang bị che.
+Số hạng $(t-\mu)^2/\sigma^2$ phạt khoảng cách giữa vị trí dự đoán $\mu$ và vị trí thật, chia cho độ bất định dự đoán; số hạng $\ln\sigma^2$ phạt việc khai báo độ bất định lớn. Hai số hạng kéo theo hai hướng ngược nhau: mô hình không thể sai mà vẫn tự tin, cũng không thể né lỗi bằng cách luôn khai báo độ bất định rất lớn, nên nó phải học một độ bất định khớp với sai số thật. Tổng chạy qua bốn giá trị dự đoán (vị trí và log kích thước), $\mathcal{V}$ gồm các track bị mất có box thật tại khung quyết định, và $\ln 2\pi$ là hằng số không ảnh hưởng đến việc học. Khi được hiệu chuẩn như vậy, độ bất định có thể dùng làm vùng tìm kiếm khi xe đang bị che; bảng điều khiển vẽ elip của mô hình đã tinh chỉnh, mô hình này chưa được hiệu chuẩn lại, nên elip chỉ mang tính minh họa.
 
 \textbf{Độ đo đánh giá.} Kết quả dùng các độ đo sau:
 \begin{itemize}
@@ -274,7 +274,7 @@ Mọi ngưỡng đều được chọn trên dữ liệu validation rồi đóng
     \item \textbf{Hiệu chuẩn.} $\sigma' = \sigma \exp(a + b\ell + c\ell^2)$ với $\ell = \ln(1+g)$ và $(a,b,c) = (0.413, -0.341, 0.074)$, khớp trên nửa~A của sự kiện validation để ellipse 90\% ($d^2 \le \chi^2_2(0.90) = 4.605$) phủ 90\% vị trí thật ở mỗi nhóm khoảng trống; nửa~B được giữ để kiểm định H2.
 \end{itemize}
 
-\textbf{Tối ưu sau huấn luyện.} Bảng điều khiển được profile theo từng công đoạn trên ba clip trình diễn. Vì mô hình rất nhỏ, chạy trên GPU bị chi phối bởi overhead khởi chạy kernel: GapLink-Lite mất $17$--$23$~ms mỗi khung hình trên CUDA nhưng chỉ $8$--$9.5$~ms trên CPU với một luồng. Cùng với phép zoom rẻ hơn và chất lượng JPEG $80$, chi phí mỗi khung hình của bảng điều khiển giảm từ $69$--$83$~ms ($12$--$14.5$~FPS) xuống $22$--$28$~ms ($36$--$46$~FPS), cao hơn $25$~fps của video.
+\textbf{Tối ưu sau huấn luyện.} Phiên bản đầu tiên của bảng điều khiển, chạy song song hai tracker, được profile theo từng công đoạn trên ba clip trình diễn của nó. Vì mô hình rất nhỏ, chạy trên GPU bị chi phối bởi overhead khởi chạy kernel: GapLink-Lite mất $17$--$23$~ms mỗi khung hình trên CUDA nhưng chỉ $8$--$9.5$~ms trên CPU với một luồng. Cùng với phép zoom rẻ hơn và chất lượng JPEG $80$, chi phí mỗi khung hình của bảng điều khiển giảm từ $69$--$83$~ms ($12$--$14.5$~FPS) xuống $22$--$28$~ms ($36$--$46$~FPS), cao hơn $25$~fps của video. Bảng điều khiển cuối cùng (Mục~\ref{sec:system_design}) giữ mô hình trên CPU và chỉ chạy một tracker thay vì hai; nó không được profile riêng.
 
 \section{Quy trình Hoạt động}
 \label{sec:workflow}
@@ -282,7 +282,7 @@ Mọi ngưỡng đều được chọn trên dữ liệu validation rồi đóng
 \subsection{Tổng quan Hệ thống}
 \label{sec:system_overview}
 
-Hệ thống xử lý luồng video theo từng khung hình và giữ trạng thái giữa các khung (track đang hoạt động và bị mất, lịch sử vùng, mục tiêu đang khóa). Hình~\ref{fig:pipeline} thể hiện pipeline. Hai tracker chạy trên cùng detection, một với baseline và một với GapLink-Lite, nên mọi khác biệt trên màn hình chỉ đến từ module tái liên kết.
+Hệ thống xử lý luồng video theo từng khung hình và giữ trạng thái giữa các khung (track đang hoạt động và bị mất, lịch sử vùng, mục tiêu đang khóa). Hình~\ref{fig:pipeline} thể hiện pipeline. Khi đánh giá, mọi phương pháp chạy trên cùng detection với cùng Tầng~1, nên mọi khác biệt trong kết quả chỉ đến từ module tái liên kết; bảng điều khiển trình diễn chạy cùng pipeline đó nhưng chỉ với GapLink-Lite.
 
 \begin{figure}[H]
     \centering
@@ -294,19 +294,19 @@ Hệ thống xử lý luồng video theo từng khung hình và giữ trạng th
         arr/.style={-{Stealth[length=2.2mm]}, thick}
     ]
         \node[st] (v) {File video (OpenCV)};
-        \node[st, below=of v] (d) {Phát hiện phương tiện YOLOv8n + histogram HSV (cache sẵn cho clip demo)};
+        \node[st, below=of v] (d) {Phát hiện phương tiện YOLOv8n + histogram HSV (một lượt cho mỗi video tải lên)};
         \node[st, below=of d] (s1) {Tầng 1: ghép IoU + Hungarian cho các track đang hoạt động};
         \node[dec, below=of s1] (q) {Còn track bị mất và detection chưa ghép?};
         \node[st, below=0.5cm of q] (s2) {Tầng 2: tái liên kết --- GapLink-Lite (Sinkhorn + dustbin) hoặc baseline C-1\dots C-4};
         \node[st, below=of s2] (r) {Quy tắc giám sát: lộ trình cấm $Z_A\!\to\!Z_B$, khóa mục tiêu};
-        \node[st, below=of r] (e) {Lớp phủ bảng điều khiển, bộ đếm, lịch sử sự cố (ảnh cắt trước/sau)};
+        \node[st, below=of r] (e) {Lớp phủ bảng điều khiển, bộ đếm, nhật ký sự kiện (ảnh cắt trước/sau)};
         \node[side, right=0.9cm of q] (n) {Track mới / tiếp tục chờ};
-        \node[side, right=0.9cm of e] (g) {Chấm hậu kiểm theo GT (chỉ để đánh giá)};
+        \node[side, right=0.9cm of e] (g) {Chấm hậu kiểm theo GT (chỉ để đánh giá và kiểm tra clip)};
         \draw[arr] (v) -- (d); \draw[arr] (d) -- (s1); \draw[arr] (s1) -- (q);
         \draw[arr] (q) -- node[right, font=\small]{có} (s2); \draw[arr] (q) -- node[above, font=\small]{không} (n);
         \draw[arr] (s2) -- (r); \draw[arr] (r) -- (e); \draw[arr, dashed] (g) -- (e);
     \end{tikzpicture}
-    \caption{Pipeline xử lý của tracker trực tuyến và bảng điều khiển GapLink-VMS}
+    \caption{Pipeline xử lý của tracker trực tuyến và bảng điều khiển GapLink Live}
     \label{fig:pipeline}
 \end{figure}
 
@@ -338,24 +338,24 @@ Tầng~1 ghép track đang hoạt động với detection có IoU $\ge 0.30$. Tr
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{Quy tắc Giám sát và Lịch sử Sự cố}
+\subsection{Quy tắc Giám sát và Nhật ký Sự kiện}
 \label{sec:surveillance_rules}
 
-\textbf{Lộ trình cấm.} Một track có vùng đầu tiên là $Z_A$ và sau đó đi vào $Z_B$ sẽ phát cảnh báo vi phạm. Theo ground truth, mỗi vi phạm được chấm là \emph{đúng ID} (cùng một xe ở $Z_A$ và $Z_B$), \emph{sai ID} (xe đúng là đến từ $Z_A$ nhưng ID của cảnh báo bắt đầu trên một xe khác) hoặc \emph{giả} (xe chưa từng ở $Z_A$).
+\textbf{Lộ trình cấm.} Một track có vùng đầu tiên là $Z_A$ và sau đó đi vào $Z_B$ sẽ phát cảnh báo vi phạm, được bảng điều khiển hiển thị thành cảnh báo. Khi đánh giá, nơi có ground truth, mỗi vi phạm được chấm là \emph{đúng ID} (cùng một xe ở $Z_A$ và $Z_B$), \emph{sai ID} (xe đúng là đến từ $Z_A$ nhưng ID của cảnh báo bắt đầu trên một xe khác) hoặc \emph{giả} (xe chưa từng ở $Z_A$).
 
-\textbf{Khóa mục tiêu.} Người vận hành click vào một xe và bảng điều khiển bám theo ID của xe đó. Khi mục tiêu bị che, vị trí dự đoán ($\mu$ của GapLink-Lite hoặc dự đoán Kalman) được vẽ thành box và đường đi nét đứt; khi xe xuất hiện lại, mục tiêu được \emph{bắt lại} nếu quay lại với đúng ID cũ, bị \emph{mất} nếu quay lại với ID mới (đổi ID), và là \emph{sai xe} nếu ID của nó chuyển sang một xe khác.
+\textbf{Khóa mục tiêu.} Người vận hành click vào một xe và bảng điều khiển bám theo ID của xe đó. Khi mục tiêu bị che, vị trí do GapLink-Lite dự đoán ($\mu$) được vẽ thành box và đường đi nét đứt, kèm elip 90\% tùy chọn (chưa hiệu chuẩn, chỉ để minh họa); mục tiêu được \emph{bắt lại} nếu xe quay lại với đúng ID cũ, và bị \emph{mất} nếu track của nó không được tái liên kết trong vòng $a_{\max}$ khung. Nếu xe quay lại với ID mới, bảng điều khiển không thể biết khi không có ground truth: ID cũ vẫn ở trạng thái bị che và người xem thấy xe với một màu mới. Khi đánh giá, nơi có ground truth, việc quay lại với ID mới được tính là mất mục tiêu, còn ID chuyển sang một xe khác được tính là \emph{sai xe}.
 
-\textbf{Lịch sử sự cố.} Chỉ những sự kiện người vận hành cần kiểm tra mới được ghi: liên kết sai, xe bị gán ID mới, vi phạm lộ trình và mục tiêu sai hoặc bị mất. Mỗi mục lưu ảnh cắt của xe trước và sau sự kiện, để người xem nhận ra ngay hai ảnh có cùng một xe hay không.
+\textbf{Nhật ký sự kiện.} Bảng điều khiển ghi những sự kiện người xem nên kiểm tra: mỗi danh tính được giữ sau một lần che khuất từ $12$ khung trở lên, mỗi cảnh báo lộ trình và mục tiêu bị mất. Mỗi mục lưu ảnh cắt của xe trước và sau sự kiện, để người xem nhận ra ngay hai ảnh có cùng một xe hay không.
 
 \subsection{Giao thức Đánh giá}
 \label{sec:eval_protocol}
 
-Giả thuyết, quy tắc chọn ngưỡng và giao thức test được đăng ký trước mọi lần chạy test. Ngưỡng chỉ được chọn trên validation, và sự kiện test cùng video test được đánh giá một lần từ các checkpoint đã đóng băng và băm. Có một sai lệch: test Giai đoạn~1 được chạy lần thứ hai sau khi phát hiện và sửa một lỗi chuyển đổi dữ liệu; điều này được nêu ở Mục~\ref{sec:limitations}.
+Giả thuyết, quy tắc chọn ngưỡng và giao thức test được đăng ký trước mọi lần chạy test. Ngưỡng chỉ được chọn trên validation, và mọi lần chạy test đều dùng checkpoint đã đóng băng và băm. Có hai sai lệch, cả hai được nêu ở Mục~\ref{sec:limitations}: test Giai đoạn~1 được chạy lần thứ hai sau khi phát hiện và sửa một lỗi chuyển đổi dữ liệu, và video test trực tiếp được chấm cho cả mô hình chính lẫn mô hình đã tinh chỉnh cho YOLOv8n.
 
 \subsection{Quy trình Người dùng}
 \label{sec:user_workflow}
 
-Người vận hành chọn một trong ba clip, phát hoặc chạy từng khung hình và đọc hai khung song song. Với nhiệm vụ lộ trình, các vùng $Z_A$ và $Z_B$ có thể được vẽ lại trên khung hình và lưu lại; với nhiệm vụ mục tiêu, người vận hành tạm dừng và click vào một xe. Bảng kết quả và lịch sử sự cố cập nhật trực tiếp. Ngoài dashboard tương tác, bảng điều khiển có thể chạy ba clip không có giao diện để tính lại số đếm, và có thể xuất video song song có quay chậm ở các thời điểm then chốt làm phương án dự phòng cho buổi trình bày.
+Người vận hành tải một video lên (kéo thả); bảng điều khiển lưu file, hiển thị mã băm SHA-256 và chạy detector một lượt kèm thanh tiến trình, rồi phát video. Người vận hành có thể tạm dừng, chạy từng khung, tua trên một dòng thời gian đánh dấu mọi danh tính được giữ, và phát chậm. Có thể click vào một xe để khóa bất cứ lúc nào; chuyển sang chế độ lộ trình để vẽ các vùng $Z_A$ và $Z_B$ trên khung hình. Bộ đếm và nhật ký sự kiện cập nhật trong khi video phát, và một phím tắt ẩn mọi lớp vẽ để xem video gốc. Không dùng ground truth: người xem tự kiểm tra danh tính bằng mắt.
 
 \section{Thiết kế Hệ thống}
 \label{sec:system_design}
@@ -371,32 +371,28 @@ Hình~\ref{fig:sys_arch} thể hiện kiến trúc tổng thể của bảng đi
         ext/.style={draw=gray!60!black, rounded corners=4pt, fill=gray!8, text width=2.7cm, align=center, minimum height=1.2cm, font=\small},
         arr/.style={-{Stealth[length=2.3mm]}, thick}
     ]
-        \node[ext] (vid) at (0,0) {Clip video\\ \scriptsize 3 đoạn trích test};
-        \node[ext] (det) at (3.4,0) {YOLOv8n boxes + HSV\\ \scriptsize cache theo clip};
-        \node[box] (t1) at (7.2,1.0) {Tracker A\\ \scriptsize Stage 1 + C-3 Kalman};
-        \node[gl] (t2) at (7.2,-1.0) {Tracker B\\ \scriptsize Stage 1 + GapLink-Lite};
-        \node[box] (j) at (11.0,0) {Bộ chấm\\ \scriptsize tái liên kết, lộ trình, khóa};
-        \node[ext] (gt) at (11.0,-2.4) {Ground truth\\ \scriptsize (chỉ để chấm)};
-        \node[box] (srv) at (14.6,0) {FastAPI server\\ \scriptsize luồng SSE, thao tác};
-        \node[ext] (ui) at (18.0,0) {Trình duyệt web\\ \scriptsize khung hình, bảng, lịch sử};
-        \draw[arr] (vid) -- (det); \draw[arr] (det) -- (t1); \draw[arr] (det) -- (t2);
-        \draw[arr] (t1) -- (j); \draw[arr] (t2) -- (j); \draw[arr, dashed] (gt) -- (j);
-        \draw[arr] (j) -- (srv); \draw[arr] (srv) -- (ui);
-        \draw[arr] (ui.south) to[bend left=25] node[below, font=\scriptsize]{vùng, click để khóa, tua} (srv.south);
+        \node[ext] (vid) at (0,0) {Video tải lên\\ \scriptsize lưu + SHA-256};
+        \node[box] (prep) at (3.6,0) {Chuẩn bị\\ \scriptsize 25~fps, 960~px, YOLOv8n + HSV};
+        \node[gl] (trk) at (7.4,0) {Tracker\\ \scriptsize Stage 1 + GapLink-Lite};
+        \node[box] (rules) at (11.2,0) {Quy tắc và vẽ\\ \scriptsize ID, xe bị che, khóa, lộ trình};
+        \node[box] (srv) at (15.0,0) {FastAPI server\\ \scriptsize luồng SSE, thao tác};
+        \node[ext] (ui) at (18.6,0) {Trình duyệt web\\ \scriptsize video, bảng, nhật ký};
+        \draw[arr] (vid) -- (prep); \draw[arr] (prep) -- (trk); \draw[arr] (trk) -- (rules);
+        \draw[arr] (rules) -- (srv); \draw[arr] (srv) -- (ui);
+        \draw[arr] (ui.south) to[bend left=22] node[below, font=\scriptsize]{tải lên, click để khóa, vùng, tua, bật/tắt lớp vẽ} (srv.south);
     \end{tikzpicture}%
     }
-    \caption{Kiến trúc tổng thể của bảng điều khiển trình diễn GapLink-VMS}
+    \caption{Kiến trúc tổng thể của bảng điều khiển trình diễn GapLink Live}
     \label{fig:sys_arch}
 \end{figure}
 
-\textbf{Các thành phần.} Hệ thống gồm sáu phần:
+\textbf{Các thành phần.} Hệ thống gồm năm phần:
 \begin{itemize}
-    \item \textbf{Dữ liệu clip.} Mỗi clip trình diễn đi kèm detection YOLOv8n và histogram màu đã cache, box ground-truth, và một mô tả ngắn về kịch bản (vùng, thời điểm quan trọng, điểm khóa). Việc cache bảo đảm hai khung nhận đúng cùng một tập detection ở mọi lần chạy.
-    \item \textbf{Phiên và bộ chạy clip.} Máy chủ giữ một phiên đọc video từng khung hình bằng OpenCV và đẩy hai khung tiến lên đồng bộ. Phiên lưu khung hình hiện tại, trạng thái phát và tốc độ; một khóa tuần tự hóa thao tác người dùng và các nhịp khung hình, nên một cú click không bao giờ gặp một khung hình đang xử lý dở.
-    \item \textbf{Các khung (pane).} Mỗi phương pháp có một khung. Mỗi khung sở hữu một tracker hai tầng hoàn chỉnh (cùng Tầng~1, với C-3 hoặc GapLink-Lite làm Tầng~2), các quy tắc giám sát riêng (lộ trình cấm, khóa mục tiêu), bộ đếm riêng và lịch sử sự cố riêng.
-    \item \textbf{Bộ chấm.} Sau mỗi khung hình, mỗi tái liên kết và cảnh báo lộ trình mới được so với ground truth và gán nhãn (đúng, nhầm xe, ID mới, cảnh báo giả). Kết quả chấm chỉ để hiển thị; chúng không bao giờ quay ngược vào tracker.
+    \item \textbf{Chuẩn bị video.} File tải lên được lưu, băm (SHA-256), lấy mẫu lại về $25$~fps nếu nhanh hơn, thu về chiều rộng $960$~px và chạy một lượt qua YOLOv8n với thiết lập của đánh giá Giai đoạn~2; box và histogram màu được giữ lại để phát. Lượt này chạy trong một luồng nền kèm thanh tiến trình.
+    \item \textbf{Phiên và tracker.} Máy chủ giữ một phiên đọc video đã chuẩn bị từng khung hình bằng OpenCV và đẩy một tracker hai tầng (Tầng~1, rồi GapLink-Lite) tiến lên cùng các quy tắc giám sát (lộ trình cấm, khóa mục tiêu). Một khóa tuần tự hóa thao tác người dùng và các nhịp khung hình, nên một cú click không bao giờ gặp một khung hình đang xử lý dở.
+    \item \textbf{Lớp vẽ.} Với mỗi khung hình, lớp này vẽ một màu cho mỗi ID, một box nét đứt ở vị trí cuối cùng của xe khi xe đang bị che, nhãn ``ID KEPT'' và một cầu nối nét đứt khi danh tính được trả lại, quỹ đạo và vị trí dự đoán của mục tiêu đang khóa, cùng các vùng và cảnh báo lộ trình. Mỗi thành phần có thể tắt riêng, và một phím ẩn tất cả.
     \item \textbf{Máy chủ web.} Máy chủ FastAPI cung cấp bốn giao diện ở Bảng~\ref{tab:api}.
-    \item \textbf{Trang trình duyệt.} Một trang duy nhất hiển thị khung hình ghép của hai khung, các nút điều khiển, bảng kết quả và lịch sử sự cố.
+    \item \textbf{Trang trình duyệt.} Một trang duy nhất hiển thị video, các nút điều khiển, một dòng thời gian đánh dấu các sự kiện, bảng nguồn (tên file, thời lượng, mã băm), bộ đếm tracking, bảng mục tiêu và nhật ký sự kiện.
 \end{itemize}
 
 \begin{table}[H]
@@ -408,24 +404,23 @@ Hình~\ref{fig:sys_arch} thể hiện kiến trúc tổng thể của bảng đi
         \toprule
         \textbf{Giao diện} & \textbf{Kiểu} & \textbf{Mục đích} \\
         \midrule
-        Danh sách clip & GET & Liệt kê ba clip và kịch bản của chúng cho các nút chọn clip \\
-        Thao tác & POST (JSON) & Mở clip, phát/tạm dừng, chạy từng khung, tua, đổi tốc độ, bật/tắt ID, khóa xe, sửa hoặc lưu vùng \\
-        Luồng khung hình & server-sent events & Mỗi nhịp một thông điệp: khung JPEG, số khung, bộ đếm, vùng và FPS đo được \\
-        Lịch sử sự cố & GET & Ảnh cắt trước/sau của mỗi sự cố; chỉ tải lại khi số phiên bản thay đổi \\
+        Tải lên & POST (file gốc) & Lưu video, trả về SHA-256 và khởi động bước chuẩn bị \\
+        Thao tác & POST (JSON) & Mở video, phát/tạm dừng, chạy từng khung, tua, đổi tốc độ, bật/tắt lớp vẽ, khóa hoặc bỏ khóa xe, đổi chế độ, vẽ vùng \\
+        Luồng khung hình & server-sent events & Mỗi nhịp một thông điệp: khung JPEG, số khung, bộ đếm, trạng thái mục tiêu, sự kiện trên dòng thời gian, tiến trình xử lý \\
+        Nhật ký sự kiện & GET & Ảnh cắt trước/sau của mỗi sự kiện được ghi; chỉ tải lại khi số phiên bản thay đổi \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
-\textbf{Xử lý một nhịp.} Khi clip đang phát, mỗi nhịp của luồng thực hiện:
+\textbf{Xử lý một nhịp.} Khi video đang phát, mỗi nhịp của luồng thực hiện:
 \begin{enumerate}
     \item đọc khung hình video tiếp theo;
-    \item đưa detection đã cache của khung đó cho cả hai khung và chạy Tầng~1, Tầng~2 của tracker;
-    \item cập nhật các quy tắc giám sát (lượt vào vùng, cảnh báo lộ trình, trạng thái mục tiêu đang khóa);
-    \item để bộ chấm gán nhãn các sự kiện mới và thêm vào lịch sử sự cố;
-    \item vẽ hai khung cạnh nhau, mã hóa ảnh JPEG (chất lượng $80$) và gửi kèm bộ đếm trong một thông điệp;
-    \item chờ để luồng đi đúng tốc độ khung hình của clip nhân với tốc độ phát.
+    \item đưa detection của khung đó cho tracker và chạy Tầng~1, Tầng~2;
+    \item cập nhật các quy tắc giám sát (lượt vào vùng, cảnh báo lộ trình, trạng thái mục tiêu đang khóa) và nhật ký sự kiện;
+    \item vẽ các lớp phủ (hoặc không vẽ), mã hóa ảnh JPEG (chất lượng $82$) và gửi kèm bộ đếm trong một thông điệp;
+    \item chờ để luồng đi đúng tốc độ khung hình của video nhân với tốc độ phát.
 \end{enumerate}
 
-\textbf{Lựa chọn thiết kế.} Ba lựa chọn giữ cho những gì người vận hành thấy trung thực với một hệ thống trực tuyến. Khi tua lùi hoặc vẽ vùng mới, cả hai tracker được chạy lại từ khung đầu tiên thay vì khôi phục trạng thái đã lưu, nên hình hiển thị luôn là kết quả của một lần chạy trực tuyến liền mạch. Ground truth chỉ được bộ chấm sử dụng, không bao giờ được tracker hay các quy tắc dùng. Cuối cùng, mô hình nhỏ chạy trên CPU với một luồng, nhanh hơn GPU với khối lượng tính toán này (Mục~\ref{sec:rule_tuning}) và để dành GPU cho detector trực tiếp.
+\textbf{Lựa chọn thiết kế.} Ba lựa chọn giữ cho những gì người xem thấy trung thực với một hệ thống trực tuyến và kiểm chứng được. Khi tua lùi hoặc vẽ vùng mới, tracker được chạy lại từ khung đầu tiên thay vì khôi phục trạng thái đã lưu, nên hình hiển thị luôn là kết quả của một lần chạy trực tuyến liền mạch. Không gì trên màn hình đến từ ground truth hay từ một video dựng sẵn: file tải lên là video gốc, và mọi lớp vẽ được vẽ trong lúc phát và có thể ẩn đi. Cuối cùng, mô hình nhỏ chạy trên CPU với một luồng, nhanh hơn GPU với khối lượng tính toán này (Mục~\ref{sec:rule_tuning}) và để dành GPU cho detector.
 
 

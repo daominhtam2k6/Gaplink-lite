@@ -24,7 +24,7 @@ The raw annotations were converted to the MOT text format. The source mirror sto
 \subsection{Data Annotation}
 \label{sec:data_annotation}
 
-No manual labelling was required: every vehicle box in UA-DETRAC carries a trajectory identity, which gives the label of every occlusion event (which candidate, if any, is the same vehicle as each lost track) and the ground truth of every evaluation. For detector events and demonstration clips, each YOLOv8n box is matched afterwards to a ground-truth box by the Hungarian algorithm with IoU $\ge 0.45$; this \emph{post-hoc} label is used only for scoring and for tuning the model to YOLOv8n and never enters a tracker.
+No manual labelling was required: every vehicle box in UA-DETRAC carries a trajectory identity, which gives the label of every occlusion event (which candidate, if any, is the same vehicle as each lost track) and the ground truth of every evaluation. For detector events, each YOLOv8n box is matched afterwards to a ground-truth box by the Hungarian algorithm with IoU $\ge 0.45$; this \emph{post-hoc} label is used only for scoring and for tuning the model to YOLOv8n and never enters a tracker. The demonstration clips were checked with a stricter rule (IoU $\ge 0.5$, Section~\ref{sec:experimental_evaluation}).
 
 \subsection{Dataset Statistics}
 \label{sec:dataset_stats}
@@ -96,7 +96,7 @@ Only the re-association network is trained (Table~\ref{tab:trained_components}).
         Vehicle detector & No & YOLOv8n \cite{jocher2023yolov8}, external, used unchanged on real video \\
         Stage-1 tracking & No & IoU + Hungarian matching \cite{kuhn1955hungarian} \\
         Baselines C-1 \dots C-4 & No & IoU, constant velocity, Kalman \cite{kalman1960} + Mahalanobis \cite{mahalanobis1936}, + size and colour \\
-        Surveillance rules & No & Zone polygons, route and target-lock logic, GT-based judging \\
+        Surveillance rules & No & Zone polygons, route and target-lock logic; GT-based judging in evaluation only \\
         Dataset & --- & UA-DETRAC videos and labels \cite{wen2020uadetrac}, external, cleaned in this project \\
         Software libraries & --- & PyTorch, OpenCV, SciPy, FastAPI, external; no pretrained weights inside GapLink-Lite \\
         \bottomrule
@@ -237,7 +237,7 @@ Here $P_{i,y_i}$ is the probability the model gives to the correct answer for lo
 \begin{equation}
     \mathcal{L}_{\text{NLL}} = \frac{1}{|\mathcal{V}|}\sum_{i \in \mathcal{V}} \sum_{k=1}^{4} \frac{1}{2}\Big(\ln\sigma^2_{i,k} + \frac{(t_{i,k}-\mu_{i,k})^2}{\sigma^2_{i,k}} + \ln 2\pi\Big).
 \end{equation}
-The term $(t-\mu)^2/\sigma^2$ penalises the distance between the predicted position $\mu$ and the true one, divided by the predicted uncertainty; the term $\ln\sigma^2$ penalises claiming a large uncertainty. The two pull in opposite directions: the model cannot be confidently wrong, and it cannot avoid errors by always declaring a huge uncertainty, so it has to learn an uncertainty that matches its real error. The sum runs over the four predicted values (position and log size), $\mathcal{V}$ contains the lost tracks whose true box is known at the decision frame, and $\ln 2\pi$ is a constant that does not affect learning. This calibrated uncertainty is what allows the console to draw a search area while a vehicle is hidden.
+The term $(t-\mu)^2/\sigma^2$ penalises the distance between the predicted position $\mu$ and the true one, divided by the predicted uncertainty; the term $\ln\sigma^2$ penalises claiming a large uncertainty. The two pull in opposite directions: the model cannot be confidently wrong, and it cannot avoid errors by always declaring a huge uncertainty, so it has to learn an uncertainty that matches its real error. The sum runs over the four predicted values (position and log size), $\mathcal{V}$ contains the lost tracks whose true box is known at the decision frame, and $\ln 2\pi$ is a constant that does not affect learning. Calibrated in this way, the uncertainty can serve as a search area while a vehicle is hidden; the console draws the ellipse of the tuned model, which was not re-calibrated, as an illustration only.
 
 \textbf{Evaluation metrics.} The results use the following measures:
 \begin{itemize}
@@ -274,7 +274,7 @@ All thresholds were selected on validation data and then frozen:
     \item \textbf{Calibration.} $\sigma' = \sigma \exp(a + b\ell + c\ell^2)$ with $\ell = \ln(1+g)$ and $(a,b,c) = (0.413, -0.341, 0.074)$, fitted on half~A of the validation events so that the 90\% ellipse ($d^2 \le \chi^2_2(0.90) = 4.605$) covers 90\% of the true positions in each gap bin; half~B is kept for testing H2.
 \end{itemize}
 
-\textbf{Post-training optimisation.} The console was profiled stage by stage on the three demonstration clips. Because the model is tiny, running it on the GPU is dominated by kernel-launch overhead: GapLink-Lite took $17$--$23$~ms per frame on CUDA but $8$--$9.5$~ms on the CPU with a single thread. Together with a cheaper zoom and JPEG quality $80$, the per-frame cost of the console fell from $69$--$83$~ms ($12$--$14.5$~FPS) to $22$--$28$~ms ($36$--$46$~FPS), above the $25$~fps of the videos.
+\textbf{Post-training optimisation.} The first, side-by-side version of the console was profiled stage by stage on its three demonstration clips. Because the model is tiny, running it on the GPU is dominated by kernel-launch overhead: GapLink-Lite took $17$--$23$~ms per frame on CUDA but $8$--$9.5$~ms on the CPU with a single thread. Together with a cheaper zoom and JPEG quality $80$, the per-frame cost of the console fell from $69$--$83$~ms ($12$--$14.5$~FPS) to $22$--$28$~ms ($36$--$46$~FPS), above the $25$~fps of the videos. The final console (Section~\ref{sec:system_design}) keeps the CPU model and runs one tracker instead of two; it was not profiled separately.
 
 \section{Workflow}
 \label{sec:workflow}
@@ -282,7 +282,7 @@ All thresholds were selected on validation data and then frozen:
 \subsection{System Overview}
 \label{sec:system_overview}
 
-The system processes a video stream frame by frame and keeps state between frames (active and lost tracks, zone history, the locked target). Figure~\ref{fig:pipeline} shows the pipeline. Two trackers run on the same detections, one with the baseline and one with GapLink-Lite, so any difference on screen comes from the re-association module alone.
+The system processes a video stream frame by frame and keeps state between frames (active and lost tracks, zone history, the locked target). Figure~\ref{fig:pipeline} shows the pipeline. For the evaluation, every method runs on the same detections with the same Stage~1, so any difference in the results comes from the re-association module alone; the demonstration console runs the same pipeline with GapLink-Lite only.
 
 \begin{figure}[H]
     \centering
@@ -294,19 +294,19 @@ The system processes a video stream frame by frame and keeps state between frame
         arr/.style={-{Stealth[length=2.2mm]}, thick}
     ]
         \node[st] (v) {Video file (OpenCV)};
-        \node[st, below=of v] (d) {YOLOv8n vehicle detection + HSV histograms (cached for the demo clips)};
+        \node[st, below=of v] (d) {YOLOv8n vehicle detection + HSV histograms (one pass per uploaded video)};
         \node[st, below=of d] (s1) {Stage 1: IoU + Hungarian matching of active tracks};
         \node[dec, below=of s1] (q) {Unmatched lost tracks and detections?};
         \node[st, below=0.5cm of q] (s2) {Stage 2: re-association --- GapLink-Lite (Sinkhorn + dustbin) or baseline C-1\dots C-4};
         \node[st, below=of s2] (r) {Surveillance rules: forbidden route $Z_A\!\to\!Z_B$, target lock};
-        \node[st, below=of r] (e) {Console overlay, counters, incident history (before/after crops)};
+        \node[st, below=of r] (e) {Console overlay, counters, event log (before/after crops)};
         \node[side, right=0.9cm of q] (n) {New tracks / keep waiting};
-        \node[side, right=0.9cm of e] (g) {Post-hoc GT judging (evaluation only)};
+        \node[side, right=0.9cm of e] (g) {Post-hoc GT judging (evaluation and clip check only)};
         \draw[arr] (v) -- (d); \draw[arr] (d) -- (s1); \draw[arr] (s1) -- (q);
         \draw[arr] (q) -- node[right, font=\small]{yes} (s2); \draw[arr] (q) -- node[above, font=\small]{no} (n);
         \draw[arr] (s2) -- (r); \draw[arr] (r) -- (e); \draw[arr, dashed] (g) -- (e);
     \end{tikzpicture}
-    \caption{Processing pipeline of the online tracker and the GapLink-VMS console}
+    \caption{Processing pipeline of the online tracker and the GapLink Live console}
     \label{fig:pipeline}
 \end{figure}
 
@@ -338,24 +338,24 @@ Stage~1 matches active tracks to detections with IoU $\ge 0.30$. Unmatched confi
 \end{algorithmic}
 \end{algorithm}
 
-\subsection{Surveillance Rules and Incident History}
+\subsection{Surveillance Rules and Event Log}
 \label{sec:surveillance_rules}
 
-\textbf{Forbidden route.} A track whose first zone is $Z_A$ and that later enters $Z_B$ raises a violation. Against ground truth each violation is judged \emph{correct ID} (the same vehicle at $Z_A$ and $Z_B$), \emph{wrong ID} (the vehicle did come from $Z_A$ but the alert's ID started on another vehicle) or \emph{false} (the vehicle never was in $Z_A$).
+\textbf{Forbidden route.} A track whose first zone is $Z_A$ and that later enters $Z_B$ raises a violation, which the console shows as an alert. In the evaluation, where ground truth is available, each violation is judged \emph{correct ID} (the same vehicle at $Z_A$ and $Z_B$), \emph{wrong ID} (the vehicle did come from $Z_A$ but the alert's ID started on another vehicle) or \emph{false} (the vehicle never was in $Z_A$).
 
-\textbf{Target lock.} The operator clicks a vehicle and the console follows its ID. While the target is hidden, the predicted position (GapLink-Lite's $\mu$ or the Kalman prediction) is drawn as a dashed box and path; when the vehicle re-appears, the target is \emph{re-acquired} if it comes back under its own ID, \emph{lost} if it comes back under a new ID (an ID switch), and a \emph{wrong car} if its ID moves to another vehicle.
+\textbf{Target lock.} The operator clicks a vehicle and the console follows its ID. While the target is hidden, the position predicted by GapLink-Lite ($\mu$) is drawn as a dashed box and path, with an optional 90\% ellipse (uncalibrated, illustration only); the target is \emph{re-acquired} if the vehicle comes back under its own ID, and \emph{lost} if its track is not re-associated within $a_{\max}$ frames. If the vehicle comes back under a new ID, the console cannot know it without ground truth: the old ID stays hidden and the viewer sees the vehicle with a new colour. In the evaluation, where ground truth is available, a return under a new ID is counted as a lost target and an ID that moves to another vehicle as a \emph{wrong car}.
 
-\textbf{Incident history.} Only the events an operator must check are logged: wrong links, vehicles that received a new ID, route violations and a wrong or lost target. Each entry stores crops of the vehicle before and after the event, so a reviewer can see at a glance whether they show the same vehicle.
+\textbf{Event log.} The console logs the events a viewer should check: every identity kept after an occlusion of at least $12$ frames, every route alert and a lost target. Each entry stores crops of the vehicle before and after the event, so a reviewer can see at a glance whether they show the same vehicle.
 
 \subsection{Evaluation Protocol}
 \label{sec:eval_protocol}
 
-Hypotheses, threshold rules and the test protocol were registered before any test run. Thresholds were selected on validation only, and the test events and test videos were evaluated once from frozen, hashed checkpoints. One deviation occurred: the Phase-1 test was run a second time after a data-conversion error was found and fixed; it is reported in Section~\ref{sec:limitations}.
+Hypotheses, threshold rules and the test protocol were registered before any test run. Thresholds were selected on validation only, and every test run used a frozen, hashed checkpoint. Two deviations occurred, both reported in Section~\ref{sec:limitations}: the Phase-1 test was run a second time after a data-conversion error was found and fixed, and the live test videos were scored for both the main model and the model tuned for YOLOv8n.
 
 \subsection{User Workflow}
 \label{sec:user_workflow}
 
-The operator selects one of three clips, plays or steps through it and reads the two panes side by side. For the route task, zones $Z_A$ and $Z_B$ can be redrawn on the frame and saved; for the target task, the operator pauses and clicks a vehicle. The result table and the incident history update live. Besides the interactive dashboard, the console can run the three clips without a user interface to recompute their counts, and can render side-by-side videos with slow motion at the key moments as a backup for the presentation.
+The operator uploads a video (drag and drop); the console stores it, shows its SHA-256 hash and runs the detector once with a progress bar, then plays it. The operator can pause, step frame by frame, seek on a timeline that marks every kept identity, and slow the video down. Clicking a vehicle locks it at any time; switching to the route mode lets the operator draw zones $Z_A$ and $Z_B$ on the frame. The counters and the event log update while the video plays, and a key hides every overlay to show the untouched video. No ground truth is used: the viewer checks the identities by eye.
 
 \section{System Design}
 \label{sec:system_design}
@@ -371,32 +371,28 @@ Figure~\ref{fig:sys_arch} shows the overall architecture of the console; the int
         ext/.style={draw=gray!60!black, rounded corners=4pt, fill=gray!8, text width=2.7cm, align=center, minimum height=1.2cm, font=\small},
         arr/.style={-{Stealth[length=2.3mm]}, thick}
     ]
-        \node[ext] (vid) at (0,0) {Video clip\\ \scriptsize 3 test excerpts};
-        \node[ext] (det) at (3.4,0) {YOLOv8n boxes + HSV\\ \scriptsize cached per clip};
-        \node[box] (t1) at (7.2,1.0) {Tracker A\\ \scriptsize Stage 1 + C-3 Kalman};
-        \node[gl] (t2) at (7.2,-1.0) {Tracker B\\ \scriptsize Stage 1 + GapLink-Lite};
-        \node[box] (j) at (11.0,0) {Judges\\ \scriptsize re-link, route, lock};
-        \node[ext] (gt) at (11.0,-2.4) {Ground truth\\ \scriptsize (scoring only)};
-        \node[box] (srv) at (14.6,0) {FastAPI server\\ \scriptsize SSE stream, actions};
-        \node[ext] (ui) at (18.0,0) {Web browser\\ \scriptsize panes, table, history};
-        \draw[arr] (vid) -- (det); \draw[arr] (det) -- (t1); \draw[arr] (det) -- (t2);
-        \draw[arr] (t1) -- (j); \draw[arr] (t2) -- (j); \draw[arr, dashed] (gt) -- (j);
-        \draw[arr] (j) -- (srv); \draw[arr] (srv) -- (ui);
-        \draw[arr] (ui.south) to[bend left=25] node[below, font=\scriptsize]{zones, click-to-lock, seek} (srv.south);
+        \node[ext] (vid) at (0,0) {Uploaded video\\ \scriptsize stored + SHA-256};
+        \node[box] (prep) at (3.6,0) {Preparation\\ \scriptsize 25~fps, 960~px, YOLOv8n + HSV};
+        \node[gl] (trk) at (7.4,0) {Tracker\\ \scriptsize Stage 1 + GapLink-Lite};
+        \node[box] (rules) at (11.2,0) {Rules and drawing\\ \scriptsize IDs, hidden, lock, route};
+        \node[box] (srv) at (15.0,0) {FastAPI server\\ \scriptsize SSE stream, actions};
+        \node[ext] (ui) at (18.6,0) {Web browser\\ \scriptsize video, panels, log};
+        \draw[arr] (vid) -- (prep); \draw[arr] (prep) -- (trk); \draw[arr] (trk) -- (rules);
+        \draw[arr] (rules) -- (srv); \draw[arr] (srv) -- (ui);
+        \draw[arr] (ui.south) to[bend left=22] node[below, font=\scriptsize]{upload, click-to-lock, zones, seek, overlay on/off} (srv.south);
     \end{tikzpicture}%
     }
-    \caption{Overall architecture of the GapLink-VMS demonstration console}
+    \caption{Overall architecture of the GapLink Live demonstration console}
     \label{fig:sys_arch}
 \end{figure}
 
-\textbf{Components.} The system is built from six parts:
+\textbf{Components.} The system is built from five parts:
 \begin{itemize}
-    \item \textbf{Clip data.} Each demonstration clip comes with its cached YOLOv8n detections and colour histograms, its ground-truth boxes, and a short description of the scenario (zones, key moments, lock point). Caching guarantees that both panes receive exactly the same detections on every run.
-    \item \textbf{Session and clip runner.} The server keeps one session that reads the video frame by frame with OpenCV and advances the two panes in lockstep. It stores the current frame, the play state and the speed; a lock serialises user actions and frame ticks, so a click never sees a half-processed frame.
-    \item \textbf{Panes.} There is one pane per method. Each pane owns a complete two-stage tracker (the same Stage~1, with C-3 or GapLink-Lite as Stage~2), its own surveillance rules (forbidden route, target lock), its own counters and its own incident history.
-    \item \textbf{Judges.} After each frame, every new re-link and route alert is compared with the ground truth and labelled (correct, wrong vehicle, new ID, false alert). The verdicts are only displayed; they never feed back into the trackers.
+    \item \textbf{Video preparation.} An uploaded file is saved, hashed (SHA-256), resampled to $25$~fps if it is faster, resized to $960$~px wide and run once through YOLOv8n with the settings of the Phase-2 evaluation; the boxes and colour histograms are kept for playback. The pass runs in a background thread with a progress bar.
+    \item \textbf{Session and tracker.} The server keeps one session that reads the prepared video frame by frame with OpenCV and advances one two-stage tracker (Stage~1, then GapLink-Lite) together with the surveillance rules (forbidden route, target lock). A lock serialises user actions and frame ticks, so a click never sees a half-processed frame.
+    \item \textbf{Drawing layer.} For every frame it draws one colour per ID, a dashed box where a vehicle was last seen while it is hidden, the ``ID kept'' highlight and a dashed bridge when an identity is given back, the path and predicted position of the locked target, and the zones and route alerts. Each element can be switched off, and one key hides all of them.
     \item \textbf{Web server.} A FastAPI server exposes the four interfaces of Table~\ref{tab:api}.
-    \item \textbf{Browser page.} A single page shows the combined frame of both panes, the controls, the result table and the incident history.
+    \item \textbf{Browser page.} A single page shows the video, the controls, a timeline marked with the events, the source panel (file name, duration, hash), the tracking counters, the target panel and the event log.
 \end{itemize}
 
 \begin{table}[H]
@@ -408,24 +404,23 @@ Figure~\ref{fig:sys_arch} shows the overall architecture of the console; the int
         \toprule
         \textbf{Interface} & \textbf{Type} & \textbf{Purpose} \\
         \midrule
-        Clip list & GET & Lists the three clips and their scenarios for the clip buttons \\
-        Actions & POST (JSON) & Load a clip, play/pause, step, seek, change speed, show/hide IDs, lock a vehicle, edit or save zones \\
-        Frame stream & server-sent events & One message per tick: the JPEG frame, frame number, counters, zones and measured FPS \\
-        Incident history & GET & Before/after crops of each incident; fetched again only when its version number changes \\
+        Upload & POST (raw file) & Stores the video, returns its SHA-256 and starts the preparation job \\
+        Actions & POST (JSON) & Load a video, play/pause, step, seek, change speed, switch overlays, lock or unlock a vehicle, change mode, draw zones \\
+        Frame stream & server-sent events & One message per tick: the JPEG frame, frame number, counters, target state, timeline events, job progress \\
+        Event log & GET & Before/after crops of each logged event; fetched again only when its version number changes \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
-\textbf{Processing of one tick.} While the clip is playing, every tick of the stream does the following:
+\textbf{Processing of one tick.} While the video is playing, every tick of the stream does the following:
 \begin{enumerate}
     \item read the next video frame;
-    \item give both panes the cached detections of that frame and run Stage~1 and Stage~2 of their trackers;
-    \item update the surveillance rules (zone visits, route alerts, state of the locked target);
-    \item let the judges label the new events and add them to the incident history;
-    \item draw the two panes side by side, encode the image as JPEG (quality $80$) and send it with the counters as one message;
-    \item wait so that the stream follows the frame rate of the clip multiplied by the playback speed.
+    \item give the tracker the detections of that frame and run Stage~1 and Stage~2;
+    \item update the surveillance rules (zone visits, route alerts, state of the locked target) and the event log;
+    \item draw the overlays (or none), encode the image as JPEG (quality $82$) and send it with the counters as one message;
+    \item wait so that the stream follows the frame rate of the video multiplied by the playback speed.
 \end{enumerate}
 
-\textbf{Design choices.} Three choices keep what the operator sees faithful to an online system. A backward seek or a new zone re-runs both trackers from the first frame instead of restoring a saved state, so the display is always the result of an uninterrupted online run. Ground truth is used only by the judges and never by the trackers or the rules. Finally, the small model runs on the CPU with one thread, which is faster than the GPU for this workload (Section~\ref{sec:rule_tuning}) and leaves the GPU free for a live detector.
+\textbf{Design choices.} Three choices keep what the viewer sees faithful to an online system and checkable. A backward seek or a new zone re-runs the tracker from the first frame instead of restoring a saved state, so the display is always the result of an uninterrupted online run. Nothing on screen comes from ground truth or from a pre-rendered video: the uploaded file is the raw video, and every overlay is drawn during playback and can be hidden. Finally, the small model runs on the CPU with one thread, which is faster than the GPU for this workload (Section~\ref{sec:rule_tuning}) and leaves the GPU to the detector.
 
 

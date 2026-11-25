@@ -62,7 +62,7 @@ Các mục tiêu cụ thể gồm:
     \item \textbf{Mô hình tái liên kết gọn nhẹ:} thiết kế và huấn luyện \textbf{GapLink-Lite}, mạng dưới $1$ triệu tham số, huấn luyện từ khởi tạo ngẫu nhiên trên bộ benchmark UA-DETRAC \cite{wen2020uadetrac}, quyết định một xe xuất hiện lại có phải là xe đã mất dấu không, là xe nào, hay không phải xe nào.
     \item \textbf{Đánh giá có kiểm soát:} so sánh mô hình với các phương pháp ghép cổ điển trên box ground-truth với che khuất có kiểm soát (Giai đoạn~1), theo các tiêu chí cố định trước mọi lần chạy test.
     \item \textbf{Đánh giá với detector thật:} chạy mô hình sau detector YOLOv8n trên che khuất tự nhiên (Giai đoạn~2) và kiểm tra lợi thế có còn khi detection không hoàn hảo.
-    \item \textbf{Bảng điều khiển trình diễn:} xây dựng bảng điều khiển quản lý video (GapLink-VMS) cho thấy tác động lên việc khôi phục danh tính, lộ trình cấm và bám theo mục tiêu được khóa.
+    \item \textbf{Bảng điều khiển trình diễn:} xây dựng bảng điều khiển quản lý video (GapLink Live) chạy toàn bộ pipeline trên một video được tải lên và hiển thị việc khôi phục danh tính sau che khuất, việc bám theo mục tiêu được khóa và lộ trình cấm, để người xem tự kiểm tra danh tính bằng mắt.
 \end{enumerate}
 
 \textbf{Các giả thuyết đăng ký trước.} Trước khi huấn luyện bất kỳ mô hình nào, bốn tiêu chí đã được cố định:
@@ -88,7 +88,7 @@ Các mục tiêu cụ thể gồm:
         \toprule
         \textbf{STT} & \textbf{Thành viên} & \textbf{Vai trò và trách nhiệm} \\
         \midrule
-        1 & \memberOne & Chủ nhiệm đồ án: xác định bài toán và tiền đăng ký; chuyển đổi dữ liệu và chia theo địa điểm camera; thiết kế, cài đặt và huấn luyện GapLink-Lite; baseline và đánh giá; tinh chỉnh cho YOLOv8n; ứng dụng GapLink-VMS và demo; báo cáo. \\
+        1 & \memberOne & Chủ nhiệm đồ án: xác định bài toán và tiền đăng ký; chuyển đổi dữ liệu và chia theo địa điểm camera; thiết kế, cài đặt và huấn luyện GapLink-Lite; baseline và đánh giá; tinh chỉnh cho YOLOv8n; bảng điều khiển GapLink Live và demo; báo cáo. \\
         \bottomrule
     \end{tabularx}
 \end{table}
@@ -96,7 +96,7 @@ Các mục tiêu cụ thể gồm:
 \section{Lịch trình và Các Mốc}
 \label{sec:schedule_milestones}
 
-Dự án được thực hiện từ ngày 15 đến 21 tháng 11 năm 2026 theo một chuỗi cổng kiểm định (Bảng~\ref{tab:milestones}); mỗi cổng phải đạt trước khi bắt đầu cổng tiếp theo.
+Dự án được thực hiện từ ngày 15 đến 25 tháng 11 năm 2026 theo một chuỗi cổng kiểm định (Bảng~\ref{tab:milestones}); mỗi cổng phải đạt trước khi bắt đầu cổng tiếp theo.
 
 \begin{table}[H]
     \centering
@@ -113,7 +113,8 @@ Dự án được thực hiện từ ngày 15 đến 21 tháng 11 năm 2026 theo
         G4 & 15--16/11 & 5 seed mô hình đầy đủ và 3 ablation (20 lần chạy GPU); hiệu chuẩn trên validation & Hoàn thành \\
         G5--G6 & 16/11 & Chọn ngưỡng trên validation; đóng băng checkpoint; một lần chạy test Giai đoạn~1 đã khóa & Hoàn thành \\
         G7 & 18--20/11 & GapLink-VMS với YOLOv8n trực tiếp & Hoàn thành \\
-        G8 & 21/11 & Tinh chỉnh mô hình cho YOLOv8n; chọn điểm vận hành trên validation; một lần chạy test trực tiếp; demo ba video & Hoàn thành \\
+        G8 & 21/11 & Tinh chỉnh mô hình cho YOLOv8n; chọn điểm vận hành trên validation; một lần chạy test trực tiếp & Hoàn thành \\
+        G9 & 24--25/11 & Bảng điều khiển GapLink Live (tải video lên, xử lý trực tiếp, chỉ GapLink-Lite); kiểm tra các clip trình diễn theo ground truth & Hoàn thành \\
         \bottomrule
     \end{tabularx}
 \end{table}

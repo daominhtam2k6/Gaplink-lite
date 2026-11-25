@@ -111,18 +111,21 @@ def decide(self, ev):
 
 \begin{table}[H]
     \centering
-    \caption{Cấu hình bảng điều khiển GapLink-VMS}
+    \caption{Cấu hình bảng điều khiển GapLink Live}
     \label{tab:vms_cfg}
-    \begin{tabularx}{\textwidth}{p{3.4cm} p{5.0cm} X}
+    \begin{tabularx}{\textwidth}{l >{\raggedright\arraybackslash}p{5.4cm} >{\raggedright\arraybackslash}X}
         \toprule
         \textbf{Thiết lập} & \textbf{Giá trị} & \textbf{Ghi chú} \\
         \midrule
-        Detector & YOLOv8n, input size $640$, conf.\ $0.28$ & Detection được cache theo từng clip \\
-        Baseline / mô hình & C-3 ($\theta = 1.0$) / GapLink-Lite đã tinh chỉnh ($\tau = 0.65$) & Điểm vận hành trực tiếp chọn trên validation \\
-        Xác nhận track & $3$ lần khớp & Như nhau ở cả hai khung \\
-        Chấm tái liên kết & khoảng trống $\ge 3$ khung, IoU GT $\ge 0.45$ & Hậu kiểm; tracker không bao giờ dùng \\
+        Chuẩn bị video & $25$~fps, rộng $960$~px & Video nhanh hơn được lấy mẫu lại; xử lý một lượt khi tải lên \\
+        Detector & YOLOv8n, input size $640$, conf.\ $0.28$, NMS IoU $0.52$ & Cùng thiết lập với đánh giá Giai đoạn~2 \\
+        Tái liên kết & GapLink-Lite đã tinh chỉnh ($\tau = 0.65$) & Điểm vận hành trực tiếp chọn trên validation \\
+        Xác nhận track & $3$ lần khớp & Track mất được giữ $a_{\max} = 95$ khung \\
+        Nhãn ``ID KEPT'' & khoảng trống $\ge 12$ khung, box $\ge 30$~px & Khoảng ngắn hơn là nhấp nháy của detector \\
+        Box xe đang bị che & đã bám $\ge 15$ khung, box $\ge 45$~px & Tránh rối hình vì xe ở xa hoặc xe đỗ \\
         Thiết bị chạy GapLink-Lite & CPU, 1 luồng & Nhanh nhất trên laptop RTX 3050 (Mục~\ref{sec:rule_tuning}) \\
-        Luồng & JPEG chất lượng $80$, server-sent events & Máy chủ web cục bộ cổng $8010$ \\
+        Luồng & JPEG chất lượng $82$, server-sent events & Máy chủ web cục bộ cổng $8001$ \\
+        Tải lên & file gốc, hiển thị SHA-256, $\le 800$~MB & Lưu trong \texttt{demo/uploads/} \\
         \bottomrule
     \end{tabularx}
 \end{table}

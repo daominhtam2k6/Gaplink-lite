@@ -92,7 +92,7 @@ Hình~\ref{fig:eda_results} cho thấy phần lớn quỹ đạo ngắn (trung v
 \subsection{Giai đoạn 2: Ứng dụng với Detector YOLOv8n Trực tiếp}
 \label{sec:phase2}
 
-\textbf{Thiết lập.} Mọi phương pháp nhận cùng detection YOLOv8n (kích thước đầu vào $640$, ngưỡng tin cậy $0.28$) và dùng chung tracker tầng 1, cửa sổ track bị mất ($a_{\max}=95$) và quy tắc an ninh; chỉ module tái liên kết khác nhau. Ground truth chỉ được dùng sau đó để chấm điểm. Với mọi phương pháp, ngưỡng chấp nhận được chọn trên $13$ video validation theo cùng một quy tắc (Nat-IRR cao nhất với điều kiện Nat-WLR $\le 5\%$) và đánh giá một lần trên $40$ video test. GapLink-Lite là phiên bản đã tinh chỉnh cho YOLOv8n (Mục~\ref{sec:training_process}), được ghi là \emph{v1.3} trong các hình và trên bảng điều khiển; mô hình chính trước khi tinh chỉnh được ghi là \emph{v1.1}.
+\textbf{Thiết lập.} Mọi phương pháp nhận cùng detection YOLOv8n (kích thước đầu vào $640$, ngưỡng tin cậy $0.28$) và dùng chung tracker tầng 1, cửa sổ track bị mất ($a_{\max}=95$) và quy tắc giám sát; chỉ module tái liên kết khác nhau. Ground truth chỉ được dùng sau đó để chấm điểm. Với mọi phương pháp, ngưỡng chấp nhận được chọn trên $13$ video validation theo cùng một quy tắc (Nat-IRR cao nhất với điều kiện Nat-WLR $\le 5\%$) và đánh giá một lần trên $40$ video test. GapLink-Lite là phiên bản đã tinh chỉnh cho YOLOv8n (Mục~\ref{sec:training_process}), được ghi là \emph{v1.3} trong các hình và trong mã nguồn; mô hình chính trước khi tinh chỉnh được ghi là \emph{v1.1}.
 
 \textbf{Kết quả.} Bảng~\ref{tab:live_v13} và Hình~\ref{fig:live} cho thấy kết quả. So với họ Kalman làm nền cho các tracker công nghiệp, GapLink-Lite tốt hơn trên cả hai trục: Nat-IRR $\mathbf{84.41\%}$ so với $57.63\%$ (C-3) và $61.85\%$ (C-4), Nat-WLR $\mathbf{6.09\%}$ so với $24.70\%$ và $9.94\%$. So với baseline mạnh nhất là vận tốc không đổi (C-2), khả năng khôi phục ngang nhau ($84.41\%$ so với $84.58\%$; $\Delta = -0.17$~pp, KTC $[-1.33, 1.08]$) trong khi \textbf{liên kết sai giảm một nửa} ($6.09\%$ so với $12.92\%$; $\Delta = -6.82$~pp, KTC $[-11.04, -3.18]$). Về số tuyệt đối, GapLink-Lite có $313$ tái liên kết sai trên $5\,137$, so với $676$ trên $5\,234$ của C-2 và $1\,072$ trên $4\,340$ của C-3. Trong bảng điều khiển an ninh, một liên kết sai là một báo động giả, và GapLink-Lite cũng có tỉ lệ báo động giả lộ trình cấm thấp nhất ($9.27\%$, tức $14$ cảnh báo giả so với $18$ của C-2 và $70$ của C-3). Cái giá của sự thận trọng này là recall lộ trình: nó bắt được $69$ trên $162$ vi phạm bị che với đúng ID, so với $77$ của C-3 và $80$ của C-4. Việc tinh chỉnh cho YOLOv8n là yếu tố làm kết quả này khả thi: với mô hình chính, tỉ lệ liên kết sai trực tiếp là $10.20\%$, và tinh chỉnh giảm $4.11$~pp (KTC $[1.57, 5.98]$) với cái giá $2.89$~pp khả năng khôi phục. Trên validation, C-2 dẫn $4$~pp Nat-IRR; thứ hạng này không giữ nguyên trên test, cho thấy bốn địa điểm validation khiến việc chọn điểm vận hành có nhiều nhiễu. Hình~\ref{fig:live} thể hiện rõ điều này: trên validation, đường của GapLink-Lite và C-2 gần như trùng nhau, còn trên test (hình thoi) điểm của C-2 dịch sang mức liên kết sai cao hơn gấp đôi GapLink-Lite.
 
@@ -125,7 +125,7 @@ Hình~\ref{fig:eda_results} cho thấy phần lớn quỹ đạo ngắn (trung v
     \label{fig:live}
 \end{figure}
 
-\textbf{Thời gian xử lý với detector trực tiếp.} Một phiên bản trước của bảng điều khiển (mô hình chạy trên GPU) đã được profile trên clip nút giao đông nhất với YOLOv8n chạy trực tiếp: $28.95$~ms mỗi khung hình ($34.5$~FPS), gồm $12.53$~ms cho YOLOv8n, $3.26$~ms cho histogram và lọc box, và $13.16$~ms cho tracking, quy tắc và vẽ. Bảng điều khiển cuối dùng detection đã cache và mô hình trên CPU; thời gian của nó với detector trực tiếp chưa được đo lại.
+\textbf{Thời gian xử lý với detector trực tiếp.} Một phiên bản trước của bảng điều khiển (mô hình chạy trên GPU) đã được profile trên clip nút giao đông nhất với YOLOv8n chạy trực tiếp: $28.95$~ms mỗi khung hình ($34.5$~FPS), gồm $12.53$~ms cho YOLOv8n, $3.26$~ms cho histogram và lọc box, và $13.16$~ms cho tracking, quy tắc và vẽ. Bảng điều khiển cuối cùng (GapLink Live) chạy detector một lần khi video được tải lên rồi phát video với mô hình trên CPU; cả lượt chuẩn bị lẫn lúc phát đều chưa được profile lại.
 
 \subsection{Phân tích Lỗi, Ablation và Độ bền}
 \label{sec:error_analysis}
@@ -183,16 +183,20 @@ Hình~\ref{fig:eda_results} cho thấy phần lớn quỹ đạo ngắn (trung v
 \section{Giao diện Người dùng}
 \label{sec:user_interface}
 
-\textbf{GapLink-VMS} là bảng điều khiển web cục bộ phát một clip và hiển thị song song tracker baseline (C-3 Kalman, bên trái) và GapLink-Lite đã tinh chỉnh (bên phải, ghi là v1.3) trên cùng detection YOLOv8n (Hình~\ref{fig:vms_ui}). Giao diện được chủ động tối giản, chỉ giữ những gì buổi trình diễn cần: ba nút chọn clip, phát/tạm dừng, chạy từng khung hình, thanh tua, tốc độ phát ($1\times$, $0.5\times$, $0.25\times$), công tắc bật/tắt ID, công cụ vẽ vùng cho clip lộ trình và click để khóa cho clip mục tiêu. Cột bên phải hiển thị bảng kết quả của clip hiện tại và lịch sử sự cố với ảnh cắt trước/sau.
+\textbf{GapLink Live} là bảng điều khiển web cục bộ chạy toàn bộ pipeline trên một video được tải lên qua trình duyệt và chỉ hiển thị kết quả của GapLink-Lite, không có baseline và không có ground truth (Hình~\ref{fig:vms_ui}). Nó thay cho một phiên bản trước chạy song song (GapLink-VMS, C-3 cạnh GapLink-Lite trên ba clip cố định): một tracker duy nhất trên video bất kỳ, được kiểm tra bằng mắt, gần với cách một hệ thống như vậy được sử dụng hơn, và cho thấy hành vi của mô hình mà không cần màu chấm theo ground truth.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{figures/fig_vms_lite_ui.png}
-    \caption{Dashboard GapLink-VMS (clip khôi phục danh tính, khung hình đầu): C-3 Kalman (khung trái) và GapLink-Lite v1.3 (khung phải), thanh công cụ, bảng kết quả và lịch sử sự cố}
+    \includegraphics[width=\textwidth]{figures/fig_gaplink_live_ui.png}
+    \caption{Bảng điều khiển GapLink Live trên một clip trình diễn được tải lên: thanh công cụ với file đã tải, video với các lớp vẽ trực tiếp, nút điều khiển phát, công tắc lớp vẽ và dòng thời gian (đầu cột phải: file nguồn với SHA-256, bộ đếm tracking, bảng mục tiêu)}
     \label{fig:vms_ui}
 \end{figure}
 
-Mỗi xe có một box và ID tracker của nó, và màu thể hiện điều đã xảy ra với ID đó, được chấm theo ground truth: xanh lá --- được tái liên kết đúng xe sau che khuất; đỏ --- bị liên kết với một xe khác; tím --- xe xuất hiện lại với ID mới. Trong clip lộ trình, $Z_A$ và $Z_B$ được vẽ trên mặt đường và vi phạm được đóng khung đỏ (đúng ID), hổ phách (sai ID) hoặc tím (vi phạm giả). Trong clip mục tiêu, đường đi quan sát được vẽ bằng nét liền và, khi mục tiêu bị che, box và đường đi dự đoán được vẽ bằng nét đứt. Mỗi khung có bộ đếm riêng, nên có thể so sánh hai phương pháp ở bất kỳ khung hình nào (Hình~\ref{fig:vms_clips}).
+\textbf{Tải lên và bảng nguồn.} Người vận hành kéo một video vào trang. Bảng nguồn hiển thị tên file, thời lượng, tốc độ khung hình, kích thước khung và mã băm SHA-256 của file tải lên, có thể so với file đã mở trên máy từ trước: bảng điều khiển xử lý đúng file đó (chỉ lấy mẫu lại về $25$~fps và rộng $960$~px khi cần; năm clip vốn đã đúng định dạng này), và không có gì trên màn hình được dựng sẵn.
+
+\textbf{Các lớp vẽ.} Mỗi xe có một box và ID với một màu riêng cho mỗi ID, cùng một vệt quỹ đạo ngắn. Một xe đã được bám ít nhất $15$ khung mà biến mất bên trong ảnh được giữ thành box nét đứt ghi ``hidden'' tại vị trí cuối cùng nhìn thấy (xe nhỏ ở xa được bỏ qua để tránh rối hình). Khi Tầng~2 trả lại ID cho xe sau ít nhất $12$ khung, box được làm nổi bật với nhãn ``\#$k$ ID KEPT after $N$f hidden'' và một cầu nối nét đứt nối chỗ xe bị mất với chỗ xe quay lại; nếu là ID mới thì xe hiện bằng một màu mới. Xe được click trở thành mục tiêu: toàn bộ quỹ đạo của nó được vẽ (nét liền khi nhìn thấy, nét đứt ở đoạn GapLink-Lite dự đoán khi bị che, kèm elip 90\% tùy chọn, chưa được hiệu chuẩn cho mô hình đã tinh chỉnh và chỉ minh họa độ bất định). Ở chế độ lộ trình, $Z_A$ và $Z_B$ được vẽ trên khung hình và cảnh báo được đóng khung khi một xe đi từ $Z_A$ vào $Z_B$. Công tắc lớp vẽ (phím O) ẩn mọi lớp vẽ cùng lúc để xem video gốc.
+
+\textbf{Các bảng và dòng thời gian.} Cột bên phải hiển thị bộ đếm tracking (số xe đang bám và đang bị che, số danh tính được giữ sau che khuất từ $12$ khung và từ một giây trở lên, khoảng trống dài nhất, FPS xử lý), bảng mục tiêu (trạng thái, số lần bắt lại, số khung bị che) cùng các công tắc lớp vẽ, bộ chọn chế độ và nhật ký sự kiện với ảnh cắt trước/sau. Dòng thời gian đánh dấu mọi danh tính được giữ, với chiều cao tăng theo khoảng trống, để người vận hành nhảy tới.
 
 \section{Kiểm thử và Cải tiến}
 \label{sec:testing_improvements}
@@ -200,11 +204,11 @@ Mỗi xe có một box và ID tracker của nó, và màu thể hiện điều �
 \subsection{Kiểm thử Phần mềm}
 \label{sec:software_testing}
 
-Mã nguồn được kiểm tra bằng bộ kiểm thử tự động gồm 71 test (Bảng~\ref{tab:tests}). Các test không cần GPU: chúng bao phủ chuẩn hóa Sinkhorn (biên, bất biến với padding, đồng biến hoán vị, ngân sách tham số), sự đồng nhất của việc xây dựng sự kiện giữa huấn luyện và tracking, chèn che khuất, các độ đo kể cả một ca IDF1 kiểm bằng tay, hiệu chuẩn, bootstrap theo địa điểm, gán nhãn sự kiện detector, đóng băng kết quả, và logic bảng điều khiển (chấm lộ trình, phán quyết tái liên kết, nhãn ID, một lần chạy đầu-cuối trên clip demo). Mọi số liệu báo cáo đều gắn với checkpoint, tập sự kiện và kết quả đã băm, nên có thể tái lập chính xác.
+Mã nguồn được kiểm tra bằng bộ kiểm thử tự động gồm 78 test (Bảng~\ref{tab:tests}). Các test không cần GPU: chúng bao phủ chuẩn hóa Sinkhorn (biên, bất biến với padding, đồng biến hoán vị, ngân sách tham số), sự đồng nhất của việc xây dựng sự kiện giữa huấn luyện và tracking, chèn che khuất, các độ đo kể cả một ca IDF1 kiểm bằng tay, hiệu chuẩn, bootstrap theo địa điểm, gán nhãn sự kiện detector, đóng băng kết quả, logic bảng điều khiển (chấm lộ trình, phán quyết tái liên kết, nhãn ID, lớp vẽ, lấy mẫu lại 25 fps, một lần chạy đầu-cuối tải lên--xử lý--phát) và bước audit theo ground truth nghiêm ngặt dùng để kiểm tra các clip trình diễn. Mọi số liệu báo cáo đều gắn với checkpoint, tập sự kiện và kết quả đã băm, nên có thể tái lập chính xác.
 
 \begin{table}[H]
     \centering
-    \caption{Kết quả kiểm thử tự động (71 test, $5.3$~s trên laptop của dự án)}
+    \caption{Kết quả kiểm thử tự động (78 test, khoảng $6$~s trên laptop của dự án)}
     \label{tab:tests}
     \small
     \small
@@ -217,10 +221,11 @@ Mã nguồn được kiểm tra bằng bộ kiểm thử tự động gồm 71 t
         Tracking và độ đo: tracker, IDF1, bootstrap theo địa điểm, phân tích lỗi & 10 & 10 & 0 \\
         Đánh giá trực tiếp: sự kiện detector, chọn điểm vận hành, gating & 14 & 14 & 0 \\
         Tái lập: manifest đóng băng & 4 & 4 & 0 \\
-        Bảng điều khiển: quy tắc an ninh, profile, metadata clip, render, nhãn ID, phán quyết tái liên kết, chạy đầu-cuối & 25 & 25 & 0 \\
+        Bảng điều khiển: quy tắc an ninh, profile, metadata clip, render, nhãn ID, phán quyết tái liên kết, lớp vẽ trực tiếp, tải lên--xử lý--phát & 27 & 27 & 0 \\
+        Audit clip trình diễn: ghép một-một, box một phần xe, đổi ID, liên kết sai & 5 & 5 & 0 \\
         Công cụ thăm dò ngoài miền & 4 & 4 & 0 \\
         \midrule
-        \textbf{Tổng} & \textbf{71} & \textbf{71} & \textbf{0} \\
+        \textbf{Tổng} & \textbf{78} & \textbf{78} & \textbf{0} \\
         \bottomrule
     \end{tabularx}
 \end{table}
@@ -230,18 +235,13 @@ Mã nguồn được kiểm tra bằng bộ kiểm thử tự động gồm 71 t
 
 Bảng~\ref{tab:eval_vs_target} so sánh kết quả cuối cùng với các mục tiêu cố định từ trước: các giả thuyết đăng ký trước cho Giai đoạn~1, mục tiêu $5\%$ liên kết sai và tốc độ thời gian thực cho Giai đoạn~2.
 
-\textbf{Các clip trình diễn.} Ba clip được chọn từ video test bằng cách chạy cả hai tracker trên toàn bộ $40$ video test và giữ lại, cho mỗi nhiệm vụ, các cửa sổ mà phán quyết của GapLink-Lite tốt nhất; đây là lựa chọn phục vụ trình diễn, không phải phép đo. Bảng~\ref{tab:demo3} báo cáo số đếm của bảng điều khiển cuối cùng trên mỗi clip.
-\begin{itemize}
-    \item \textbf{Khôi phục danh tính} ($250$ khung hình một nút giao đông về đêm có xe buýt). GapLink-Lite tái liên kết đúng cả $48$ xe bị che, kể cả xe buýt, trong khi tracker Kalman tái liên kết đúng $21$ trên $51$, liên kết $12$ xe với xe sai và gán ID mới cho $18$ xe; ngay ở khung $98$, C-3 mới đúng $5/21$ so với $27/27$ của GapLink-Lite.
-    \item \textbf{Lộ trình cấm} ($250$ khung hình một đường phố về đêm; $Z_A$ và $Z_B$ trên làn đường phía xa). C-3 phát sáu cảnh báo: ba đúng, một sai ID và hai giả --- ở khung $129$, track \#42 tới $Z_B$ dù xe của nó chưa từng ở $Z_A$. GapLink-Lite phát hai cảnh báo, cả hai đều đúng. Clip này thể hiện độ chính xác chứ không phải recall; trên $40$ video test, C-3 bắt được nhiều vi phạm bị che hơn ($47.53\%$ so với $42.59\%$) với tỉ lệ báo động giả cao hơn ba lần.
-    \item \textbf{Bám theo mục tiêu} ($156$ khung hình một trục đường mưa). Xe van đang khóa bị che sau xe buýt khớp nối trong $58$ khung hình; cả hai tracker đều bắt lại nó ở khung $96$, nhưng sáu khung sau, sau thêm một khoảng trống ba khung ở mép xe buýt, C-3 để xe van quay lại với ID mới (\#10 thành \#58), nên khóa mất mục tiêu, còn GapLink-Lite giữ xe van với \#10 đến hết clip ($4$ lần bắt lại, không mất mục tiêu).
-\end{itemize}
+\textbf{Các clip trình diễn.} Năm clip ngắn (mỗi clip $4.8$--$6.2$~s) được cắt từ các chuỗi test của UA-DETRAC, mà mô hình chưa từng thấy khi huấn luyện, và được tải lên trực tiếp trong buổi trình bày (Hình~\ref{fig:showcase}). Chúng được chọn để \emph{minh họa} việc khôi phục sau che khuất, nên không phải phép đo; kết quả Giai đoạn~2 đã đóng băng ở trên mới là phép đo. Vì bảng điều khiển không hiển thị ground truth, mỗi clip được kiểm tra trước với ground truth qua đúng đường đi của một lần tải lên (mã hóa lại, $25$~fps, chạy YOLOv8n mới) bằng một bước audit nghiêm ngặt: track được ghép một-một với box ground-truth (Hungarian, IoU $\ge 0.5$); box chỉ là một phần của xe (đầu kéo hoặc thùng xe tải, nửa xe buýt) bị đánh dấu, và một nhãn ``ID KEPT'' trên box đó bị tính là lỗi; mọi lần đổi ID của một xe ground-truth đều được đếm, dù do Tầng~1 hay Tầng~2. Một bước kiểm tra đầu tiên lỏng hơn (IoU $\ge 0.4$, không ghép một-một) đã tính thùng xe tải được tái liên kết với chính nó là khôi phục đúng và bỏ sót những lần đổi ID mà người xem kỹ nhìn thấy trên màn hình; các clip chọn bằng bước đó đã bị loại. Bảng~\ref{tab:demo3} cho kết quả audit của năm clip cuối cùng.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.62\textwidth]{figures/fig_vms_clips.jpg}
-    \caption{Kết quả bảng điều khiển trên ba clip (trái: C-3, phải: GapLink-Lite v1.3). Từ trên xuống: clip danh tính (khung 123), clip lộ trình (khung 129, C-3 báo vi phạm giả trong $Z_B$), clip mục tiêu (khung 71 và 96, xe van đang khóa bị che rồi được bắt lại).}
-    \label{fig:vms_clips}
+    \includegraphics[width=\textwidth]{figures/fig_showcase.jpg}
+    \caption{Năm clip trình diễn trong GapLink Live (chạy YOLOv8n mới). (a) xe con bị che sau xe cứu hộ giữ ID \#23; (b) xe con giữ ID \#9 sau khi bị vượt; (c) xe van đang khóa bị che sau xe buýt, được vẽ ở vị trí GapLink-Lite dự đoán kèm elip 90\% (chưa hiệu chuẩn); (d) xe minivan giữ ID \#32 sau $39$ khung bị che trong dòng xe đông; (e) xe con giữ ID \#20 sau $38$ khung bị che tại nút giao; (f) khung hình của (a) khi ẩn mọi lớp vẽ.}
+    \label{fig:showcase}
 \end{figure}
 
 \begin{table}[H]
@@ -260,35 +260,33 @@ Bảng~\ref{tab:eval_vs_target} so sánh kết quả cuối cùng với các m�
         Kích thước mô hình & $327\,979$ tham số & $< 1$M & Đạt \\
         Nat-WLR với YOLOv8n (test) & $6.09\%$ & $\le 5\%$ & Không đạt \\
         Nat-IRR trực tiếp so với baseline mạnh nhất (C-2) & $84.41$ so với $84.58\%$ & không thấp hơn & Ngang nhau (CI $[-1.33, 1.08]$) \\
-        Tốc độ bảng điều khiển (detection cache, mô hình trên CPU) & $36$--$46$ FPS & $\ge 25$ FPS & Đạt \\
+        Tốc độ bảng điều khiển (bản song song đầu tiên, detection cache, mô hình trên CPU) & $36$--$46$ FPS & $\ge 25$ FPS & Đạt \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
 \begin{table}[H]
     \centering
-    \caption{Kết quả ba clip trình diễn (bảng điều khiển cuối, C-3 so với GapLink-Lite đã tinh chỉnh)}
+    \caption{Audit theo ground truth của năm clip trình diễn (cùng đường đi với một lần tải lên; YOLOv8n trên CPU, số đếm có thể chênh nhẹ theo thiết bị chạy detector). ``Giữ ID'': danh tính được giữ sau khoảng trống $\ge 12$ khung trên đúng xe; ``Chưa kiểm chứng'': danh tính được giữ hiển thị trên màn hình nhưng box không khớp với box ground-truth nào, nên không xác nhận hay bác bỏ được; ``Đổi ID nhìn thấy'': xe cao từ $30$~px, không ở mép ảnh, bị đổi ID.}
     \label{tab:demo3}
     \small
-    \begin{tabularx}{\textwidth}{l X c c}
+    \newcolumntype{C}{>{\centering\arraybackslash}X}
+    \begin{tabularx}{\textwidth}{l l C C C C C C}
         \toprule
-        \textbf{Clip (nguồn)} & \textbf{Tiêu chí} & \textbf{C-3 Kalman} & \textbf{GapLink-Lite} \\
+        \textbf{Clip} & \textbf{Nguồn (khung)} & \textbf{Giữ ID} & \textbf{trong đó $\ge 25$\,f} & \textbf{Liên kết sai} & \textbf{Một phần xe} & \textbf{Chưa kiểm chứng} & \textbf{Đổi ID nhìn thấy} \\
         \midrule
-        1. Khôi phục danh tính & Tái liên kết đúng / số xe bị che & $21 / 51$ & $\mathbf{48 / 48}$ \\
-        (MVI\_40775, 250 khung) & Liên kết sai & $12$ & $\mathbf{0}$ \\
-         & Xe bị gán ID mới & $18$ & $\mathbf{0}$ \\
-        \midrule
-        2. Lộ trình cấm & Vi phạm đúng ID & $3$ & $2$ \\
-        (MVI\_40761, 250 khung) & Vi phạm sai ID & $1$ & $\mathbf{0}$ \\
-         & Vi phạm giả & $2$ & $\mathbf{0}$ \\
-        \midrule
-        3. Bám theo mục tiêu & Số lần bắt lại mục tiêu & $1$ & $\mathbf{4}$ \\
-        (MVI\_40864, 156 khung) & Mất mục tiêu (đổi ID) & $1$ (khung 102) & $\mathbf{0}$ \\
+        demo1 & MVI\_40901 ($170$--$325$) & $7$ & $3$ & $0$ & $0$ & $0$ & $0$ \\
+        demo2 & MVI\_40743 ($1365$--$1495$) & $1$ & $0$ & $0$ & $0$ & $0$ & $0$ \\
+        demo3 & MVI\_40763 ($155$--$275$) & $2$ & $2$ & $0$ & $0$ & $0$ & $1$ \\
+        demo4 & MVI\_40864 ($410$--$565$) & $8$ & $3$ & $0$ & $1$ & $7$ & $4$ \\
+        demo5 & MVI\_40855 ($952$--$1090$) & $10$ & $3$ & $0$ & $0$ & $3$ & $0$ \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
-\textbf{Các cải tiến qua từng vòng.} Ba thay đổi định hình hệ thống cuối cùng. (i) Kiểm tra lại lần chạy test đã khóa đầu tiên phát hiện một lỗi chuyển đổi dữ liệu (vùng bỏ qua bị gộp thành một track giả) và cửa sổ track bị mất ngắn hơn khoảng trống dài nhất; cả hai đều được sửa và mô hình được huấn luyện và đóng băng lại. (ii) Giai đoạn~2 cho thấy mô hình chỉ huấn luyện trên box ground-truth liên kết quá vội trên box detector; tinh chỉnh mô hình trên sự kiện YOLOv8n đã giảm một nửa tỉ lệ liên kết sai trực tiếp so với baseline mạnh nhất. (iii) Bảng điều khiển trình diễn được xây lại quanh ba nhiệm vụ và được profile; chạy mô hình nhỏ trên CPU và đơn giản hóa phần vẽ đã nâng tốc độ từ $12$--$14.5$ lên $36$--$46$~FPS.
+Không danh tính được giữ nào kiểm chứng được là liên kết sai. Các lỗi còn lại đều hiện trên màn hình và không bị che giấu khi trình bày: trong cảnh đông của demo4, ba xe bị che $42$--$47$ khung quay lại với ID mới (Tầng~2 không chấp nhận liên kết) và một xe thứ tư đổi ID sau khoảng trống $7$ khung, còn một nhãn ``ID KEPT'' nằm trên box một phần xe do detector sinh ra; ở demo3 một xe đổi ID sau khoảng trống $8$ khung. Demo4 còn hiển thị bảy danh tính được giữ mà audit không kiểm chứng được. Vì vậy clip này được trình bày cả hai mặt: hai lần khôi phục dài (Hình~\ref{fig:showcase}d) và giới hạn của phương pháp trong dòng xe đông.
+
+\textbf{Các cải tiến qua từng vòng.} Ba thay đổi định hình hệ thống cuối cùng. (i) Kiểm tra lại lần chạy test đã khóa đầu tiên phát hiện một lỗi chuyển đổi dữ liệu (vùng bỏ qua bị gộp thành một track giả) và cửa sổ track bị mất ngắn hơn khoảng trống dài nhất; cả hai đều được sửa và mô hình được huấn luyện và đóng băng lại. (ii) Giai đoạn~2 cho thấy mô hình chỉ huấn luyện trên box ground-truth liên kết quá vội trên box detector; tinh chỉnh mô hình trên sự kiện YOLOv8n đã giảm một nửa tỉ lệ liên kết sai trực tiếp so với baseline mạnh nhất. (iii) Bảng điều khiển trình diễn được xây lại hai lần. Phiên bản chạy song song được profile; chạy mô hình nhỏ trên CPU và đơn giản hóa phần vẽ đã nâng tốc độ từ $12$--$14.5$ lên $36$--$46$~FPS. Sau đó nó được thay bằng GapLink Live, xử lý video bất kỳ được tải lên và chỉ hiển thị GapLink-Lite, và các clip được chọn lại bằng bước audit nghiêm ngặt ở trên sau khi phát hiện bước kiểm tra lỏng hơn đếm thừa.
 
 \subsection{Hạn chế}
 \label{sec:limitations}
@@ -298,5 +296,6 @@ Bảng~\ref{tab:eval_vs_target} so sánh kết quả cuối cùng với các m�
     \item \textbf{Liên kết sai khi chạy trực tiếp.} Không phương pháp nào, kể cả GapLink-Lite ($6.09\%$), giữ được tỉ lệ liên kết sai trực tiếp dưới mục tiêu $5\%$ trên test, và so với baseline vận tốc không đổi, lợi thế nằm ở liên kết sai và báo động giả chứ không ở khả năng khôi phục hay recall lộ trình.
     \item \textbf{Lịch sử đánh giá.} Tập test Giai đoạn~1 được đánh giá lần thứ hai sau khi sửa lỗi chuyển đổi dữ liệu, và video test trực tiếp được chấm cho cả mô hình chính lẫn mô hình đã tinh chỉnh cho YOLOv8n; cả hai lần chạy lại đều được báo cáo công khai thay vì thay thế.
     \item \textbf{Phạm vi dữ liệu.} Không có lớp xe máy, camera cố định đặt cao tại các thành phố Trung Quốc, bốn địa điểm validation, $7$ trong $15$ địa điểm test dùng chung với huấn luyện (không có ảnh hưởng đo được: $93.39\%$ so với $93.44\%$ Top-1), và chỉ một seed cho lần tinh chỉnh cho YOLOv8n.
-    \item \textbf{Clip trình diễn.} Các clip được chọn trên video test để thể hiện rõ sự khác biệt; số đếm của chúng minh họa hành vi và không phải ước lượng không chệch (bảng Giai đoạn~2 đã đóng băng mới là ước lượng đó).
+    \item \textbf{Phụ thuộc vào detector và Tầng~1.} GapLink-Lite chỉ tác động lên các track đã bị mất. Khi chọn clip trình diễn, có những lỗi nhìn thấy được xảy ra trước khi nó được gọi: Tầng~1 có thể chuyển ID từ một xe sang xe chồng lên nó mà không có khung nào bị mất (nên Tầng~2 không bao giờ được hỏi), YOLOv8n có thể tách xe tải thành đầu kéo và thùng, và một xe bị che ngay từ lúc vào ảnh thì không bao giờ được bám, nên không có danh tính nào để giữ. Trong cảnh đông, nhiều lần che khuất dài vẫn kết thúc bằng ID mới.
+    \item \textbf{Clip trình diễn.} Năm clip được chọn trên video test để minh họa việc khôi phục sau che khuất và đã được kiểm tra theo ground truth; số đếm của chúng không phải ước lượng không chệch (bảng Giai đoạn~2 đã đóng băng mới là ước lượng đó), và bản thân bảng điều khiển không hiển thị ground truth.
 \end{itemize}

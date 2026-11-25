@@ -111,18 +111,21 @@ def decide(self, ev):
 
 \begin{table}[H]
     \centering
-    \caption{GapLink-VMS console configuration}
+    \caption{GapLink Live console configuration}
     \label{tab:vms_cfg}
-    \begin{tabularx}{\textwidth}{l l X}
+    \begin{tabularx}{\textwidth}{l >{\raggedright\arraybackslash}p{5.4cm} >{\raggedright\arraybackslash}X}
         \toprule
         \textbf{Setting} & \textbf{Value} & \textbf{Notes} \\
         \midrule
-        Detector & YOLOv8n, input size $640$, conf.\ $0.28$ & Detections cached per clip \\
-        Baseline / model & C-3 ($\theta = 1.0$) / tuned GapLink-Lite ($\tau = 0.65$) & Live operating points selected on validation \\
-        Track confirmation & $3$ hits & Same for both panes \\
-        Re-link judging & gap $\ge 3$ frames, GT IoU $\ge 0.45$ & Post hoc; never used by the trackers \\
+        Video preparation & $25$~fps, width $960$~px & Faster videos are resampled; one pass at upload \\
+        Detector & YOLOv8n, input size $640$, conf.\ $0.28$, NMS IoU $0.52$ & Same settings as the Phase-2 evaluation \\
+        Re-association & tuned GapLink-Lite ($\tau = 0.65$) & Live operating point selected on validation \\
+        Track confirmation & $3$ hits & Lost tracks kept $a_{\max} = 95$ frames \\
+        ``ID kept'' flash & gap $\ge 12$ frames, box $\ge 30$~px & Shorter gaps are detector flicker \\
+        Hidden-vehicle box & followed $\ge 15$ frames, box $\ge 45$~px & Avoids clutter from far or parked vehicles \\
         GapLink-Lite device & CPU, 1 thread & Fastest on the RTX 3050 laptop (Section~\ref{sec:rule_tuning}) \\
-        Stream & JPEG quality $80$, server-sent events & Local web server on port $8010$ \\
+        Stream & JPEG quality $82$, server-sent events & Local web server on port $8001$ \\
+        Upload & raw file, SHA-256 shown, $\le 800$~MB & Stored in \texttt{demo/uploads/} \\
         \bottomrule
     \end{tabularx}
 \end{table}

@@ -92,7 +92,7 @@ Figure~\ref{fig:eda_results} shows that most trajectories are short (median $86$
 \subsection{Phase 2: Application with a Live YOLOv8n Detector}
 \label{sec:phase2}
 
-\textbf{Setup.} All methods receive the same YOLOv8n detections (input size $640$, confidence $0.28$) and share the same Stage-1 tracker, lost-track window ($a_{\max}=95$) and security rules; only the re-association module differs. Ground truth is used solely afterwards for scoring. For every method the acceptance threshold was selected on the $13$ validation videos with the same rule (highest Nat-IRR subject to Nat-WLR $\le 5\%$) and evaluated once on the $40$ test videos. GapLink-Lite is the version tuned for YOLOv8n (Section~\ref{sec:training_process}), labelled \emph{v1.3} in the figures and in the console; the main model before tuning is labelled \emph{v1.1}.
+\textbf{Setup.} All methods receive the same YOLOv8n detections (input size $640$, confidence $0.28$) and share the same Stage-1 tracker, lost-track window ($a_{\max}=95$) and surveillance rules; only the re-association module differs. Ground truth is used solely afterwards for scoring. For every method the acceptance threshold was selected on the $13$ validation videos with the same rule (highest Nat-IRR subject to Nat-WLR $\le 5\%$) and evaluated once on the $40$ test videos. GapLink-Lite is the version tuned for YOLOv8n (Section~\ref{sec:training_process}), labelled \emph{v1.3} in the figures and in the code; the main model before tuning is labelled \emph{v1.1}.
 
 \textbf{Results.} Table~\ref{tab:live_v13} and Figure~\ref{fig:live} show the outcome. Against the Kalman family that underlies industrial trackers, GapLink-Lite is better on both axes: Nat-IRR $\mathbf{84.41\%}$ vs.\ $57.63\%$ (C-3) and $61.85\%$ (C-4), Nat-WLR $\mathbf{6.09\%}$ vs.\ $24.70\%$ and $9.94\%$. Against the strongest baseline, constant velocity (C-2), recovery is equal ($84.41\%$ vs.\ $84.58\%$; $\Delta = -0.17$~pp, CI $[-1.33, 1.08]$) while \textbf{wrong links are halved} ($6.09\%$ vs.\ $12.92\%$; $\Delta = -6.82$~pp, CI $[-11.04, -3.18]$). In absolute terms, GapLink-Lite made $313$ wrong re-associations out of $5{,}137$, against $676$ of $5{,}234$ for C-2 and $1{,}072$ of $4{,}340$ for C-3. In a security console a wrong link is a false alarm, and GapLink-Lite also has the lowest forbidden-route false-alarm rate ($9.27\%$, i.e.\ $14$ false alerts against $18$ for C-2 and $70$ for C-3). The price of this caution is route recall: it catches $69$ of the $162$ occluded violations with the correct ID, against $77$ for C-3 and $80$ for C-4. The tuning for YOLOv8n is what makes the result possible: with the main model the live wrong-link rate is $10.20\%$, and fine-tuning reduces it by $4.11$~pp (CI $[1.57, 5.98]$) at a cost of $2.89$~pp recovery. On validation C-2 was ahead by $4$~pp of Nat-IRR; this ranking did not carry over to test, which shows that four validation locations make the operating-point selection noisy. Figure~\ref{fig:live} makes this visible: on validation the curves of GapLink-Lite and C-2 almost overlap, while on test (diamonds) the point of C-2 moves to more than twice the wrong links of GapLink-Lite.
 
@@ -126,7 +126,7 @@ Figure~\ref{fig:eda_results} shows that most trajectories are short (median $86$
 \end{figure}
 
 
-\textbf{Processing time with a live detector.} An earlier version of the console (model on the GPU) was profiled on the busiest intersection clip with YOLOv8n running live: $28.95$~ms per frame ($34.5$~FPS), of which $12.53$~ms for YOLOv8n, $3.26$~ms for histograms and box filtering and $13.16$~ms for tracking, rules and drawing. The final console uses cached detections and the CPU model; its timing with a live detector was not re-measured.
+\textbf{Processing time with a live detector.} An earlier version of the console (model on the GPU) was profiled on the busiest intersection clip with YOLOv8n running live: $28.95$~ms per frame ($34.5$~FPS), of which $12.53$~ms for YOLOv8n, $3.26$~ms for histograms and box filtering and $13.16$~ms for tracking, rules and drawing. The final console (GapLink Live) runs the detector once when a video is uploaded and then plays it with the CPU model; neither the preparation pass nor the playback was profiled again.
 
 \subsection{Error Analysis, Ablation and Robustness}
 \label{sec:error_analysis}
@@ -184,16 +184,20 @@ Figure~\ref{fig:eda_results} shows that most trajectories are short (median $86$
 \section{User Interface}
 \label{sec:user_interface}
 
-\textbf{GapLink-VMS} is a local web console that plays a clip and shows the baseline tracker (C-3 Kalman, left) and the tuned GapLink-Lite (right, labelled v1.3) side by side on the same YOLOv8n detections (Figure~\ref{fig:vms_ui}). The interface was deliberately reduced to what the demonstration needs: three clip buttons, play/pause, frame stepping, a seek bar, playback speed ($1\times$, $0.5\times$, $0.25\times$), an ID on/off switch, a zone tool for the route clip and click-to-lock for the target clip. The right column shows the result table of the current clip and the incident history with before/after crops.
+\textbf{GapLink Live} is a local web console that runs the full pipeline on a video uploaded in the browser and shows the result of GapLink-Lite only, with no baseline and no ground truth (Figure~\ref{fig:vms_ui}). It replaced an earlier side-by-side version (GapLink-VMS, C-3 against GapLink-Lite on three fixed clips): a single tracker on any video, checked by eye, is closer to how such a system would be used, and it shows the model's behaviour without the help of ground-truth colours.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{figures/fig_vms_lite_ui.png}
-    \caption{GapLink-VMS dashboard (identity-recovery clip, first frame): C-3 Kalman (left pane) vs.\ GapLink-Lite v1.3 (right pane), toolbar, result table and incident history}
+    \includegraphics[width=\textwidth]{figures/fig_gaplink_live_ui.png}
+    \caption{GapLink Live console on an uploaded demonstration clip: toolbar with the uploaded file, video with live overlays, playback controls, overlay switch and timeline (top of the right column: source file with its SHA-256, tracking counters, target panel)}
     \label{fig:vms_ui}
 \end{figure}
 
-Every vehicle carries a box and its tracker ID, and the colour encodes what happened to that ID, judged against the ground truth: green --- re-linked to the same vehicle after an occlusion; red --- linked to a different vehicle; purple --- the vehicle came back with a new ID. In the route clip, $Z_A$ and $Z_B$ are drawn on the road and violations are boxed red (correct ID), amber (wrong ID) or purple (false violation). In the target clip, the observed path is drawn as a solid line and, while the target is hidden, its predicted box and path as dashed lines. Each pane shows its own counters, so the two methods can be compared at any frame (Figure~\ref{fig:vms_clips}).
+\textbf{Upload and source panel.} The operator drags a video onto the page. The source panel shows the file name, duration, playback rate, frame size and the SHA-256 hash of the uploaded file, which can be compared with the file opened on the computer beforehand: the console processes exactly that file (resampled to $25$~fps and $960$~px wide only if needed; the five clips already are), and nothing on screen is pre-rendered.
+
+\textbf{Overlays.} Every vehicle has a box and its ID in one colour per ID, and a short trail. A vehicle that has been followed for at least $15$ frames and disappears inside the image stays as a dashed box labelled ``hidden'' where it was last seen (small, far vehicles are left out to avoid clutter). When Stage~2 gives the vehicle its ID back after at least $12$ frames, the box is highlighted with ``\#$k$ ID KEPT after $N$f hidden'' and a dashed bridge joins the place it was lost to the place it came back; a new ID would show as a new colour. A clicked vehicle becomes the target: its whole path is drawn (solid while seen, dashed where GapLink-Lite predicts it while hidden, with an optional 90\% ellipse that is not calibrated for the tuned model and only illustrates the uncertainty). In the route mode, $Z_A$ and $Z_B$ are drawn on the frame and an alert is boxed when a vehicle goes from $Z_A$ into $Z_B$. The overlay switch (key O) hides every overlay at once to show the untouched video.
+
+\textbf{Panels and timeline.} The right column shows the tracking counters (vehicles tracked and hidden, identities kept after an occlusion of at least $12$ frames and of at least one second, longest gap, processing FPS), the target panel (state, re-acquisitions, hidden frames) with the overlay switches, the mode selector and the event log with before/after crops. The timeline marks every kept identity, with a height that grows with the gap, so the operator can jump to it.
 
 \section{Testing and Improvements}
 \label{sec:testing_improvements}
@@ -201,11 +205,11 @@ Every vehicle carries a box and its tracker ID, and the colour encodes what happ
 \subsection{Software Testing}
 \label{sec:software_testing}
 
-The code base is verified with an automated test suite of 71 tests (Table~\ref{tab:tests}). The tests do not need a GPU: they cover Sinkhorn normalisation (marginals, padding invariance, permutation equivariance, parameter budget), the identity of event construction in training and tracking, occlusion injection, metrics including a hand-checked IDF1 case, calibration, location bootstrap, detector-event labelling, the result freeze, and the console logic (route judging, re-link verdicts, ID tags, an end-to-end run of a demo clip). Every reported number is tied to hashed checkpoints, event sets and result files, so it can be reproduced exactly.
+The code base is verified with an automated test suite of 78 tests (Table~\ref{tab:tests}). The tests do not need a GPU: they cover Sinkhorn normalisation (marginals, padding invariance, permutation equivariance, parameter budget), the identity of event construction in training and tracking, occlusion injection, metrics including a hand-checked IDF1 case, calibration, location bootstrap, detector-event labelling, the result freeze, the console logic (route judging, re-link verdicts, ID tags, the drawing layer, 25-fps resampling, an end-to-end upload--process--play run) and the strict ground-truth audit used to check the demonstration clips. Every reported number is tied to hashed checkpoints, event sets and result files, so it can be reproduced exactly.
 
 \begin{table}[H]
     \centering
-    \caption{Automated test results (71 tests, $5.3$~s on the project laptop)}
+    \caption{Automated test results (78 tests, about $6$~s on the project laptop)}
     \label{tab:tests}
     \small
     \small
@@ -218,10 +222,11 @@ The code base is verified with an automated test suite of 71 tests (Table~\ref{t
         Tracking and metrics: tracker, IDF1, location bootstrap, failure analysis & 10 & 10 & 0 \\
         Live evaluation: detector events, operating-point selection, gating & 14 & 14 & 0 \\
         Reproducibility: freeze manifests & 4 & 4 & 0 \\
-        Console: security rules, profile, clip metadata, rendering, ID tags, re-link verdicts, end-to-end console run & 25 & 25 & 0 \\
+        Console: security rules, profile, clip metadata, rendering, ID tags, re-link verdicts, live drawing layer, upload--process--play & 27 & 27 & 0 \\
+        Demonstration-clip audit: one-to-one matching, part-of-vehicle boxes, ID changes, wrong links & 5 & 5 & 0 \\
         Exploratory out-of-domain tooling & 4 & 4 & 0 \\
         \midrule
-        \textbf{Total} & \textbf{71} & \textbf{71} & \textbf{0} \\
+        \textbf{Total} & \textbf{78} & \textbf{78} & \textbf{0} \\
         \bottomrule
     \end{tabularx}
 \end{table}
@@ -231,18 +236,13 @@ The code base is verified with an automated test suite of 71 tests (Table~\ref{t
 
 Table~\ref{tab:eval_vs_target} compares the final results with the targets fixed in advance: the pre-registered hypotheses for Phase~1, and the $5\%$ wrong-link target and real-time speed for Phase~2.
 
-\textbf{Demonstration clips.} Three clips were selected from the test videos by running both trackers over all $40$ test videos and keeping, for each task, the windows where GapLink-Lite's verdicts were the best; this is a demonstration choice, not a measurement. Table~\ref{tab:demo3} reports the counts of the final console on each clip.
-\begin{itemize}
-    \item \textbf{Identity recovery} ($250$ frames of a busy intersection at night with a city bus). GapLink-Lite re-links all $48$ occluded vehicles correctly, including the bus, while the Kalman tracker re-links $21$ of $51$, links $12$ to the wrong vehicle and gives $18$ a new ID; already at frame $98$ the count was $5/21$ correct for C-3 against $27/27$ for GapLink-Lite.
-    \item \textbf{Forbidden route} ($250$ frames of a city street at night; $Z_A$ and $Z_B$ on the far carriageway). C-3 raises six alerts: three correct, one with a wrong ID and two false --- at frame $129$ track \#42 reaches $Z_B$ although its vehicle was never in $Z_A$. GapLink-Lite raises two alerts, both correct. The clip shows precision, not recall; on the $40$ test videos C-3 catches more occluded violations ($47.53\%$ vs.\ $42.59\%$) at more than three times the false-alarm rate.
-    \item \textbf{Target following} ($156$ frames of a rainy arterial road). The locked van is hidden behind an articulated bus for $58$ frames; both trackers re-acquire it at frame $96$, but six frames later, after a further three-frame gap at the edge of the bus, C-3 lets the van come back under a new ID (\#10 becomes \#58), so the lock loses its target, while GapLink-Lite keeps the van under \#10 to the end of the clip ($4$ re-acquisitions, no lost target).
-\end{itemize}
+\textbf{Demonstration clips.} Five short clips ($4.8$--$6.2$~s each) were cut from UA-DETRAC test sequences, which the model never saw in training, and are uploaded live during the presentation (Figure~\ref{fig:showcase}). They were chosen to \emph{illustrate} occlusion recovery, so they are not a measurement; the frozen Phase-2 results above are. Because the console shows no ground truth, each clip was first checked against it through the same path as an upload (re-encoding, $25$~fps, fresh YOLOv8n pass) with a strict audit: tracks are matched one-to-one to ground-truth boxes (Hungarian, IoU $\ge 0.5$); a box that is only part of a vehicle (a truck cab or trailer, half of a bus) is flagged, and an ``ID kept'' on it counts as an error; and every change of ID of a ground-truth vehicle is counted, whether it comes from Stage~1 or Stage~2. A first, looser check (IoU $\ge 0.4$, no one-to-one matching) had counted a truck trailer re-linked to itself as a correct recovery and missed ID changes that a careful viewer saw on screen; the clips selected with it were discarded. Table~\ref{tab:demo3} gives the audit of the five final clips.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.62\textwidth]{figures/fig_vms_clips.jpg}
-    \caption{Console output on the three clips (left: C-3, right: GapLink-Lite v1.3). From top: identity clip (frame 123), route clip (frame 129, a false C-3 violation in $Z_B$), target clip (frames 71 and 96, the locked van hidden and re-acquired).}
-    \label{fig:vms_clips}
+    \includegraphics[width=\textwidth]{figures/fig_showcase.jpg}
+    \caption{The five demonstration clips in GapLink Live (fresh YOLOv8n pass). (a) a car hidden behind a tow truck keeps ID \#23; (b) a car keeps ID \#9 after being overtaken; (c) a locked van hidden behind a bus, drawn at GapLink-Lite's predicted position with its (uncalibrated) 90\% ellipse; (d) a minivan keeps ID \#32 after $39$ hidden frames in dense traffic; (e) a car keeps ID \#20 after $38$ hidden frames at an intersection; (f) the frame of (a) with every overlay hidden.}
+    \label{fig:showcase}
 \end{figure}
 
 \begin{table}[H]
@@ -261,35 +261,33 @@ Table~\ref{tab:eval_vs_target} compares the final results with the targets fixed
         Model size & $327{,}979$ parameters & $< 1$M & Met \\
         Nat-WLR with YOLOv8n (test) & $6.09\%$ & $\le 5\%$ & Not met \\
         Live Nat-IRR vs.\ strongest baseline (C-2) & $84.41$ vs.\ $84.58\%$ & not lower & Equal (CI $[-1.33, 1.08]$) \\
-        Console speed (cached detections, CPU model) & $36$--$46$ FPS & $\ge 25$ FPS & Met \\
+        Console speed (first side-by-side console, cached detections, CPU model) & $36$--$46$ FPS & $\ge 25$ FPS & Met \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
 \begin{table}[H]
     \centering
-    \caption{Results of the three demonstration clips (final console, C-3 vs.\ tuned GapLink-Lite)}
+    \caption{Ground-truth audit of the five demonstration clips (same path as an upload; YOLOv8n on the CPU, counts may vary slightly with the detector device). ``Kept'': identities kept after a gap of $\ge 12$ frames on the same vehicle; ``Unverified'': kept identities shown on screen whose box matches no ground-truth box, so they can be neither confirmed nor rejected; ``visible ID changes'': a vehicle at least $30$~px high, away from the image border, that changed ID.}
     \label{tab:demo3}
     \small
-    \begin{tabularx}{\textwidth}{l X c c}
+    \newcolumntype{C}{>{\centering\arraybackslash}X}
+    \begin{tabularx}{\textwidth}{l l C C C C C C}
         \toprule
-        \textbf{Clip (source)} & \textbf{Criterion} & \textbf{C-3 Kalman} & \textbf{GapLink-Lite} \\
+        \textbf{Clip} & \textbf{Source (frames)} & \textbf{Kept} & \textbf{of which $\ge 25$\,f} & \textbf{Wrong links} & \textbf{Part of vehicle} & \textbf{Unver\-ified} & \textbf{Visible ID changes} \\
         \midrule
-        1. Identity recovery & Correct re-links / occluded vehicles & $21 / 51$ & $\mathbf{48 / 48}$ \\
-        (MVI\_40775, 250 frames) & Wrong links & $12$ & $\mathbf{0}$ \\
-         & Vehicles given a new ID & $18$ & $\mathbf{0}$ \\
-        \midrule
-        2. Forbidden route & Violations with correct ID & $3$ & $2$ \\
-        (MVI\_40761, 250 frames) & Violations with wrong ID & $1$ & $\mathbf{0}$ \\
-         & False violations & $2$ & $\mathbf{0}$ \\
-        \midrule
-        3. Target following & Target re-acquired & $1$ & $\mathbf{4}$ \\
-        (MVI\_40864, 156 frames) & Target lost (new ID) & $1$ (frame 102) & $\mathbf{0}$ \\
+        demo1 & MVI\_40901 ($170$--$325$) & $7$ & $3$ & $0$ & $0$ & $0$ & $0$ \\
+        demo2 & MVI\_40743 ($1365$--$1495$) & $1$ & $0$ & $0$ & $0$ & $0$ & $0$ \\
+        demo3 & MVI\_40763 ($155$--$275$) & $2$ & $2$ & $0$ & $0$ & $0$ & $1$ \\
+        demo4 & MVI\_40864 ($410$--$565$) & $8$ & $3$ & $0$ & $1$ & $7$ & $4$ \\
+        demo5 & MVI\_40855 ($952$--$1090$) & $10$ & $3$ & $0$ & $0$ & $3$ & $0$ \\
         \bottomrule
     \end{tabularx}
 \end{table}
 
-\textbf{Iterative improvements.} Three changes shaped the final system. (i) An audit of the first locked test run found a data-conversion error (ignore regions merged into a fake track) and a lost-track window shorter than the longest gap; both were fixed and the model was re-trained and re-frozen. (ii) Phase~2 showed that a model trained only on ground-truth boxes links too eagerly on detector boxes; tuning the model on YOLOv8n events halved the live wrong-link rate relative to the strongest baseline. (iii) The demonstration console was rebuilt around three tasks and profiled; running the small model on the CPU and simplifying the drawing raised it from $12$--$14.5$ to $36$--$46$~FPS.
+None of the kept identities that could be checked is a wrong link. The errors that remain are on screen and are not hidden in the presentation: in the dense scene of demo4, three vehicles hidden for $42$--$47$ frames come back under a new ID (Stage~2 did not accept the link) and a fourth changes ID after a $7$-frame gap, and one ``ID kept'' is on a part-of-vehicle box produced by the detector; in demo3 one vehicle changes ID after an $8$-frame gap. Demo4 also shows seven kept identities that the audit could not verify. It is therefore presented for both sides: two long recoveries (Figure~\ref{fig:showcase}d) and the limits of the method in dense traffic.
+
+\textbf{Iterative improvements.} Three changes shaped the final system. (i) An audit of the first locked test run found a data-conversion error (ignore regions merged into a fake track) and a lost-track window shorter than the longest gap; both were fixed and the model was re-trained and re-frozen. (ii) Phase~2 showed that a model trained only on ground-truth boxes links too eagerly on detector boxes; tuning the model on YOLOv8n events halved the live wrong-link rate relative to the strongest baseline. (iii) The demonstration console was rebuilt twice. The side-by-side version was profiled; running the small model on the CPU and simplifying the drawing raised it from $12$--$14.5$ to $36$--$46$~FPS. It was then replaced by GapLink Live, which processes any uploaded video and shows GapLink-Lite alone, and its clips were selected again with the strict audit above after the looser check was found to over-count.
 
 \subsection{Limitations}
 \label{sec:limitations}
@@ -299,5 +297,6 @@ Table~\ref{tab:eval_vs_target} compares the final results with the targets fixed
     \item \textbf{Live wrong links.} No method, including GapLink-Lite ($6.09\%$), kept the live wrong-link rate below the $5\%$ target on test, and against the constant-velocity baseline the advantage is in wrong links and false alarms, not in recovery or route recall.
     \item \textbf{Evaluation history.} The Phase-1 test split was evaluated a second time after the data-conversion fix, and the live test videos were scored for both the main model and the model tuned for YOLOv8n; both re-runs are reported openly rather than replaced.
     \item \textbf{Data scope.} No motorcycle class, fixed elevated cameras in Chinese cities, four validation locations, $7$ of $15$ test locations shared with training (no measurable effect: $93.39\%$ vs.\ $93.44\%$ Top-1), and a single seed for the tuning for YOLOv8n.
-    \item \textbf{Demonstration clips.} The clips were selected on test videos to show the difference clearly; their counts illustrate behaviour and are not unbiased estimates (the frozen Phase-2 table is).
+    \item \textbf{Dependence on the detector and on Stage~1.} GapLink-Lite only acts on tracks that were lost. Selecting the demonstration clips showed visible errors that happen before it is called: Stage~1 can pass an ID from one vehicle to an overlapping one without any frame being lost (so Stage~2 is never asked), YOLOv8n can split a truck into cab and trailer, and a vehicle hidden from the moment it enters the image is never tracked, so there is no identity to keep. In dense scenes many long occlusions still end with a new ID.
+    \item \textbf{Demonstration clips.} The five clips were selected on test videos to illustrate occlusion recovery and checked against ground truth; their counts are not unbiased estimates (the frozen Phase-2 table is), and the console itself shows no ground truth.
 \end{itemize}
