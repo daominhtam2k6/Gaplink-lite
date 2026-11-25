@@ -2,11 +2,11 @@
 
 GapLink-Lite is a small, self-developed neural network (**327,979 parameters**, trained from random initialisation) that decides whether a vehicle re-appearing after an occlusion is the same vehicle the tracker lost, a different one, or nobody yet. It combines a GRU motion encoder, a calibrated Gaussian prediction of where the vehicle should re-appear, and a Sinkhorn assignment with learnable *dustbins* for "the vehicle has left" and "this is a new vehicle".
 
-**GapLink-VMS** is a lean demonstration console that runs a Kalman-filter tracker (C-3) and GapLink-Lite side by side on the same YOLOv8n detections, on three surveillance tasks: identity recovery, forbidden routes and following a locked target.
+**GapLink Live** is the demonstration console: upload a traffic video, and the full pipeline (YOLOv8n → IoU matching → GapLink-Lite) runs on it on the spot, with identity recovery, target lock and forbidden-route alerts drawn over the video for visual inspection.
 
 Capstone project, Samsung Innovation Campus (SIC) – AI Course.
 
-![GapLink-VMS on the three demonstration clips](report/latex/figures/fig_vms_clips.jpg)
+![GapLink Live on demo1: a locked car passes behind a tow truck (left, dashed = predicted position while hidden) and is re-acquired with the same ID (right)](docs/img/gaplink_live_demo1.jpg)
 
 ## Results
 
@@ -43,7 +43,7 @@ All results come from locked test runs on UA-DETRAC: thresholds were selected on
 
 **Speed:**
 - GapLink-Lite runs in 8–9.5 ms per frame on one CPU thread.
-- The console runs at 36–46 FPS on an RTX 3050 Laptop GPU (6 GB).
+- End to end (YOLOv8n + two trackers side by side, as measured for the report) the pipeline ran at 36–46 FPS on an RTX 3050 Laptop GPU (6 GB).
 
 The full analysis, including limitations and the evaluation history, is in the report: [`report/latex/main.pdf`](report/latex/main.pdf) (English) and [`report/latex/main_vi.pdf`](report/latex/main_vi.pdf) (Vietnamese).
 
@@ -72,14 +72,15 @@ src/             data I/O, event sampling, GapLink-Lite model, baselines C-1…C
                  online tracker, metrics, calibration, live evaluation, surveillance rules
   model/         motion encoder, context encoder, Gaussian predictor, scorer, Sinkhorn
 train.py         training entry point
-scripts/         data conversion, evaluation, freezing, figures, demo clip mining/export
+scripts/         data conversion, evaluation, freezing, figures, video preparation, demo clip export/check
   pipelines/     PowerShell pipelines used for the live (v1.2/v1.3) and extra runs
-demo/            GapLink-VMS console (vms_lite.py) and its rendering/judging helpers
-  sample_videos/ cached detections, ground truth and metadata of the 3 demo clips
+demo/            GapLink Live console (gaplink_live*.py) and its tracking/drawing core
+  showcase/      the 5 raw demo videos (UA-DETRAC test frames) and SOURCES.json (origin, SHA-256)
+  uploads/       videos uploaded in the console (git-ignored)
 release/         frozen checkpoints, thresholds, calibration and result files (SHA-256 pinned)
 docs/            pre-registrations (PREREG*.md) and deviation log (DEVIATIONS.md)
 report/latex/    SIC capstone report (LaTeX source, English and Vietnamese PDFs)
-tests/           pytest suite (71 tests, CPU only)
+tests/           pytest suite (CPU only)
 ```
 
 ## Installation
@@ -98,34 +99,52 @@ All data and output paths are read from `configs/paths.yaml`. Edit it if the pro
 ## Running the demo
 
 ```powershell
-.venv\Scripts\python -m demo.vms_lite --port 8010   # dashboard at http://127.0.0.1:8010
-.venv\Scripts\python -m demo.vms_lite --check       # recompute the counts of the 3 clips, no UI
-.venv\Scripts\python -m demo.vms_lite --render      # side-by-side MP4s with slow motion (demo/out/)
+.venv\Scripts\python -m demo.gaplink_live --fresh    # open http://127.0.0.1:8001
 ```
 
-`run_vms_lite.ps1` starts the dashboard and opens the browser.
+`--fresh` starts with an empty video list; without it, videos processed earlier are listed again.
 
-**Clips.**
-- `demo1_relink`: identity recovery.
-- `demo2_route`: forbidden route. Zones can be redrawn and saved.
-- `demo3_lock`: click a vehicle to lock it.
+**Workflow.**
+1. Drag a video onto the page (or use *Upload video*). The file is stored in `demo/uploads/` and its SHA-256 is shown.
+2. The server resamples it to 25 fps, resizes it to 960 px wide and runs YOLOv8n once, with the same settings as the
+   evaluation (`scripts/prepare_video.py`). A progress bar follows the detection pass.
+3. The video plays with GapLink-Lite as Stage 2. Nothing is pre-rendered: every overlay is drawn while it plays, and
+   no ground truth is used, so the viewer checks the identities by eye.
 
-**Controls.**
-- Space: play or pause.
-- ← / →: step one frame.
-- 1 / 2 / 3: switch clip.
-- I: show or hide IDs.
+**What is drawn.**
 
-**Video files.** The clip videos (`*.mp4`) are cut from UA-DETRAC test sequences and are not stored in the repository. The cached detections and ground truth are. To recreate the videos once UA-DETRAC is available locally:
+| Overlay | Meaning |
+|---|---|
+| Coloured box `#k` | one colour per track ID |
+| Dashed box `#k hidden` | a vehicle lost inside the image, at the place it was last seen |
+| `#k ID KEPT after N f hidden` + dashed bridge | Stage 2 gave the vehicle its old ID back after N frames |
+| Locked target (click) | full path: solid where seen, dashed where GapLink predicts it while hidden; optional 90% ellipse |
+| Z_A / Z_B and `FORBIDDEN ROUTE` | forbidden-route mode: zones drawn on the video, alert when a vehicle goes from Z_A into Z_B |
+
+The ellipse uses the σ predicted by the v1.3 model, which is not calibrated (illustration only).
+
+**Keys.** Space play/pause · ← → one frame · **O** hide/show every overlay (the untouched video) · U unlock ·
+I IDs · T trails · E ellipse · Enter/Esc finish/cancel a zone.
+
+**Demo videos** (`demo/showcase/`, origin and SHA-256 in `SOURCES.json`):
+
+| File | UA-DETRAC test sequence | Frames | Scene |
+|---|---|---|---|
+| `demo1.mp4` | MVI_40901 | 170–325 | rainy intersection, a car passes behind a tow truck |
+| `demo2.mp4` | MVI_40743 | 1365–1495 | night avenue, overtaking |
+| `demo3.mp4` | MVI_40763 | 155–275 | night, a van hidden behind a bus |
+| `demo4.mp4` | MVI_40864 | 410–565 | a minivan hidden behind a red bus |
+| `demo5.mp4` | MVI_40855 | 952–1090 | intersection, three vehicles crossing in front of each other |
+
+They are raw frames from test sequences the model never saw in training, chosen to *illustrate* occlusion
+recovery: each was checked against the ground truth through the same path as an upload (`scripts/demo_audit.py`:
+one-to-one matching, part-of-vehicle boxes, every ID change). They are **not** a measurement; the frozen tables above
+are.
 
 ```powershell
-.venv\Scripts\python -m scripts.mine_demo3
-.venv\Scripts\python -m scripts.export_demo_clip --scenario relink --rank 0 --name demo1_relink
-.venv\Scripts\python -m scripts.export_demo_clip --scenario route  --rank 0 --name demo2_route
-.venv\Scripts\python -m scripts.export_demo_clip --scenario lock   --rank 3 --name demo3_lock
+.venv\Scripts\python -m scripts.check_showcase demo\showcase\demo1.mp4                    # re-check a clip
+.venv\Scripts\python -m scripts.export_showcase --seq MVI_40901 --f0 170 --f1 325 --name demo1   # re-cut it from data/
 ```
-
-The demo clips were selected on test videos to show the difference clearly. Their counts illustrate behaviour. They are not measurements; the frozen Phase-2 table above is.
 
 ## Reproducing the results
 
