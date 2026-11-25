@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>GapLink Live · Giữ danh tính phương tiện qua che khuất</title>
+<style>
+:root{
+  --bg:#0e1116;--surface:#151a21;--surface-2:#1b222b;--surface-3:#232b36;--line:#2a3340;--line-2:#36414f;
+  --text:#e7eaf0;--text-2:#b4bcc8;--muted:#8d97a5;
+  --accent:#5aa2ff;--accent-ink:#06101f;
+  --seen:#6edc5a;--hidden:#28c8ff;--ok:#5fd17a;--warn:#ffc24b;--bad:#ff5d5d;--newid:#d978e6;--lost:#9aa3ad;
+  --r:8px;--r-s:6px;--t:180ms cubic-bezier(.2,.7,.2,1);
+  --mono:ui-monospace,"Cascadia Mono","Consolas",monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+::selection{background:#2f5f9e;color:#fff}
+*{scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+svg.i{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.hidden{display:none!important}
+
+.top{display:flex;align-items:center;gap:16px;height:56px;padding:0 18px;background:var(--surface);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;white-space:nowrap}
+.brand b{font-size:15px;font-weight:650}
+.brand span{color:var(--muted);font-size:12.5px}
+.vids{display:flex;gap:4px;overflow-x:auto;flex:1;min-width:0;padding:2px}
+.vid{display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;border-radius:var(--r-s);border:1px solid transparent;background:none;cursor:pointer;
+  color:var(--text-2);white-space:nowrap;max-width:260px;transition:background var(--t),color var(--t),border-color var(--t)}
+.vid:hover{background:var(--surface-2);color:var(--text)}
+.vid[aria-selected=true]{background:var(--surface-3);border-color:var(--line-2);color:var(--text)}
+.vid span{overflow:hidden;text-overflow:ellipsis}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:32px;min-width:32px;padding:0 12px;border-radius:var(--r-s);
+  border:1px solid var(--line);background:var(--surface-2);color:var(--text);cursor:pointer;white-space:nowrap;transition:background var(--t),border-color var(--t),color var(--t)}
+.btn:hover{background:var(--surface-3);border-color:var(--line-2)}
+.btn:active{transform:translateY(1px)}
+.btn.icon{padding:0;width:32px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.primary:hover{background:#78b4ff}
+.btn.play{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);width:40px;height:36px;padding:0}
+.btn.danger:hover{border-color:#6b3434;color:#ffb3b3}
+.btn[aria-pressed=true]{border-color:var(--accent);color:var(--accent)}
+
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;padding:16px;height:calc(100% - 56px)}
+.stage{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0}
+.side{display:flex;flex-direction:column;gap:12px;min-height:0;overflow-y:auto;padding-right:2px}
+@media (max-width:1100px){.layout{grid-template-columns:1fr;height:auto}.side{overflow:visible}}
+
+.viewer{position:relative;display:flex;justify-content:center;align-items:center;min-height:300px;flex:1;
+  background:#07090c;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+#cv{display:block;cursor:crosshair}
+.viewer.zone #cv{cursor:cell}
+.drop{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;
+  color:var(--text-2);padding:24px;background:rgba(7,9,12,.92);border:2px dashed var(--line-2);border-radius:var(--r);transition:border-color var(--t),background var(--t)}
+.drop svg{width:40px;height:40px;color:var(--accent)}
+.drop b{font-size:17px;color:var(--text)}
+.drop small{color:var(--muted)}
+.viewer.dragging .drop{display:flex!important;border-color:var(--accent);background:rgba(16,30,52,.92)}
+.badge{position:absolute;top:12px;left:12px;display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:600;
+  background:rgba(14,17,22,.85);border:1px solid var(--line-2);pointer-events:none}
+.badge i{width:8px;height:8px;border-radius:50%;background:var(--bad);box-shadow:0 0 0 3px #ff5d5d33}
+.badge.raw i{background:var(--muted);box-shadow:none}
+.hud{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);padding:7px 12px;background:rgba(14,17,22,.88);border:1px solid var(--line-2);
+  border-radius:999px;font-size:13px;pointer-events:none;white-space:nowrap;transition:opacity var(--t)}
+.hud.off{opacity:0}
+
+.transport{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);flex-wrap:wrap}
+.time{font-family:var(--mono);font-size:12.5px;color:var(--text-2);white-space:nowrap}
+.time b{color:var(--text);font-weight:500}
+.grow{flex:1}
+.seg{display:inline-flex;padding:2px;gap:2px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-s)}
+.seg button{height:28px;padding:0 10px;border:0;border-radius:4px;background:none;color:var(--text-2);cursor:pointer;transition:background var(--t),color var(--t)}
+.seg button:hover{color:var(--text)}
+.seg button[aria-pressed=true]{background:var(--surface-3);color:var(--text)}
+.seg.full{display:flex}.seg.full button{flex:1;height:32px}
+
+.tl-wrap{padding:6px 10px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.timeline{position:relative;height:34px;user-select:none}
+.tl-rail{position:absolute;left:0;right:0;top:20px;height:4px;border-radius:2px;background:var(--surface-3)}
+.tl-fill{position:absolute;left:0;top:20px;height:4px;border-radius:2px;background:var(--accent)}
+.tl-head{position:absolute;top:12px;width:2px;height:20px;margin-left:-1px;background:var(--text);pointer-events:none}
+#tlHit{position:absolute;inset:12px 0 0 0;cursor:pointer}
+.tick{position:absolute;bottom:18px;width:4px;margin-left:-2px;border-radius:2px;cursor:pointer;opacity:.9}
+.tick:hover{opacity:1;transform:scaleX(1.6)}
+.tick.dot{width:10px;height:10px;margin-left:-5px;border-radius:50%;bottom:17px;border:2px solid var(--surface)}
+
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;color:var(--text-2);font-size:12.5px;padding:0 2px}
+.legend i{display:inline-block;vertical-align:middle;margin-right:7px}
+.sw-box{width:16px;height:11px;border:2px solid #e0a0ff;border-radius:2px}
+.sw-dash{width:16px;height:11px;border:2px dashed #7fd8ff;border-radius:2px}
+.sw-bridge{width:24px;height:3px;background:repeating-linear-gradient(90deg,#ffd166 0 6px,transparent 6px 10px)}
+.sw-seen{width:24px;height:4px;border-radius:2px;background:var(--seen)}
+.sw-hid{width:24px;height:4px;background:repeating-linear-gradient(90deg,var(--hidden) 0 7px,transparent 7px 11px)}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.panel>header{display:flex;align-items:center;gap:8px;padding:12px 14px 0}
+.panel>header h2{margin:0;font-size:13.5px;font-weight:600}
+.panel>header .sub{margin-left:auto;color:var(--muted);font-size:12px}
+.panel .body{padding:10px 14px 14px}
+.note{color:var(--muted);font-size:12.5px;margin:8px 0 0}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-size:13px}
+.kv dt{color:var(--muted)}.kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.hash{font-family:var(--mono);font-size:11.5px;color:var(--text-2);cursor:copy}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{display:flex;flex-direction:column;padding:8px 10px;border-radius:var(--r-s);background:var(--surface-2)}
+.stat b{font-size:20px;font-weight:600;line-height:1.2}
+.stat span{font-size:11.5px;color:var(--muted)}
+.job{display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:var(--r-s);background:var(--surface-2)}
+.job+.job{margin-top:8px}
+.job .row{display:flex;gap:8px;align-items:center;font-size:13px}
+.job .row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.job .st{margin-left:auto;font-size:12px;color:var(--muted);white-space:nowrap}
+.bar{height:6px;border-radius:3px;background:var(--surface-3);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.job.done .bar i{background:var(--ok)}.job.err .bar i{background:var(--bad)}
+.chip{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--surface-3);color:var(--text-2)}
+.chip::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.chip.seen{color:var(--seen);background:#15301a}.chip.hid{color:var(--hidden);background:#0f2a36}
+.chip.bad{color:var(--bad);background:#3a1717}.chip.new{color:var(--newid);background:#33183a}
+.tgt-empty{display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px dashed var(--line-2);border-radius:var(--r-s);color:var(--text-2);font-size:13px}
+.tgt-empty svg{width:22px;height:22px;color:var(--accent)}
+.tgt-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.tgt-id{font-family:var(--mono);font-size:20px;font-weight:600}
+.tgt-head .btn{margin-left:auto}
+.toggles{display:flex;flex-direction:column;gap:2px}
+.sw{display:flex;align-items:center;gap:10px;padding:6px 2px;cursor:pointer;color:var(--text-2);font-size:13px}
+.sw:hover{color:var(--text)}
+.sw input{appearance:none;width:32px;height:18px;border-radius:9px;background:var(--surface-3);border:1px solid var(--line-2);position:relative;cursor:pointer;flex:none;transition:background var(--t)}
+.sw input::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--text-2);transition:transform var(--t)}
+.sw input:checked{background:var(--accent);border-color:var(--accent)}
+.sw input:checked::after{transform:translateX(14px);background:var(--accent-ink)}
+.sw kbd{margin-left:auto}
+kbd{font-family:var(--mono);font-size:11px;padding:1px 5px;border-radius:4px;border:1px solid var(--line-2);border-bottom-width:2px;color:var(--text-2);background:var(--surface-2)}
+.zbtns{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+.zbtns .btn{width:100%}
+.hist{display:flex;flex-direction:column;gap:6px;max-height:380px;overflow-y:auto}
+.hi{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center;padding:8px;border-radius:var(--r-s);background:var(--surface-2);border:1px solid transparent;cursor:pointer;text-align:left;transition:border-color var(--t)}
+.hi:hover{border-color:var(--line-2)}
+.thumbs{display:flex;align-items:center;gap:4px;color:var(--muted)}
+.thumbs img,.ph{width:64px;height:46px;object-fit:contain;background:#000;border-radius:4px}
+.ph{display:grid;place-items:center;font-size:10.5px;color:var(--muted);border:1px dashed var(--line-2);background:var(--bg)}
+.hi .k{display:flex;align-items:center;gap:6px;font-weight:600;font-size:12.5px}
+.hi .k::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c)}
+.hi .s{font-size:12px;color:var(--muted)}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;font-size:12.5px;color:var(--text-2);align-items:center}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5v14l11-7z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5h3v14H8zM13 5h3v14h-3z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-restart" viewBox="0 0 24 24"><path d="M5 5v14M19 6l-9 6 9 6z"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+  <symbol id="i-fwd" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
+  <symbol id="i-unlock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-2"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+  <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v4h4"/></symbol>
+  <symbol id="i-logo" viewBox="0 0 24 24"><path d="M3 15c3-6 6-6 8-3" stroke="#6edc5a"/><path d="M11 12c2 3 4 3 6 0" stroke="#28c8ff" stroke-dasharray="2.2 2.2"/><path d="M17 12c1-1.6 2.4-2.6 4-3" stroke="#6edc5a"/><circle cx="21" cy="9" r="1.6" fill="#6edc5a" stroke="none"/></symbol>
+</svg>
+
+<header class="top">
+  <div class="brand"><svg class="i" style="width:26px;height:26px;stroke-width:2.2"><use href="#i-logo"/></svg>
+    <div><b>GapLink Live</b><br/><span id="model">GapLink-Lite</span></div></div>
+  <nav class="vids" id="vids" role="tablist" aria-label="Video đã xử lý"></nav>
+  <input type="file" id="file" accept="video/*" class="hidden"/>
+  <button class="btn primary" onclick="$('file').click()"><svg class="i"><use href="#i-upload"/></svg>Tải video lên</button>
+</header>
+
+<div class="layout">
+<section class="stage">
+  <div class="viewer" id="viewer">
+    <canvas id="cv" class="hidden" aria-label="Video đang phát. Click vào một xe để khóa mục tiêu."></canvas>
+    <div class="badge hidden" id="badge"><i></i><span id="badgeTxt">Lớp hiển thị do hệ thống vẽ trực tiếp</span></div>
+    <div class="hud off" id="hud"></div>
+    <div class="drop" id="drop">
+      <svg class="i"><use href="#i-upload"/></svg>
+      <b>Kéo thả video vào đây, hoặc bấm “Tải video lên”</b>
+      <span>Hệ thống sẽ chạy YOLOv8n và GapLink-Lite trên video ngay tại máy này.</span>
+      <small>Phù hợp nhất: camera đứng yên, nhìn từ trên cao, ô tô / xe buýt / xe tải đủ lớn. Video được đưa về 25 fps, rộng 960 px.</small>
+    </div>
+  </div>
+
+  <div class="transport" id="transport">
+    <button class="btn icon" title="Về đầu (Home)" onclick="act({action:'restart'})"><svg class="i"><use href="#i-restart"/></svg></button>
+    <button class="btn icon" title="Lùi 1 frame (←)" onclick="act({action:'step',value:-1})"><svg class="i"><use href="#i-back"/></svg></button>
+    <button class="btn play" id="bPlay" title="Chạy / dừng (Space)" onclick="act({action:'play'})"><svg class="i"><use href="#i-play"/></svg></button>
+    <button class="btn icon" title="Tiến 1 frame (→)" onclick="act({action:'step',value:1})"><svg class="i"><use href="#i-fwd"/></svg></button>
+    <span class="time"><b id="tNow">0:00.0</b> / <span id="tAll">0:00.0</span> · frame <b id="fNow">0</b>/<span id="fAll">0</span></span>
+    <span class="grow"></span>
+    <button class="btn" id="bOverlay" title="Ẩn/hiện toàn bộ lớp hiển thị (O)" onclick="toggle('overlay')"><svg class="i"><use href="#i-eye"/></svg><span id="ovTxt">Ẩn lớp hiển thị</span><kbd>O</kbd></button>
+    <div class="seg" role="group" aria-label="Tốc độ">
+      <button data-sp="1" onclick="act({action:'speed',value:1})">1×</button><button data-sp="0.5" onclick="act({action:'speed',value:0.5})">0.5×</button><button data-sp="0.25" onclick="act({action:'speed',value:0.25})">0.25×</button>
+    </div>
+  </div>
+
+  <div class="tl-wrap">
+    <div class="timeline" id="tl" title="Vạch vàng: một xe được giữ ID sau khi bị che (cao = che lâu). Click để tua.">
+      <div class="tl-rail"></div><div class="tl-fill" id="tlFill"></div>
+      <div id="tlHit"></div><div id="tlEv"></div><div class="tl-head" id="tlHead"></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><i class="sw-box"></i>Mỗi ID một màu</span>
+    <span><i class="sw-dash"></i>Xe đang bị che (vị trí thấy lần cuối)</span>
+    <span><i class="sw-bridge"></i>Cầu nối: chỗ mất → chỗ xuất hiện lại, cùng ID</span>
+    <span><i class="sw-seen"></i>Mục tiêu: đoạn thấy</span>
+    <span><i class="sw-hid"></i>Mục tiêu: đoạn bị che (GapLink dự đoán)</span>
+  </div>
+</section>
+
+<aside class="side">
+  <section class="panel hidden" id="pJobs">
+    <header><h2>Đang xử lý</h2></header>
+    <div class="body" id="jobs"></div>
+  </section>
+
+  <section class="panel" id="pSrc">
+    <header><h2>Video nguồn</h2><span class="sub" id="srcSub"></span></header>
+    <div class="body">
+      <dl class="kv" id="srcKv"><dt>Tệp</dt><dd>Chưa có video</dd></dl>
+      <p class="note">SHA-256 tính trên file gốc vừa tải lên: so với file đã mở trên máy để thấy đó là cùng một file.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <header><h2>Theo dõi</h2><span class="sub">từ đầu video tới frame hiện tại</span></header>
+    <div class="body">
+      <div class="stats">
+        <div class="stat"><b id="sTracked">–</b><span>xe đang theo dõi</span></div>
+        <div class="stat"><b id="sHidden">–</b><span>xe đang bị che</span></div>
+        <div class="stat"><b id="sLinks">–</b><span>lần giữ ID sau che ≥ 12f</span></div>
+        <div class="stat"><b id="sLong">–</b><span>trong đó che ≥ 1 giây</span></div>
+        <div class="stat"><b id="sMax">–</b><span>che lâu nhất (frame)</span></div>
+        <div class="stat"><b id="sFps">–</b><span>FPS xử lý</span></div>
+      </div>
+      <p class="note">Không có đáp án chuẩn cho video tải lên: hãy kiểm tra bằng mắt rằng xe xuất hiện lại giữ đúng số ID và màu cũ.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <header><h2>Mục tiêu</h2><span class="sub" id="tgtSub"></span></header>
+    <div class="body">
+      <div class="tgt-empty" id="tgtEmpty"><svg class="i"><use href="#i-target"/></svg>
+        <div>Click vào một xe trên video để khóa. Hệ thống vẽ toàn bộ đường đi của xe: nét liền khi nhìn thấy, nét đứt là vị trí GapLink dự đoán khi xe bị che.</div></div>
+      <div id="tgtBox" class="hidden">
+        <div class="tgt-head"><span class="tgt-id" id="tgtId">#–</span><span class="chip" id="tgtState">–</span>
+          <button class="btn danger" onclick="act({action:'unlock'})" title="Bỏ khóa (U)"><svg class="i"><use href="#i-unlock"/></svg>Bỏ khóa</button></div>
+        <div class="stats">
+          <div class="stat"><b id="tReacq">0</b><span>lần bắt lại</span></div>
+          <div class="stat"><b id="tHidden">0</b><span>frame bị che</span></div>
+          <div class="stat"><b id="tLongest">0</b><span>che lâu nhất</span></div>
+        </div>
+      </div>
+      <div class="toggles" style="margin-top:12px">
+        <label class="sw"><input type="checkbox" id="oIds" onchange="act({action:'opt',key:'ids',flag:this.checked})"/>Số ID<kbd>I</kbd></label>
+        <label class="sw"><input type="checkbox" id="oTrails" onchange="act({action:'opt',key:'trails',flag:this.checked})"/>Vệt di chuyển<kbd>T</kbd></label>
+        <label class="sw"><input type="checkbox" id="oEll" onchange="act({action:'opt',key:'ellipse',flag:this.checked})"/>Elip độ bất định 90% (mục tiêu bị che)<kbd>E</kbd></label>
+      </div>
+      <p class="note">Elip lấy từ σ do GapLink-Lite dự đoán; bản v1.3 chưa hiệu chuẩn nên chỉ mang tính minh họa.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <header><h2>Chế độ</h2></header>
+    <div class="body">
+      <div class="seg full" role="group" aria-label="Chế độ">
+        <button data-m="relink" onclick="setMode('relink')">Theo dõi &amp; truy vết</button>
+        <button data-m="route" onclick="setMode('route')">Lộ trình cấm</button>
+      </div>
+      <div id="zoneBox" class="hidden">
+        <div class="zbtns">
+          <button class="btn" id="dA" onclick="drawZ('Z_A')"><svg class="i"><use href="#i-pen"/></svg>Vẽ Z_A (đi từ)</button>
+          <button class="btn" id="dB" onclick="drawZ('Z_B')"><svg class="i"><use href="#i-pen"/></svg>Vẽ Z_B (cấm vào)</button>
+          <button class="btn" onclick="finishZ()"><svg class="i"><use href="#i-check"/></svg>Xong vùng</button>
+          <button class="btn" onclick="act({action:'reset_zones'})"><svg class="i"><use href="#i-reset"/></svg>Mặc định</button>
+        </div>
+        <p class="note">Cảnh báo khi một xe đi từ Z_A vào Z_B, kể cả khi bị che giữa đường. Bấm Vẽ, click các đỉnh trên video, rồi Xong vùng (Enter).</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <header><h2>Nhật ký</h2><span class="sub" id="histN"></span></header>
+    <div class="body"><div class="hist" id="hist"></div></div>
+  </section>
+
+  <section class="panel">
+    <header><h2>Phím tắt</h2></header>
+    <div class="body keys">
+      <kbd>Space</kbd><span>Chạy / dừng</span><kbd>← →</kbd><span>Lùi / tiến 1 frame</span><kbd>O</kbd><span>Ẩn / hiện lớp hiển thị</span>
+      <kbd>U</kbd><span>Bỏ khóa mục tiêu</span><kbd>Esc</kbd><span>Hủy vẽ vùng</span>
+    </div>
+  </section>
+</aside>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const cv=$('cv'),ctx=cv.getContext('2d'),img=new Image();
+let S={},zone=null,pts=[],histVer=-1,drag=false,vidKey='',jobsKey='',evKey='';
+async function act(b){try{const r=await fetch('/api/act',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});return await r.json();}catch(e){return {};}}
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=f=>{const s=f/(S.clip_fps||25);return Math.floor(s/60)+':'+(s%60).toFixed(1).padStart(4,'0');};
+function toggle(k){act({action:'opt',key:k,flag:!(S.opts||{})[k]});}
+function setMode(m){if(S.mode!==m)act({action:'mode',mode:m});}
+let hudT=0;function flash(t,ms=2600){$('hud').textContent=t;$('hud').classList.remove('off');hudT=Date.now()+ms;}
+
+/* ---------- fit the video to the stage (scales up too, keeps the aspect ratio) ---------- */
+function fit(){if(!cv.width)return;const r=vw.getBoundingClientRect();const k=Math.min((r.width-2)/cv.width,(r.height-2)/cv.height);
+  cv.style.width=Math.floor(cv.width*k)+'px';cv.style.height=Math.floor(cv.height*k)+'px';}
+addEventListener('resize',fit);
+
+/* ---------- upload ---------- */
+$('file').addEventListener('change',e=>{if(e.target.files[0])upload(e.target.files[0]);e.target.value='';});
+const vw=$('viewer');
+['dragenter','dragover'].forEach(t=>vw.addEventListener(t,e=>{e.preventDefault();vw.classList.add('dragging');}));
+['dragleave','drop'].forEach(t=>vw.addEventListener(t,e=>{e.preventDefault();vw.classList.remove('dragging');}));
+vw.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)upload(f);});
+async function upload(f){
+  if(!/^video\//.test(f.type)&&!/\.(mp4|avi|mov|mkv|m4v|webm|mpg|mpeg|wmv)$/i.test(f.name)){flash('Không phải file video');return;}
+  flash(`Đang tải lên ${f.name} (${(f.size/1e6).toFixed(1)} MB)…`,60000);
+  try{const r=await fetch('/api/upload?name='+encodeURIComponent(f.name),{method:'POST',body:f});const d=await r.json();
+    flash(d.ok?'Đã nhận file, đang xử lý…':'Lỗi: '+(d.error||JSON.stringify(d.detail||d)));}catch(e){flash('Tải lên thất bại: '+e);}
+}
+function paintJobs(jobs){const k=JSON.stringify(jobs);if(k===jobsKey)return;jobsKey=k;
+  const active=jobs.filter(j=>j.state!=='done'||Date.now()<(j._seen||0));$('pJobs').classList.toggle('hidden',!jobs.some(j=>j.state==='processing'||j.state==='queued'||j.state==='error'));
+  $('jobs').innerHTML=jobs.slice().reverse().map(j=>{const p=j.total?Math.round(100*j.done/j.total):(j.state==='done'?100:2);
+    const st=j.state==='processing'?`YOLOv8n ${j.done}/${j.total||'?'} frame`:j.state==='done'?`xong trong ${j.seconds}s`:j.state==='error'?'lỗi':'chờ';
+    return `<div class="job ${j.state==='done'?'done':j.state==='error'?'err':''}"><div class="row"><span>${esc(j.file)}</span><span class="st">${st}</span></div>
+      <div class="bar"><i style="width:${p}%"></i></div>${j.error?`<span class="note" style="margin:0;color:#ffb3b3">${esc(j.error)}</span>`:''}</div>`;}).join('');}
+function paintVids(vids,cur){const k=JSON.stringify(vids.map(v=>v.id))+(cur||'');if(k===vidKey)return;vidKey=k;
+  $('vids').innerHTML=vids.map((v,i)=>`<button class="vid" role="tab" aria-selected="${v.id===cur}" title="${esc(v.file)}" onclick="act({action:'load',vid:'${v.id}'})"><span>${i+1}. ${esc(v.file)}</span></button>`).join('');}
+
+/* ---------- zones & click ---------- */
+function drawZ(z){act({action:'play',flag:false});zone=z;pts=[];syncZ();flash('Click các đỉnh của '+z+' trên video, rồi bấm Xong vùng (Enter)',4000);}
+function finishZ(){if(zone&&pts.length>=3)act({action:'zone',zone_id:zone,points:pts});zone=null;pts=[];syncZ();}
+function syncZ(){$('dA').setAttribute('aria-pressed',zone==='Z_A');$('dB').setAttribute('aria-pressed',zone==='Z_B');vw.classList.toggle('zone',!!zone);}
+function overlay(){if(!zone||!pts.length)return;ctx.strokeStyle=zone==='Z_A'?'#ffc24b':'#ff5d5d';ctx.lineWidth=3;ctx.beginPath();
+  pts.forEach((p,i)=>{const X=p[0]*cv.width,Y=p[1]*cv.height;i?ctx.lineTo(X,Y):ctx.moveTo(X,Y);});ctx.stroke();
+  pts.forEach(p=>{ctx.fillStyle='#fff';ctx.fillRect(p[0]*cv.width-3,p[1]*cv.height-3,6,6);});}
+cv.addEventListener('click',e=>{const r=cv.getBoundingClientRect();const x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;
+  if(zone){pts.push([+x.toFixed(4),+y.toFixed(4)]);overlay();return;}
+  act({action:'lock',x,y}).then(d=>{flash(d&&d.tid!=null?`Đã khóa xe #${d.tid}`:'Không có xe đang được theo dõi ở điểm này');});});
+
+/* ---------- timeline ---------- */
+const tl=$('tl');const seekAt=ev=>{const r=tl.getBoundingClientRect();return Math.max(1,Math.round(Math.min(1,Math.max(0,(ev.clientX-r.left)/r.width))*(S.total||1)));};
+$('tlHit').addEventListener('pointerdown',e=>{drag=true;$('tlHit').setPointerCapture(e.pointerId);head(seekAt(e));});
+$('tlHit').addEventListener('pointermove',e=>{if(drag)head(seekAt(e));});
+$('tlHit').addEventListener('pointerup',e=>{if(drag){drag=false;act({action:'seek',value:seekAt(e)});}});
+function head(f){const p=100*f/Math.max(1,S.total||1);$('tlFill').style.width=p+'%';$('tlHead').style.left=p+'%';}
+function paintEvents(evs){const k=JSON.stringify(evs)+S.total;if(k===evKey)return;evKey=k;const T=Math.max(1,S.total||1);
+  $('tlEv').innerHTML=evs.map(e=>{const l=100*e.frame/T;
+    if(e.kind==='link'){const h=Math.min(18,5+e.gap/6);return `<span class="tick" style="left:${l}%;height:${h}px;background:${e.gap>=25?'#ffd166':'#8a7a4d'}" title="#${e.tid} giữ ID sau ${e.gap} frame bị che · frame ${e.frame}" onclick="act({action:'seek',value:${e.frame}})"></span>`;}
+    const c={alert:'var(--bad)',lock:'#fff',reacq:'var(--ok)',lost:'var(--lost)',newid:'var(--newid)',wrong:'var(--bad)'}[e.kind]||'var(--muted)';
+    const t={alert:`#${e.tid} vào vùng cấm`,lock:'khóa mục tiêu',reacq:`bắt lại mục tiêu sau ${e.gap} frame`,lost:'mất mục tiêu',newid:'mục tiêu bị đổi ID',wrong:'bám nhầm xe'}[e.kind]||e.kind;
+    return `<span class="tick dot" style="left:${l}%;background:${c}" title="${t} · frame ${e.frame}" onclick="act({action:'seek',value:${e.frame}})"></span>`;}).join('');}
+
+/* ---------- keyboard ---------- */
+document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'&&e.target.type!=='checkbox')return;const k=e.key.toLowerCase();
+  if(k===' '){e.preventDefault();act({action:'play'});}else if(k==='arrowleft')act({action:'step',value:-1});else if(k==='arrowright')act({action:'step',value:1});
+  else if(k==='home')act({action:'restart'});else if(k==='o')toggle('overlay');else if(k==='i')toggle('ids');else if(k==='t')toggle('trails');
+  else if(k==='e')toggle('ellipse');else if(k==='u')act({action:'unlock'});else if(k==='enter'&&zone)finishZ();else if(k==='escape'){zone=null;pts=[];syncZ();}});
+
+/* ---------- history ---------- */
+const HK={link:['#ffd166','Giữ ID sau khi bị che'],alert:['var(--bad)','Vào vùng cấm (Z_A → Z_B)'],lock_lost:['var(--lost)','Mất mục tiêu'],lock_newid:['var(--newid)','Mục tiêu bị đổi ID'],lock_wrong:['var(--bad)','Bám nhầm xe']};
+async function loadHist(){const d=await (await fetch('/api/history')).json();histVer=d.ver;const items=d.items.filter(h=>h.kind!=='link'||h.gap>=12);
+  $('histN').textContent=items.length?items.length+' mục':'';
+  if(!items.length){$('hist').innerHTML='<p class="note" style="margin:0">Mỗi lần một xe xuất hiện lại sau khi bị che sẽ hiện ở đây kèm ảnh trước và sau, để so bằng mắt.</p>';return;}
+  $('hist').innerHTML=items.map(h=>{const k=HK[h.kind]||['var(--muted)',h.kind];
+    const im=(s,alt,ph)=>s?`<img alt="${alt}" src="${s}"/>`:`<span class="ph">${ph}</span>`;
+    return `<button class="hi" onclick="act({action:'seek',value:${h.frame}})" title="Nhảy tới frame ${h.frame}">
+      <span class="thumbs">${im(h.before,'trước khi bị che','không ảnh')}<svg class="i" style="width:12px;height:12px"><use href="#i-arrow"/></svg>${im(h.after,'sau khi xuất hiện lại','không ảnh')}</span>
+      <span><span class="k" style="--c:${k[0]}">${k[1]}</span><span class="s">#${h.tid}${h.gap?` · che ${h.gap} frame (${(h.gap/(S.clip_fps||25)).toFixed(1)} s)`:''}<br/>frame ${h.frame} · ${fmt(h.frame)}</span></span></button>`;}).join('');}
+
+/* ---------- stream ---------- */
+const STATE={LOCKED:['Đang bám','seen'],REACQUIRED:['Vừa bắt lại','seen'],OCCLUDED_SEARCHING:['Bị che','hid'],AMBIGUOUS_HOLD:['Bị che','hid'],
+  HIJACKED_WRONG:['Đổi ID','new'],LOST_EXPIRED:['Mất dấu','bad'],IDLE:['–','']};
+const es=new EventSource('/api/stream');
+es.onerror=()=>flash('Mất kết nối tới máy chủ, đang thử lại…',3000);
+es.onmessage=ev=>{const d=JSON.parse(ev.data);S=d;$('model').textContent=d.label||'GapLink-Lite';
+  paintJobs(d.jobs||[]);paintVids(d.videos||[],d.cur&&d.cur.id);
+  const has=!!d.img;$('cv').classList.toggle('hidden',!has);$('drop').classList.toggle('hidden',has);$('badge').classList.toggle('hidden',!has);
+  if(!has){return;}
+  img.onload=()=>{if(cv.width!==img.width){cv.width=img.width;cv.height=img.height;fit();}ctx.drawImage(img,0,0);overlay();};img.src='data:image/jpeg;base64,'+d.img;
+  const ov=d.opts.overlay;$('badge').classList.toggle('raw',!ov);$('badgeTxt').textContent=ov?'LIVE · lớp hiển thị do hệ thống vẽ trực tiếp':'Video gốc · đã ẩn lớp hiển thị';
+  $('ovTxt').textContent=ov?'Ẩn lớp hiển thị':'Hiện lớp hiển thị';$('bOverlay').setAttribute('aria-pressed',!ov);
+  $('bPlay').innerHTML=`<svg class="i"><use href="#i-${d.paused?'play':'pause'}"/></svg>`;
+  $('tNow').textContent=fmt(d.frame);$('tAll').textContent=fmt(d.total);$('fNow').textContent=d.frame;$('fAll').textContent=d.total;
+  if(!drag)head(d.frame);paintEvents(d.events||[]);
+  document.querySelectorAll('[data-sp]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.sp===d.speed));
+  document.querySelectorAll('[data-m]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===d.mode));
+  $('zoneBox').classList.toggle('hidden',d.mode!=='route');
+  $('oIds').checked=d.opts.ids;$('oTrails').checked=d.opts.trails;$('oEll').checked=d.opts.ellipse;
+  const v=(d.videos||[]).find(v=>v.id===d.cur.id)||{};
+  $('srcKv').innerHTML=`<dt>Tệp</dt><dd>${esc(d.cur.file)}</dd><dt>Thời lượng</dt><dd>${v.seconds!=null?v.seconds+' s':'–'} · phát ở ${d.clip_fps} fps, ${d.W}×${d.H}</dd>
+    <dt>SHA-256</dt><dd class="hash" title="Click để chép" onclick="navigator.clipboard&&navigator.clipboard.writeText('${d.cur.sha256}');flash('Đã chép SHA-256')">${d.cur.sha256?esc(d.cur.sha256):'(video xử lý bằng lệnh, không qua tải lên)'}</dd>`;
+  const st=d.stats;$('sTracked').textContent=st.tracked;$('sHidden').textContent=st.hidden;$('sLinks').textContent=st.links;$('sLong').textContent=st.links_long;
+  $('sMax').textContent=st.longest||0;$('sFps').textContent=d.paused?'–':(d.fps??'–');
+  const L=st.lock,locked=L&&L.tid!=null;$('tgtEmpty').classList.toggle('hidden',locked);$('tgtBox').classList.toggle('hidden',!locked);
+  if(locked){$('tgtId').textContent='#'+L.tid;let s=STATE[L.state]||[L.state,''];if(L.state==='OCCLUDED_SEARCHING'||L.state==='AMBIGUOUS_HOLD')s=[`Bị che ${L.gap}f`,'hid'];
+    if(L.state==='HIJACKED_WRONG'&&L.new_tid!=null)s=[`Đổi sang #${L.new_tid}`,'new'];$('tgtState').textContent=s[0];$('tgtState').className='chip '+s[1];
+    $('tReacq').textContent=L.reacquired;$('tHidden').textContent=L.hidden_frames;$('tLongest').textContent=L.longest;
+    $('tgtSub').textContent=d.lock_frame!=null?`khóa ở frame ${d.lock_frame}`:'';}else $('tgtSub').textContent='';
+  if(Date.now()>hudT){const show=!locked&&!zone&&d.paused;$('hud').textContent='Click vào một xe để khóa mục tiêu và vẽ đường đi của nó';$('hud').classList.toggle('off',!show);}
+  if(d.hist_ver!==histVer)loadHist();};
+</script>
+</body>
+</html>

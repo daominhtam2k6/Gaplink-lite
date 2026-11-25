@@ -8,8 +8,6 @@ __pycache__/
 # Data and experiment outputs (regenerated locally; see README)
 data/
 runs/*
-!runs/vms_lite_check/
-!runs/vms_lite_check/metrics.json
 *.npy
 *.pkl
 *.log
@@ -17,6 +15,7 @@ runs/*
 # Large binaries: only the two frozen checkpoints are force-added
 release/*.pt
 *.mp4
+!demo/showcase/*.mp4
 
 # Generated figures and outputs (the report uses report/latex/figures)
 report/figures/
@@ -24,8 +23,6 @@ report/failure_cases/
 
 # Demo outputs and scratch clips
 demo/out/
-demo/sample_videos/zz_test_*
-demo/sample_videos/relink_test*
 
 # Local working notes (not part of the published project)
 docs/internal/
@@ -42,3 +39,8 @@ report/latex/*.run.xml
 report/latex/*.toc
 report/latex/*.log
 report/latex/*.synctex.gz
+
+# user videos for the console (raw uploads and prepared clips)
+demo/uploads/*
+!demo/uploads/.gitkeep
+demo/live_videos/

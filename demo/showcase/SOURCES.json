@@ -1,0 +1,72 @@
+[
+ {
+  "file": "demo1.mp4",
+  "sha256": "87e43bac216027bc34ebee1cd5feda06504be8e40f3cac80774fb052b704ecb5",
+  "dataset": "UA-DETRAC",
+  "split": "test",
+  "seq": "MVI_40901",
+  "frames": [
+   170,
+   325
+  ],
+  "n_frames": 156,
+  "fps": 25,
+  "note": "raw frames, no overlay; selected for the GapLink-only demo (scripts/select_demo_clips.py gaplink), not a reported result"
+ },
+ {
+  "file": "demo2.mp4",
+  "sha256": "6e93fa462118fe31de87c1e48cadb1544b57a619230f13de0db8fbfbf3c0a36e",
+  "dataset": "UA-DETRAC",
+  "split": "test",
+  "seq": "MVI_40743",
+  "frames": [
+   1365,
+   1495
+  ],
+  "n_frames": 131,
+  "fps": 25,
+  "note": "raw frames, no overlay; selected for the GapLink-only demo (scripts/select_demo_clips.py gaplink), not a reported result"
+ },
+ {
+  "file": "demo3.mp4",
+  "sha256": "fe99b6593625ac8ef0ec2a9bed43d0250309f4b805a844e41c716451a9e8750f",
+  "dataset": "UA-DETRAC",
+  "split": "test",
+  "seq": "MVI_40763",
+  "frames": [
+   155,
+   275
+  ],
+  "n_frames": 121,
+  "fps": 25,
+  "note": "raw frames, no overlay; selected for the GapLink-only demo (scripts/select_demo_clips.py gaplink), not a reported result"
+ },
+ {
+  "file": "demo4.mp4",
+  "sha256": "735b98ec9ac87fb18eaabc5d23ab0c267aad7551504bcad562364fb44b92d6f7",
+  "dataset": "UA-DETRAC",
+  "split": "test",
+  "seq": "MVI_40864",
+  "frames": [
+   410,
+   565
+  ],
+  "n_frames": 156,
+  "fps": 25,
+  "note": "raw frames, no overlay; selected for the GapLink-only demo (scripts/select_demo_clips.py gaplink), not a reported result"
+ },
+ {
+  "file": "demo5.mp4",
+  "sha256": "ece3b8381f98887b05574bfb88b8989dd9af57c489ce7d12e0cb4f93249b255d",
+  "dataset": "UA-DETRAC",
+  "split": "test",
+  "seq": "MVI_40855",
+  "frames": [
+   952,
+   1090
+  ],
+  "n_frames": 139,
+  "fps": 25,
+  "note": "raw frames, no overlay; selected for the GapLink-only demo (scripts/select_demo_clips.py gaplink), not a reported result"
+ }
+]
