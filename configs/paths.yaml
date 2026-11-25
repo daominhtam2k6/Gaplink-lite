@@ -1,14 +1,17 @@
-root_dir: D:/gaplink
-raw_dir: D:/gaplink/data/raw
-mot_dir: D:/gaplink/data/mot
-cache_dir: D:/gaplink/data/cache
-hist_dir: D:/gaplink/data/cache/hist
-pool_dir: D:/gaplink/data/cache/pool/train
-splits_csv: D:/gaplink/data/splits.csv
-classes_json: D:/gaplink/data/classes.json
-stats_json: D:/gaplink/data/stats.json
-runs_dir: D:/gaplink/runs
-release_dir: D:/gaplink/release
-report_dir: D:/gaplink/report
-demo_out_dir: D:/gaplink/demo/out
+# Paths relative to the project root (the folder that contains this configs/ directory).
+# An absolute path also works, e.g. to keep the data on another drive.
+root_dir: .
+raw_dir: data/raw
+mot_dir: data/mot
+cache_dir: data/cache
+hist_dir: data/cache/hist
+pool_dir: data/cache/pool/train
+splits_csv: data/splits.csv
+classes_json: data/classes.json
+stats_json: data/stats.json
+runs_dir: runs
+release_dir: release
+report_dir: report
+demo_out_dir: demo/out
+# Author's local copy of the SIC LaTeX template (only used by demo/render_security_demo.py when exporting figures)
 latex_template_dir: D:/Capstone-Project_latex/Capstone-Project_latex

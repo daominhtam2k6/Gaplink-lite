@@ -1,8 +1,8 @@
 """Freeze GapLink-Lite v1.1 results: hash every artifact the reported numbers depend on.
 
 Usage (Windows):
-    D:\\gaplink\\.venv\\Scripts\\python.exe D:\\gaplink\\scripts\\freeze_results.py           # verify
-    D:\\gaplink\\.venv\\Scripts\\python.exe D:\\gaplink\\scripts\\freeze_results.py --write   # (re)create manifest
+    .venv\\Scripts\\python.exe -m scripts.freeze_results           # verify (run from the project root)
+    .venv\\Scripts\\python.exe -m scripts.freeze_results --write   # (re)create manifest
 
 The manifest stores paths relative to root_dir (configs/paths.yaml) so it verifies on any machine.
 --write refuses to overwrite an existing manifest unless --force is given.
@@ -78,7 +78,7 @@ def resolve_root(cli_root: str | None) -> Path:
         return Path(cli_root)
     cfg = ROOT_DEFAULT / "configs" / "paths.yaml"
     if cfg.exists():
-        r = Path(yaml.safe_load(cfg.read_text(encoding="utf-8"))["root_dir"])
+        r = ROOT_DEFAULT / yaml.safe_load(cfg.read_text(encoding="utf-8"))["root_dir"]
         if r.exists():
             return r
     return ROOT_DEFAULT

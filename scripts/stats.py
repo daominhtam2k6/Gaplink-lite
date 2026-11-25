@@ -7,11 +7,13 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from src.io_mot import load_seq
 
+ROOT = Path(__file__).resolve().parents[1]  # project root, wherever the repo is unpacked
+
 
 def main():
-    mot_dir = Path(r"D:\gaplink\data\mot")
-    out_json = Path(r"D:\gaplink\data\stats.json")
-    fig_path = Path(r"D:\gaplink\report\figures\fig_class_hist.png")
+    mot_dir = ROOT / "data" / "mot"
+    out_json = ROOT / "data" / "stats.json"
+    fig_path = ROOT / "report" / "figures" / "fig_class_hist.png"
     fig_path.parent.mkdir(parents=True, exist_ok=True)
 
     mot_files = sorted([p for p in mot_dir.glob("*.txt") if not p.name.endswith("_ignore.txt")])

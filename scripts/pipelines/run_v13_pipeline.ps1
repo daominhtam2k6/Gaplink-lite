@@ -1,9 +1,10 @@
 # GapLink live v1.3: detector-aware fine-tuning -> chon tren VAL -> test 1 lan.
-# PowerShell:  powershell -ExecutionPolicy Bypass -File D:\gaplink\scripts\pipelines\run_v13_pipeline.ps1   (chay lai duoc, tu resume)
+# PowerShell:  powershell -ExecutionPolicy Bypass -File <project>\scripts\pipelines\run_v13_pipeline.ps1   (chay lai duoc, tu resume)
 $ErrorActionPreference = "Stop"
-Set-Location D:\gaplink
-$py = "D:\gaplink\.venv\Scripts\python.exe"
-$log = "D:\gaplink\runs\pipeline_v13.log"
+$root = (Resolve-Path "$PSScriptRoot\..\..").Path   # project root, wherever the repo is unpacked
+Set-Location $root
+$py = "$root\.venv\Scripts\python.exe"
+$log = "$root\runs\pipeline_v13.log"
 $seed = 20261121
 $run = "runs\live_v13_s$seed"
 function Step($name, [scriptblock]$cmd) {
@@ -12,7 +13,7 @@ function Step($name, [scriptblock]$cmd) {
     & $cmd 2>&1 | ForEach-Object { "$_" } | Tee-Object -FilePath $log -Append
     if ($LASTEXITCODE -ne 0) { "FAILED: $name (exit $LASTEXITCODE)" | Tee-Object -FilePath $log -Append; exit 1 }
 }
-Step "0. unit tests" { & D:\gaplink\.venv\Scripts\pytest.exe -c pytest.ini tests -q -p no:cacheprovider }
+Step "0. unit tests" { & "$root\.venv\Scripts\pytest.exe" -c pytest.ini tests -q -p no:cacheprovider }
 if (-not (git tag -l v1.3-prereg)) {
     Step "1. commit PREREG v1.3 + code BEFORE generating data / training" {
         git add docs/PREREG_live_v1.3.md docs/DEVIATIONS.md src/det_events.py tests/test_det_events.py scripts/gen_det_events.py scripts/finetune_live.py scripts/eval_live_v12.py run_v12_pipeline.ps1 run_v12b_pipeline.ps1 run_v13_pipeline.ps1

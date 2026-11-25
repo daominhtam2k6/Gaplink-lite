@@ -6,7 +6,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-ROOT = Path(r"D:\gaplink")
+ROOT = Path(__file__).resolve().parents[1]
 FIG_DIR = ROOT / "report" / "figures"
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 

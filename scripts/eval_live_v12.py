@@ -50,7 +50,7 @@ def sha256_file(p: Path) -> str:
 
 def paths():
     cfg = yaml.safe_load((ROOT / "configs" / "paths.yaml").read_text(encoding="utf-8"))
-    root = Path(cfg["root_dir"])
+    root = ROOT / cfg["root_dir"]  # relative entries are relative to the project root
     return root if root.exists() else ROOT
 
 

@@ -11,7 +11,7 @@
   ],
   "n_frames": 156,
   "fps": 25,
-  "note": "raw frames, no overlay; selected for the GapLink-only demo (scripts/select_demo_clips.py gaplink), not a reported result"
+  "note": "raw frames, no overlay; chosen by hand for the GapLink-only demo and checked against ground truth with scripts/check_showcase.py; not a reported result"
  },
  {
   "file": "demo2.mp4",
@@ -25,7 +25,7 @@
   ],
   "n_frames": 131,
   "fps": 25,
-  "note": "raw frames, no overlay; selected for the GapLink-only demo (scripts/select_demo_clips.py gaplink), not a reported result"
+  "note": "raw frames, no overlay; chosen by hand for the GapLink-only demo and checked against ground truth with scripts/check_showcase.py; not a reported result"
  },
  {
   "file": "demo3.mp4",
@@ -39,7 +39,7 @@
   ],
   "n_frames": 121,
   "fps": 25,
-  "note": "raw frames, no overlay; selected for the GapLink-only demo (scripts/select_demo_clips.py gaplink), not a reported result"
+  "note": "raw frames, no overlay; chosen by hand for the GapLink-only demo and checked against ground truth with scripts/check_showcase.py; not a reported result"
  },
  {
   "file": "demo4.mp4",
@@ -53,7 +53,7 @@
   ],
   "n_frames": 156,
   "fps": 25,
-  "note": "raw frames, no overlay; selected for the GapLink-only demo (scripts/select_demo_clips.py gaplink), not a reported result"
+  "note": "raw frames, no overlay; chosen by hand for the GapLink-only demo and checked against ground truth with scripts/check_showcase.py; not a reported result"
  },
  {
   "file": "demo5.mp4",
@@ -67,6 +67,6 @@
   ],
   "n_frames": 139,
   "fps": 25,
-  "note": "raw frames, no overlay; selected for the GapLink-only demo (scripts/select_demo_clips.py gaplink), not a reported result"
+  "note": "raw frames, no overlay; chosen by hand for the GapLink-only demo and checked against ground truth with scripts/check_showcase.py; not a reported result"
  }
 ]

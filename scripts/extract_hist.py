@@ -7,6 +7,8 @@ import cv2
 from src.io_mot import load_seq
 from src.events import partial_crop
 
+ROOT = Path(__file__).resolve().parents[1]  # project root, wherever the repo is unpacked
+
 
 def compute_box_hsv_hist_from_hsv(hsv_img: np.ndarray, cx: float, cy: float, w: float, h: float) -> np.ndarray:
     H_im, W_im = hsv_img.shape[:2]
@@ -27,8 +29,8 @@ def compute_box_hsv_hist_from_hsv(hsv_img: np.ndarray, cx: float, cy: float, w: 
 
 
 def process_one_seq(seq_name: str) -> tuple[str, int]:
-    mot_dir = Path(r"D:\gaplink\data\mot")
-    hist_dir = Path(r"D:\gaplink\data\cache\hist")
+    mot_dir = ROOT / "data" / "mot"
+    hist_dir = ROOT / "data" / "cache" / "hist"
     hist_dir.mkdir(parents=True, exist_ok=True)
     out_file = hist_dir / f"{seq_name}.npy"
 
@@ -82,7 +84,7 @@ def main():
     parser.add_argument("--workers", type=int, default=8)
     args = parser.parse_args()
 
-    mot_dir = Path(r"D:\gaplink\data\mot")
+    mot_dir = ROOT / "data" / "mot"
     seq_names = sorted([p.stem for p in mot_dir.glob("*.txt") if not p.name.endswith("_ignore.txt")])
     print(f"Extracting fast 5-view HSV histograms for {len(seq_names)} sequences with {args.workers} workers...")
     with Pool(args.workers) as pool:

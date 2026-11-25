@@ -5,7 +5,7 @@ deterministically from release/final.pt (CPU is fine) and MUST reproduce the fro
 aggregate numbers in release/results_v1.1/test_results.json; otherwise the script aborts.
 Tracker-level CIs are re-aggregated from the stored per-sequence records (no inference).
 
-    D:\\gaplink\\.venv\\Scripts\\python.exe -m scripts.rebootstrap_location
+    .venv\\Scripts\\python.exe -m scripts.rebootstrap_location
 Output: runs/test_final_locboot/location_bootstrap.json (+ copy in release/results_v1.1/)
 """
 from __future__ import annotations
@@ -45,7 +45,7 @@ def resolve_root(cli: str | None) -> Path:
     if cli:
         return Path(cli)
     cfg = ROOT / "configs" / "paths.yaml"
-    r = Path(yaml.safe_load(cfg.read_text(encoding="utf-8"))["root_dir"])
+    r = ROOT / yaml.safe_load(cfg.read_text(encoding="utf-8"))["root_dir"]
     return r if r.exists() else ROOT
 
 

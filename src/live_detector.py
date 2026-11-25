@@ -9,6 +9,8 @@ import torch
 from src.events import box_iou_cxcywh
 from src.io_mot import center_in_ignored
 
+ROOT = Path(__file__).resolve().parents[1]  # project root, wherever the repo is unpacked
+
 
 # COCO vehicle class IDs: 2=car, 3=motorcycle, 5=bus, 7=truck
 COCO_FOUR_WHEEL_CLASSES = (2, 5, 7)
@@ -85,7 +87,7 @@ class LiveVehicleDetector:
         from ultralytics import YOLO
 
         if weights is None:
-            default_rel = Path(r"D:\gaplink\release\yolov8n.pt")
+            default_rel = ROOT / "release" / "yolov8n.pt"
             weights = default_rel if default_rel.exists() else "yolov8n.pt"
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.model = YOLO(str(weights))

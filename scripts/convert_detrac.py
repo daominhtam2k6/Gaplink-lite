@@ -8,6 +8,8 @@ import numpy as np
 from lxml import etree
 from src.io_mot import center_in_ignored
 
+ROOT = Path(__file__).resolve().parents[1]  # project root, wherever the repo is unpacked
+
 CLASS_MAP = {
     "car": 1,
     "van": 2,
@@ -157,10 +159,10 @@ def convert_seq_folder(seq_dir: Path, source_split: str, xml_dir: Path, mot_dir:
 
 
 def main():
-    raw_dir = Path(r"D:\gaplink\data\raw")
+    raw_dir = ROOT / "data" / "raw"
     img_root = raw_dir / "images"
     xml_dir = raw_dir / "xml"
-    mot_dir = Path(r"D:\gaplink\data\mot")
+    mot_dir = ROOT / "data" / "mot"
     mot_dir.mkdir(parents=True, exist_ok=True)
 
     converted = []

@@ -1,8 +1,10 @@
 import csv
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[1]  # project root, wherever the repo is unpacked
+
 def test_splits_disjoint_if_exists():
-    splits_path = Path(r"D:\gaplink\data\splits.csv")
+    splits_path = ROOT / "data" / "splits.csv"
     if not splits_path.exists():
         return
     with open(splits_path, encoding="utf-8") as f:

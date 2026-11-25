@@ -23,7 +23,7 @@ from src.baselines import ConstantVelocityBaseline, KalmanMahalanobisBaseline
 from src.metrics_tracker import evaluate_tracker_on_seq
 from src.model.gaplink import GapLinkLite, GapLinkAssociator
 
-ROOT = Path(r"D:\gaplink")
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def sha256_file(p: Path) -> str:

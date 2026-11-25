@@ -6,7 +6,9 @@ import zipfile
 import subprocess
 from pathlib import Path
 
-RAW_DIR = Path(r"D:\gaplink\data\raw")
+ROOT = Path(__file__).resolve().parents[1]  # project root, wherever the repo is unpacked
+
+RAW_DIR = ROOT / "data" / "raw"
 IMG_ROOT = RAW_DIR / "images"
 
 EXPECTED_SIZES = {

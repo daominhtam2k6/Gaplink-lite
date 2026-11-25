@@ -1,9 +1,15 @@
 from pathlib import Path
+
+import pytest
 from src.io_mot import load_seq
 from src.inject import make_hide_plan, make_detections
 
+ROOT = Path(__file__).resolve().parents[1]  # project root, wherever the repo is unpacked
+
 def test_inject_density_and_determinism():
-    mot_dir = Path(r"D:\gaplink\data\mot")
+    mot_dir = ROOT / "data" / "mot"
+    if not (mot_dir / "MVI_20011.txt").exists():
+        pytest.skip("needs UA-DETRAC in data/mot (scripts.fetch_data + scripts.convert_detrac)")
     seq = load_seq(mot_dir, "MVI_20011")
     plan1 = make_hide_plan(seq, seed=77, max_density=0.18)
     plan2 = make_hide_plan(seq, seed=77, max_density=0.18)

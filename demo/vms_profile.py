@@ -26,7 +26,7 @@ DEFAULT_BASELINE = "C-3"
 def resolve_root() -> Path:
     cfg = ROOT / "configs" / "paths.yaml"
     if cfg.exists():
-        r = Path(yaml.safe_load(cfg.read_text(encoding="utf-8"))["root_dir"])
+        r = ROOT / yaml.safe_load(cfg.read_text(encoding="utf-8"))["root_dir"]
         if r.exists():
             return r
     return ROOT

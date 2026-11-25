@@ -24,7 +24,7 @@ STATIC_THR_PX = 1.0  # pre-registered: median global motion < 1.0 px/frame (nati
 def load_root() -> Path:
     import yaml
     cfg = yaml.safe_load((Path(__file__).resolve().parents[1] / "configs" / "paths.yaml").read_text(encoding="utf-8"))
-    return Path(cfg["root_dir"])
+    return Path(__file__).resolve().parents[1] / cfg["root_dir"]
 
 
 def read_annotation(p: Path) -> np.ndarray:

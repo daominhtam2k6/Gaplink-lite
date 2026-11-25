@@ -15,7 +15,7 @@ from src.dataset import EventListDataset, CurriculumPoolDataset, collate_padded_
 from src.eval_events import evaluate_predictions, bootstrap_cluster
 from src.model.gaplink import GapLinkLite
 
-ROOT = pathlib.Path(r"D:\gaplink")
+ROOT = pathlib.Path(__file__).resolve().parent
 
 
 def set_seed(seed: int):

@@ -29,7 +29,7 @@ def main():
     ap.add_argument("--splits", nargs="+", default=["train", "val"])
     a = ap.parse_args()
     cfg = yaml.safe_load((ROOT / "configs" / "paths.yaml").read_text(encoding="utf-8"))
-    root = Path(cfg["root_dir"]) if Path(cfg["root_dir"]).exists() else ROOT
+    root = ROOT / cfg["root_dir"] if (ROOT / cfg["root_dir"]).exists() else ROOT
 
     import scripts.eval_live_security as els
     from src.det_events import LoggingTracker, OracleAssociator

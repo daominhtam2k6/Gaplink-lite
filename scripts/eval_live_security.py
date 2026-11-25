@@ -23,7 +23,7 @@ from scipy.optimize import linear_sum_assignment
 import torch
 import yaml
 
-ROOT = Path(r"D:\gaplink")
+ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 

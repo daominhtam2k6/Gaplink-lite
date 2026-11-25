@@ -12,6 +12,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+ROOT = Path(__file__).resolve().parents[1]  # project root, wherever the repo is unpacked
+
 
 def compute_median_bg(img_dir: Path, n_samples: int = 35) -> np.ndarray:
     jpgs = sorted(img_dir.glob("*.jpg"))
@@ -43,9 +45,9 @@ def corr_dist_matrix(bgs: np.ndarray) -> np.ndarray:
 
 
 def main():
-    mot_dir = Path(r"D:\gaplink\data\mot")
-    splits_csv = Path(r"D:\gaplink\data\splits.csv")
-    fig_dir = Path(r"D:\gaplink\report\figures")
+    mot_dir = ROOT / "data" / "mot"
+    splits_csv = ROOT / "data" / "splits.csv"
+    fig_dir = ROOT / "report" / "figures"
     fig_dir.mkdir(parents=True, exist_ok=True)
 
     metas = []

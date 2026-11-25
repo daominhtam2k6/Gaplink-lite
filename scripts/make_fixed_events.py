@@ -13,6 +13,8 @@ from src.events import EventCfg, SeqIndex, sample_event
 from src.baselines import ConstantVelocityBaseline, KalmanMahalanobisBaseline, kalman_predict_1track
 from src.eval_events import evaluate_predictions, bootstrap_cluster
 
+ROOT = Path(__file__).resolve().parents[1]  # project root, wherever the repo is unpacked
+
 
 def sha256_file(p: Path) -> str:
     h = hashlib.sha256()
@@ -111,11 +113,11 @@ def compute_split_diagnostics(events: list[dict]) -> dict:
 
 
 def main():
-    mot_dir = Path(r"D:\gaplink\data\mot")
-    hist_dir = Path(r"D:\gaplink\data\cache\hist")
-    cache_dir = Path(r"D:\gaplink\data\cache")
-    runs_dir = Path(r"D:\gaplink\runs")
-    splits_csv = Path(r"D:\gaplink\data\splits.csv")
+    mot_dir = ROOT / "data" / "mot"
+    hist_dir = ROOT / "data" / "cache" / "hist"
+    cache_dir = ROOT / "data" / "cache"
+    runs_dir = ROOT / "runs"
+    splits_csv = ROOT / "data" / "splits.csv"
     cache_dir.mkdir(parents=True, exist_ok=True)
     runs_dir.mkdir(parents=True, exist_ok=True)
 

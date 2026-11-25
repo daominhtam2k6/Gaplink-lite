@@ -69,7 +69,7 @@ def main():
     a = ap.parse_args()
     cfg = {**CFG, "steps": a.steps, "seed": a.seed}
     paths = yaml.safe_load((ROOT / "configs" / "paths.yaml").read_text(encoding="utf-8"))
-    root = Path(paths["root_dir"]) if Path(paths["root_dir"]).exists() else ROOT
+    root = ROOT / paths["root_dir"] if (ROOT / paths["root_dir"]).exists() else ROOT
     torch.manual_seed(a.seed)
     rng = np.random.default_rng(a.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

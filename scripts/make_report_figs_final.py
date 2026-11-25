@@ -1,8 +1,7 @@
-"""Regenerate the report figures that had layout or labelling problems, plus the 3-video demo figure.
+"""Regenerate the report figures that had layout or labelling problems.
 
   fig_class_hist.png     : trajectory length / vehicles per frame (from data/mot, all 100 sequences)
   fig_event_gap_bins.png : Phase-1 event Top-1 by gap bin, frozen seed-1 checkpoint (release/results_v1.1/test_results.json)
-  fig_demo3_results.png  : the three demo clips (runs/vms_lite_check/metrics.json, written by `python -m demo.vms_lite --check`)
 
   .venv\\Scripts\\python.exe -m scripts.make_report_figs_final
 Figures are written to report/figures and report/latex/figures.
@@ -31,7 +30,7 @@ plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 10, "axes.edgeco
 
 def save(fig, name, tight=True):
     if tight:
-        fig.tight_layout(rect=(0, 0.06, 1, 1) if name == "fig_demo3_results.png" else (0, 0, 1, 1))
+        fig.tight_layout()
     p = OUT[0] / name
     p.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(p)
@@ -97,45 +96,10 @@ def fig_event_gap_bins():
     save(fig, "fig_event_gap_bins.png")
 
 
-def fig_demo3():
-    p = ROOT / "runs" / "vms_lite_check" / "metrics.json"
-    d = json.loads(p.read_text(encoding="utf-8"))
-    r1 = next(v for k, v in d.items() if not k.startswith("_") and v["scenario"] == "relink")
-    r2 = next(v for k, v in d.items() if not k.startswith("_") and v["scenario"] == "route")
-    r3 = next(v for k, v in d.items() if not k.startswith("_") and v["scenario"] == "lock")
-    panels = [("Video 1: identity recovery", ["Correct\nre-link", "Wrong\nlink", "New ID"],
-               [r1["bl"]["ok"], r1["bl"]["wrong"], r1["bl"]["missed"]], [r1["gl"]["ok"], r1["gl"]["wrong"], r1["gl"]["missed"]],
-               f"occluded vehicles: C-3 {r1['bl']['total']}, GapLink {r1['gl']['total']}"),
-              ("Video 2: forbidden route", ["Correct\nID", "Wrong\nID", "False\nviolation"],
-               [r2["bl"]["ok"], r2["bl"]["wrong_id"], r2["bl"]["false"]], [r2["gl"]["ok"], r2["gl"]["wrong_id"], r2["gl"]["false"]], ""),
-              ("Video 3: target following", ["Re-acquired", "Wrong car\n/ lost"],
-               [r3["bl"]["reacquired"], r3["bl"]["wrong"]], [r3["gl"]["reacquired"], r3["gl"]["wrong"]], "")]
-    fig, axes = plt.subplots(1, 3, figsize=(12, 4.2), gridspec_kw={"width_ratios": [3, 3, 2]})
-    for ax, (title, labels, bl, gl, note) in zip(axes, panels):
-        x = np.arange(len(labels))
-        for off, vals, m, lab in ((-0.19, bl, "C-3", "C-3 Kalman"), (0.19, gl, "GapLink-Lite", "GapLink-Lite v1.3")):
-            bars = ax.bar(x + off, vals, 0.36, color=COL[m], label=lab)
-            for b, v in zip(bars, vals):
-                ax.annotate(str(v), (b.get_x() + b.get_width() / 2, v), xytext=(0, 2), textcoords="offset points",
-                            ha="center", va="bottom", fontsize=9, color=INK)
-        ax.set_xticks(x)
-        ax.set_xticklabels(labels)
-        ax.set_title(title)
-        ax.set_ylim(0, max(bl + gl) * 1.22 + 1)
-        ax.set_title(title + (f"\n({note})" if note else "\n "), fontsize=10)
-        ax.yaxis.set_major_locator(matplotlib.ticker.MaxNLocator(integer=True))
-    axes[0].set_ylabel("Count on the clip")
-    h, l = axes[0].get_legend_handles_labels()
-    fig.legend(h, l, ncol=2, frameon=False, loc="lower center")
-    fig.subplots_adjust(bottom=0.2)
-    save(fig, "fig_demo3_results.png")
-
-
 def main():
     s = fig_class_hist()
     print("dataset:", s)
     fig_event_gap_bins()
-    fig_demo3()
 
 
 if __name__ == "__main__":

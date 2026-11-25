@@ -87,6 +87,8 @@ tests/           pytest suite (CPU only)
 
 Tested on Windows 11, Python 3.12, PyTorch 2.11 (CUDA 12.8), RTX 3050 Laptop 6 GB.
 
+Run every command from the project root (the folder that contains `README.md`); the project can be unpacked anywhere.
+
 ```powershell
 python -m venv .venv
 .venv\Scripts\pip install torch --index-url https://download.pytorch.org/whl/cu128
@@ -94,7 +96,16 @@ python -m venv .venv
 .venv\Scripts\python -m pytest -q
 ```
 
-All data and output paths are read from `configs/paths.yaml`. Edit it if the project is not in `D:\gaplink`.
+- **Paths.** Scripts locate the project root from their own file location; `configs/paths.yaml` holds paths relative to it.
+  An absolute `root_dir` can be set there to keep the data elsewhere.
+- **Detector weights.** `release/yolov8n.pt` (Ultralytics YOLOv8n, SHA-256 pinned in `release/FREEZE_MANIFEST.json`) is
+  needed by the demo and the live evaluation. It is shipped with the submitted source; if it is missing, download
+  `yolov8n.pt` from the Ultralytics releases into `release/`.
+- **Tests without data.** Four tests need the converted UA-DETRAC data or the cached event sets and are skipped until
+  the data steps below have been run; all other tests run on the CPU without data.
+- **Frozen results.** `release/results_v1.1/` and `release/results_v1.3/` are byte-identical copies of the result files
+  listed in the freeze manifests (same SHA-256). `scripts.freeze_results` checks the originals under `runs/` and
+  `data/cache/`, so it reports them as missing until the pipeline has been re-run.
 
 ## Running the demo
 

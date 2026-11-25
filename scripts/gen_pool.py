@@ -10,10 +10,12 @@ import numpy as np
 from src.io_mot import load_seq
 from src.events import EventCfg, SeqIndex, sample_event
 
+ROOT = Path(__file__).resolve().parents[1]  # project root, wherever the repo is unpacked
+
 def _worker_sample(args):
     seq_name, n_easy, n_hard, seed = args
-    mot_dir = Path(r"D:\gaplink\data\mot")
-    hist_dir = Path(r"D:\gaplink\data\cache\hist")
+    mot_dir = ROOT / "data" / "mot"
+    hist_dir = ROOT / "data" / "cache" / "hist"
     seq = load_seq(mot_dir, seq_name)
     if len(seq.tracks) < 2:
         return [], []
@@ -47,8 +49,8 @@ def main():
     parser.add_argument("--workers", type=int, default=8)
     args = parser.parse_args()
 
-    splits_csv = Path(r"D:\gaplink\data\splits.csv")
-    pool_dir = Path(r"D:\gaplink\data\cache\pool\train")
+    splits_csv = ROOT / "data" / "splits.csv"
+    pool_dir = ROOT / "data" / "cache" / "pool" / "train"
     pool_dir.mkdir(parents=True, exist_ok=True)
 
     with open(splits_csv, encoding="utf-8") as f:
